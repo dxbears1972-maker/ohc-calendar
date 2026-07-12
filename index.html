@@ -29,6 +29,15 @@
   }
   header h1 { font-size: 26px; }
   header p { font-size: 14px; opacity: .9; }
+  header #whoami { font-size: 16px; opacity: 1; margin-top: 2px; font-weight: bold; }
+  header #whoami a { color: #fff; font-weight: normal; font-size: 13px; }
+  .namebtn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 12px 0; margin-top: 10px;
+    background: #fff; color: #2e6b34;
+    border: 2px solid #2e6b34; border-radius: 10px;
+  }
   main { max-width: 640px; margin: 0 auto; padding: 12px; }
   .card {
     background: #fff;
@@ -129,6 +138,10 @@
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
   .attlist b.no { color: #666; }
+  .attlist a.attdel {
+    color: #b00020; font-size: 14px; font-weight: bold;
+    text-decoration: none; padding: 0 4px;
+  }
   .evdel { text-align: right; margin-top: 8px; }
   .evdel a { font-size: 14px; color: #b00020; }
   .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
@@ -177,15 +190,17 @@
 <header>
   <h1>OHC カレンダー</h1>
   <p>山行予定の共有と出欠確認</p>
+  <p id="whoami"></p>
 </header>
 
 <div id="status">読み込み中…</div>
 
 <main>
-  <!-- 名前 -->
-  <div class="card">
-    <label for="myname">あなたの名前（出欠の回答に使います）</label>
-    <input type="text" id="myname" placeholder="例）山田">
+  <!-- 名前選択（最初の1回だけ表示） -->
+  <div class="card" id="nameCard" style="display:none">
+    <h2>あなたの名前を選んでください</h2>
+    <p class="note">最初の1回だけです。次からは自動で覚えています。</p>
+    <div id="nameBtns"></div>
   </div>
 
   <!-- カレンダー -->
@@ -253,10 +268,15 @@
    ============================================================ */
 var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec';
 
-/* 管理者の名前（この人はどの予定でも削除できます） */
+/* 管理者の名前（この人はどの予定でも削除でき、出欠の回答も取り消せます） */
 var ADMIN_NAME = '只隈';
 
+/* メンバー一覧（増減したらここを修正してGitHubに上げ直す） */
+var MEMBERS = ['只隈', '杉野', '大原', '蓮尾', '宮本'];
+
 var WEEK = ['日','月','火','水','木','金','土'];
+var myName = '';
+function getName(){ return myName; }
 var state = {
   events: [],
   attendance: [],
@@ -420,6 +440,19 @@ function esc(s){
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function attNamesHtml(arr, evId, isAdmin, emptyText){
+  if (arr.length === 0) return emptyText;
+  var parts = [];
+  for (var i = 0; i < arr.length; i++){
+    var s = esc(arr[i]);
+    if (isAdmin){
+      s += '<a href="javascript:void(0)" class="attdel" onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">✕</a>';
+    }
+    parts.push(s);
+  }
+  return parts.join('、');
+}
+
 function attOf(evId){
   var r = { yes: [], maybe: [], no: [] };
   for (var i = 0; i < state.attendance.length; i++){
@@ -433,7 +466,7 @@ function attOf(evId){
 }
 
 function myStatus(evId){
-  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var name = getName();
   if (!name) return '';
   for (var i = 0; i < state.attendance.length; i++){
     var a = state.attendance[i];
@@ -460,7 +493,8 @@ function renderList(){
     return;
   }
 
-  var myn = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var myn = getName();
+  var isAdmin = (myn === ADMIN_NAME);
   var html = '';
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
@@ -488,9 +522,9 @@ function renderList(){
         '</div>'
       ) +
       '<div class="attlist">' +
-        '<b class="yes">参加 ' + att.yes.length + '人</b>：' + esc(att.yes.join('、') || 'まだいません') + '<br>' +
-        '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + esc(att.maybe.join('、') || '－') + '<br>' +
-        '<b class="no">不参加 ' + att.no.length + '人</b>：' + esc(att.no.join('、') || '－') +
+        '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
+        '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
+        '<b class="no">不参加 ' + att.no.length + '人</b>：' + attNamesHtml(att.no, ev.id, isAdmin, '－') +
       '</div>' +
       (canDel ?
         '<div class="evdel">' +
@@ -518,9 +552,10 @@ function moveMonth(diff){
 }
 
 function answer(evId, st){
-  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var name = getName();
   if (!name){
-    alert('先に、上の欄に「あなたの名前」を入れてください');
+    showNamePick();
+    alert('先に、あなたの名前を選んでください');
     return;
   }
   for (var i = 0; i < state.events.length; i++){
@@ -529,12 +564,17 @@ function answer(evId, st){
       return;
     }
   }
-  lsSet('ohcName', name);
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
 }
 
+function delAnswer(evId, name){
+  var myn = getName();
+  if (!confirm('「' + name + '」さんの回答を取り消します。よろしいですか？')) return;
+  post({ action: 'deleteAttendance', eventId: evId, name: name, requester: myn }, '回答を取り消しました');
+}
+
 function setLock(evId, lock){
-  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var name = getName();
   var msg = lock
     ? '出欠を締め切ります。メンバーは参加・不参加を変更できなくなります。よろしいですか？'
     : '締め切りを解除して、出欠を変更できるようにします。よろしいですか？';
@@ -544,7 +584,7 @@ function setLock(evId, lock){
 }
 
 function delEvent(evId, title){
-  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var name = getName();
   if (!confirm('「' + title + '」を削除します。よろしいですか？')) return;
   post({ action: 'deleteEvent', id: evId, name: name }, '削除しました');
 }
@@ -617,12 +657,12 @@ function submitAdd(){
     alert('その月に ' + d + '日 はありません。日付を確認してください');
     return;
   }
-  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var name = getName();
   if (!name){
-    alert('先に、上の欄に「あなたの名前」を入れてください\n（予定の削除は登録した本人だけができる仕組みのためです）');
+    showNamePick();
+    alert('先に、あなたの名前を選んでください\n（予定の削除は登録した本人だけができる仕組みのためです）');
     return;
   }
-  lsSet('ohcName', name);
 
   /* くり返し設定に応じて日付リストを作る */
   var dates = [];
@@ -660,6 +700,26 @@ function submitAdd(){
   closeAddForm();
 }
 
+/* ---------- 名前の選択 ---------- */
+function updateWho(){
+  $('whoami').innerHTML = myName
+    ? esc(myName) + ' さん　<a href="javascript:void(0)" onclick="showNamePick()">［名前を変更］</a>'
+    : '';
+}
+
+function chooseName(n){
+  myName = n;
+  lsSet('ohcName', n);
+  $('nameCard').style.display = 'none';
+  updateWho();
+  render();
+}
+
+function showNamePick(){
+  $('nameCard').style.display = 'block';
+  if ($('nameCard').scrollIntoView) $('nameCard').scrollIntoView(true);
+}
+
 /* ---------- 初期化 ---------- */
 function init(){
   var now = new Date();
@@ -678,11 +738,22 @@ function init(){
     }
   } catch(e){}
 
-  $('myname').value = lsGet('ohcName');
-  $('myname').onchange = function(){
-    lsSet('ohcName', $('myname').value.replace(/^\s+|\s+$/g, ''));
-    render();
-  };
+  /* 保存されている名前を読み込む（メンバー一覧にある名前だけ有効） */
+  var saved = lsGet('ohcName');
+  myName = '';
+  for (var ni = 0; ni < MEMBERS.length; ni++){
+    if (MEMBERS[ni] === saved) myName = saved;
+  }
+
+  /* 名前選択ボタンを作る */
+  var nb = '';
+  for (var nj = 0; nj < MEMBERS.length; nj++){
+    nb += '<button type="button" class="namebtn" onclick="chooseName(\'' + MEMBERS[nj] + '\')">' + MEMBERS[nj] + '</button>';
+  }
+  $('nameBtns').innerHTML = nb;
+
+  updateWho();
+  if (!myName) $('nameCard').style.display = 'block';
 
   $('prevM').onclick = function(){ moveMonth(-1); };
   $('nextM').onclick = function(){ moveMonth(1); };
