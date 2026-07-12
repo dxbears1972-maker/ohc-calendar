@@ -144,6 +144,15 @@
     color: #b00020; font-size: 14px; font-weight: bold;
     text-decoration: none; padding: 0 4px;
   }
+  .filelinks { margin-top: 8px; }
+  .filelinks a.filebtn {
+    display: inline-block;
+    font-size: 16px; font-weight: bold;
+    color: #2e6b34; background: #e8f4e9;
+    border: 2px solid #2e6b34; border-radius: 8px;
+    padding: 6px 14px; margin-right: 8px; margin-top: 4px;
+    text-decoration: none;
+  }
   .evdel { text-align: right; margin-top: 8px; }
   .evdel a { font-size: 14px; color: #b00020; }
   .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
@@ -251,6 +260,11 @@
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
+    <label>計画表のリンク（あれば）</label>
+    <input type="text" id="addPlan" placeholder="https://drive.google.com/…">
+    <label>報告書のリンク（あれば）</label>
+    <input type="text" id="addReport" placeholder="https://drive.google.com/…">
+    <p class="note">Googleドライブでファイルを開き「共有」→「リンクをコピー」（リンクを知っている全員が閲覧できる設定にする）で取ったURLを貼り付けてください。</p>
     <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
     <button class="cancelbtn" id="addCancel" type="button">やめる</button>
   </div>
@@ -520,12 +534,16 @@ function renderList(){
     if (ev.time)  info += '🕒 ' + esc(ev.time) + '<br>';
     if (ev.place) info += '📍 ' + esc(ev.place) + '<br>';
     if (ev.memo)  info += '📝 ' + esc(ev.memo) + '<br>';
+    var files = '';
+    if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
+    if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
       '<div class="evdate">' + fmtDate(ev.date) + '</div>' +
       '<div class="evtitle">' + esc(ev.title) + '</div>' +
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
       (ev.owner ? '<div class="evowner">登録：' + esc(ev.owner) + 'さん</div>' : '') +
+      (files ? '<div class="filelinks">' + files + '</div>' : '') +
       (locked ?
         '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>'
       :
@@ -620,6 +638,8 @@ function closeAddForm(){
   $('addMin').value = '00';
   $('addPlace').value = '';
   $('addMemo').value = '';
+  $('addPlan').value = '';
+  $('addReport').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
   editingId = '';
@@ -643,6 +663,8 @@ function editEvent(evId){
   $('addTitle').value = ev.title;
   $('addPlace').value = ev.place;
   $('addMemo').value = ev.memo;
+  $('addPlan').value = ev.plan || '';
+  $('addReport').value = ev.report || '';
   $('addHour').value = '';
   $('addMin').value = '00';
   var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
@@ -735,6 +757,14 @@ function submitAdd(){
     time = $('addHour').value + ':' + $('addMin').value;
   }
 
+  /* 計画表・報告書のリンク（貼るならhttpで始まるURL） */
+  var plan = $('addPlan').value.replace(/^\s+|\s+$/g, '');
+  var report = $('addReport').value.replace(/^\s+|\s+$/g, '');
+  if ((plan && plan.indexOf('http') !== 0) || (report && report.indexOf('http') !== 0)){
+    alert('リンクは https:// で始まるURLを貼り付けてください');
+    return;
+  }
+
   /* 編集モードなら既存の予定を書き換える */
   if (editingId){
     post({
@@ -745,6 +775,8 @@ function submitAdd(){
       time: time,
       place: $('addPlace').value,
       memo: $('addMemo').value,
+      plan: plan,
+      report: report,
       name: name
     }, '予定を変更しました');
     state.year = y;
@@ -760,6 +792,8 @@ function submitAdd(){
     time: time,
     place: $('addPlace').value,
     memo: $('addMemo').value,
+    plan: plan,
+    report: report,
     owner: name
   }, '予定を登録しました（' + dates.length + '件）');
   /* 追加した月を表示 */
@@ -797,7 +831,9 @@ function parseImport(text){
       title: title,
       time: time,
       place: (cols[3] || '').replace(/^\s+|\s+$/g, ''),
-      memo: (cols[4] || '').replace(/^\s+|\s+$/g, '')
+      memo: (cols[4] || '').replace(/^\s+|\s+$/g, ''),
+      plan: (cols[5] || '').replace(/^\s+|\s+$/g, ''),
+      report: (cols[6] || '').replace(/^\s+|\s+$/g, '')
     });
   }
   return { events: evs, errors: errs };
