@@ -30,14 +30,6 @@
   header h1 { font-size: 26px; }
   header p { font-size: 14px; opacity: .9; }
   header #whoami { font-size: 16px; opacity: 1; margin-top: 2px; font-weight: bold; }
-  header #whoami a { color: #fff; font-weight: normal; font-size: 13px; }
-  .namebtn {
-    display: block; width: 100%;
-    font-size: 22px; font-weight: bold;
-    padding: 12px 0; margin-top: 10px;
-    background: #fff; color: #2e6b34;
-    border: 2px solid #2e6b34; border-radius: 10px;
-  }
   main { max-width: 640px; margin: 0 auto; padding: 12px; }
   .card {
     background: #fff;
@@ -196,11 +188,10 @@
 <div id="status">読み込み中…</div>
 
 <main>
-  <!-- 名前選択（最初の1回だけ表示） -->
+  <!-- 名前が分からないときの案内 -->
   <div class="card" id="nameCard" style="display:none">
-    <h2>あなたの名前を選んでください</h2>
-    <p class="note">最初の1回だけです。次からは自動で覚えています。</p>
-    <div id="nameBtns"></div>
+    <h2>あなた専用のURLで開いてください</h2>
+    <p class="note">LINEで届いた「自分の名前入りのURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
   </div>
 
   <!-- カレンダー -->
@@ -446,7 +437,7 @@ function attNamesHtml(arr, evId, isAdmin, emptyText){
   for (var i = 0; i < arr.length; i++){
     var s = esc(arr[i]);
     if (isAdmin){
-      s += '<a href="javascript:void(0)" class="attdel" onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">✕</a>';
+      s += '<a href="javascript:void(0)" class="attdel" onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">[取消]</a>';
     }
     parts.push(s);
   }
@@ -555,7 +546,7 @@ function answer(evId, st){
   var name = getName();
   if (!name){
     showNamePick();
-    alert('先に、あなたの名前を選んでください');
+    alert('LINEで届いた、自分の名前入りのURLから開いてください');
     return;
   }
   for (var i = 0; i < state.events.length; i++){
@@ -660,7 +651,7 @@ function submitAdd(){
   var name = getName();
   if (!name){
     showNamePick();
-    alert('先に、あなたの名前を選んでください\n（予定の削除は登録した本人だけができる仕組みのためです）');
+    alert('LINEで届いた、自分の名前入りのURLから開いてください\n（誰が登録した予定か分かるようにするためです）');
     return;
   }
 
@@ -700,19 +691,9 @@ function submitAdd(){
   closeAddForm();
 }
 
-/* ---------- 名前の選択 ---------- */
+/* ---------- 名前の表示 ---------- */
 function updateWho(){
-  $('whoami').innerHTML = myName
-    ? esc(myName) + ' さん　<a href="javascript:void(0)" onclick="showNamePick()">［名前を変更］</a>'
-    : '';
-}
-
-function chooseName(n){
-  myName = n;
-  lsSet('ohcName', n);
-  $('nameCard').style.display = 'none';
-  updateWho();
-  render();
+  $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
 }
 
 function showNamePick(){
@@ -744,13 +725,6 @@ function init(){
   for (var ni = 0; ni < MEMBERS.length; ni++){
     if (MEMBERS[ni] === saved) myName = saved;
   }
-
-  /* 名前選択ボタンを作る */
-  var nb = '';
-  for (var nj = 0; nj < MEMBERS.length; nj++){
-    nb += '<button type="button" class="namebtn" onclick="chooseName(\'' + MEMBERS[nj] + '\')">' + MEMBERS[nj] + '</button>';
-  }
-  $('nameBtns').innerHTML = nb;
 
   updateWho();
   if (!myName) $('nameCard').style.display = 'block';
