@@ -55,7 +55,17 @@
     margin-top: 4px;
     background: #fff;
   }
-  input:focus, select:focus { border-color: #2e6b34; outline: none; }
+  textarea {
+    width: 100%;
+    font-size: 15px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #2e6b34; outline: none; }
 
   /* 状態表示 */
   #status {
@@ -241,6 +251,16 @@
     <input type="text" id="addMemo" placeholder="例）雨天中止">
     <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
     <button class="cancelbtn" id="addCancel" type="button">やめる</button>
+  </div>
+
+  <!-- まとめて登録（管理者専用） -->
+  <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
+  <div class="card" id="importCard" style="display:none">
+    <h2>まとめて登録（管理者用）</h2>
+    <p class="note">Excelで「日付・タイトル・時間・場所・メモ」の順（時間以降は省略可）に並べた表を範囲コピーして、下に貼り付けてください。</p>
+    <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
+    <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
+    <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
   <!-- 予定一覧 -->
@@ -691,6 +711,63 @@ function submitAdd(){
   closeAddForm();
 }
 
+/* ---------- まとめて登録（管理者用） ---------- */
+function parseImport(text){
+  var lines = text.split(/\r\n|\n|\r/);
+  var evs = [], errs = [];
+  var nowY = new Date().getFullYear();
+  for (var i = 0; i < lines.length; i++){
+    var line = lines[i].replace(/^\s+|\s+$/g, '');
+    if (!line) continue;
+    var cols = line.indexOf('\t') >= 0 ? line.split('\t') : line.split(',');
+    var dRaw = (cols[0] || '').replace(/^\s+|\s+$/g, '');
+    var title = (cols[1] || '').replace(/^\s+|\s+$/g, '');
+    var y = 0, mo = 0, d = 0;
+    var m = dRaw.match(/^(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})日?$/);
+    if (m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else {
+      m = dRaw.match(/^(\d{1,2})[\/\-月\.](\d{1,2})日?$/);
+      if (m){ y = nowY; mo = +m[1]; d = +m[2]; }
+    }
+    if (!m || !title){ errs.push((i + 1) + '行目'); continue; }
+    var chk = new Date(y, mo - 1, d);
+    if (chk.getMonth() !== mo - 1){ errs.push((i + 1) + '行目（日付）'); continue; }
+    var time = (cols[2] || '').replace(/^\s+|\s+$/g, '');
+    var tm = time.match(/^(\d{1,2}:\d{2}):\d{2}$/);
+    if (tm) time = tm[1];
+    evs.push({
+      date: dkey(y, mo, d),
+      title: title,
+      time: time,
+      place: (cols[3] || '').replace(/^\s+|\s+$/g, ''),
+      memo: (cols[4] || '').replace(/^\s+|\s+$/g, '')
+    });
+  }
+  return { events: evs, errors: errs };
+}
+
+function submitImport(){
+  var name = getName();
+  if (!name){ alert('名前入りのURLから開いてください'); return; }
+  var r = parseImport($('importText').value);
+  if (r.errors.length > 0){
+    alert('読み取れない行があります：' + r.errors.join('、') + '\n「日付、タイトル、時間…」の順になっているか確認してください');
+    return;
+  }
+  if (r.events.length === 0){ alert('登録する予定がありません。表を貼り付けてください'); return; }
+  var ex = r.events[0];
+  if (!confirm(r.events.length + '件の予定をまとめて登録します。よろしいですか？\n（1件目：' + ex.date + ' ' + ex.title + '）')) return;
+  post({ action: 'importEvents', events: r.events, owner: name },
+    '予定を登録しました（' + r.events.length + '件）');
+  $('importText').value = '';
+  closeImport();
+}
+
+function closeImport(){
+  $('importCard').style.display = 'none';
+  $('showImport').style.display = 'block';
+}
+
 /* ---------- 名前の表示 ---------- */
 function updateWho(){
   $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
@@ -728,6 +805,15 @@ function init(){
 
   updateWho();
   if (!myName) $('nameCard').style.display = 'block';
+
+  /* 管理者だけ「まとめて登録」ボタンを表示 */
+  if (myName === ADMIN_NAME) $('showImport').style.display = 'block';
+  $('showImport').onclick = function(){
+    $('importCard').style.display = 'block';
+    $('showImport').style.display = 'none';
+  };
+  $('importCancel').onclick = closeImport;
+  $('importBtn').onclick = submitImport;
 
   $('prevM').onclick = function(){ moveMonth(-1); };
   $('nextM').onclick = function(){ moveMonth(1); };
