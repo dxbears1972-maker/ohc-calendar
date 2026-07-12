@@ -224,8 +224,11 @@
     </div>
     <label>山名・タイトル（必須）</label>
     <input type="text" id="addTitle" placeholder="例）高尾山、例会 など">
-    <label>時間</label>
-    <input type="text" id="addTime" placeholder="例）8:00 集合、16:00〜 など">
+    <label>時間（集合・開始時刻）</label>
+    <table class="row3"><tr>
+      <td style="width:50%"><select id="addHour"></select></td>
+      <td style="width:50%"><select id="addMin"></select></td>
+    </tr></table>
     <label>集合場所</label>
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>メモ</label>
@@ -550,6 +553,7 @@ function openAddForm(y, m, d){
   $('addCard').style.display = 'block';
   $('showAdd').style.display = 'none';
   fillDateSelects(y, m, d);
+  if (!$('addHour').innerHTML) fillTimeSelects();
   if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
 }
 
@@ -557,11 +561,26 @@ function closeAddForm(){
   $('addCard').style.display = 'none';
   $('showAdd').style.display = 'block';
   $('addTitle').value = '';
-  $('addTime').value = '';
+  $('addHour').value = '';
+  $('addMin').value = '00';
   $('addPlace').value = '';
   $('addMemo').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
+}
+
+function fillTimeSelects(){
+  var html = '<option value="">時間なし</option>';
+  for (var h = 0; h <= 23; h++){
+    html += '<option value="' + h + '">' + h + '時</option>';
+  }
+  $('addHour').innerHTML = html;
+  html = '';
+  for (var mi = 0; mi < 60; mi += 5){
+    var mv = (mi < 10 ? '0' : '') + mi;
+    html += '<option value="' + mv + '">' + mv + '分</option>';
+  }
+  $('addMin').innerHTML = html;
 }
 
 function fillDateSelects(y, m, d){
@@ -621,11 +640,16 @@ function submitAdd(){
     dates.push(dkey(y, m, d));
   }
 
+  var time = '';
+  if ($('addHour').value !== ''){
+    time = $('addHour').value + ':' + $('addMin').value;
+  }
+
   post({
     action: 'addEvents',
     dates: dates,
     title: title,
-    time: $('addTime').value,
+    time: time,
     place: $('addPlace').value,
     memo: $('addMemo').value,
     owner: name
