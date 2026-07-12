@@ -232,6 +232,9 @@
    ============================================================ */
 var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec';
 
+/* 管理者の名前（この人はどの予定でも削除できます） */
+var ADMIN_NAME = '只隈';
+
 var WEEK = ['日','月','火','水','木','金','土'];
 var state = {
   events: [],
@@ -303,6 +306,7 @@ function post(body, doneMsg){
   setStatus('送信中…');
   api('POST', body, function(err, data){
     if (err){ setStatus('送信に失敗しました。もう一度お試しください。', true); return; }
+    if (data && data.error){ setStatus(data.error, true); return; }
     setStatus(doneMsg || '');
     applyData(data);
   });
@@ -435,11 +439,13 @@ function renderList(){
     return;
   }
 
+  var myn = $('myname').value.replace(/^\s+|\s+$/g, '');
   var html = '';
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
     var att = attOf(ev.id);
     var mine = myStatus(ev.id);
+    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || myn === ADMIN_NAME));
     var info = '';
     if (ev.time)  info += '🕒 ' + esc(ev.time) + '<br>';
     if (ev.place) info += '📍 ' + esc(ev.place) + '<br>';
@@ -460,7 +466,7 @@ function renderList(){
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + esc(att.maybe.join('、') || '－') + '<br>' +
         '<b class="no">不参加 ' + att.no.length + '人</b>：' + esc(att.no.join('、') || '－') +
       '</div>' +
-      '<div class="evdel"><a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a></div>' +
+      (canDel ? '<div class="evdel"><a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a></div>' : '') +
     '</div>';
   }
   $('evList').innerHTML = html;
@@ -491,8 +497,9 @@ function answer(evId, st){
 }
 
 function delEvent(evId, title){
+  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
   if (!confirm('「' + title + '」を削除します。よろしいですか？')) return;
-  post({ action: 'deleteEvent', id: evId }, '削除しました');
+  post({ action: 'deleteEvent', id: evId, name: name }, '削除しました');
 }
 
 function openAddForm(y, m, d){
@@ -548,7 +555,11 @@ function submitAdd(){
     return;
   }
   var name = $('myname').value.replace(/^\s+|\s+$/g, '');
-  if (name) lsSet('ohcName', name);
+  if (!name){
+    alert('先に、上の欄に「あなたの名前」を入れてください\n（予定の削除は登録した本人だけができる仕組みのためです）');
+    return;
+  }
+  lsSet('ohcName', name);
 
   /* くり返し設定に応じて日付リストを作る */
   var dates = [];
