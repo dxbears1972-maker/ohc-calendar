@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2e6b34">
+<title>OHC カレンダー</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 18px;
+    background: #eef3ee;
+    color: #222;
+    line-height: 1.6;
+    padding-bottom: 30px;
+  }
+  header {
+    background: #2e6b34;
+    color: #fff;
+    padding: 14px;
+    text-align: center;
+  }
+  header h1 { font-size: 26px; }
+  header p { font-size: 14px; opacity: .9; }
+  main { max-width: 640px; margin: 0 auto; padding: 12px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card h2 {
+    font-size: 20px;
+    color: #2e6b34;
+    border-left: 6px solid #2e6b34;
+    padding-left: 10px;
+    margin-bottom: 10px;
+  }
+  label { font-size: 16px; font-weight: bold; display: block; margin-top: 10px; }
+  input[type=text], select {
+    width: 100%;
+    font-size: 20px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+  }
+  input:focus, select:focus { border-color: #2e6b34; outline: none; }
+
+  /* 状態表示 */
+  #status {
+    text-align: center;
+    font-size: 15px;
+    padding: 6px;
+    color: #555;
+    min-height: 30px;
+  }
+  #status.err { color: #b00020; font-weight: bold; }
+
+  /* 月ナビ */
+  .monthnav { width: 100%; border-collapse: collapse; }
+  .monthnav td { text-align: center; vertical-align: middle; }
+  .monthnav .mv {
+    width: 70px; height: 44px;
+    font-size: 22px;
+    border: 2px solid #2e6b34;
+    background: #fff;
+    color: #2e6b34;
+    border-radius: 8px;
+  }
+  .monthnav .ym { font-size: 22px; font-weight: bold; color: #2e6b34; }
+
+  /* カレンダー本体 */
+  table.cal { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  table.cal th {
+    font-size: 14px; padding: 4px 0;
+    background: #e3eee4; color: #444;
+    border: 1px solid #cdd8ce;
+  }
+  table.cal th.sun, table.cal td.sun .dnum { color: #c62828; }
+  table.cal th.sat, table.cal td.sat .dnum { color: #1565c0; }
+  table.cal td {
+    border: 1px solid #cdd8ce;
+    height: 56px;
+    vertical-align: top;
+    padding: 2px;
+    background: #fff;
+  }
+  table.cal td.out { background: #f2f2f2; }
+  table.cal td.today { background: #fff8d6; }
+  table.cal td .dnum { font-size: 15px; }
+  table.cal td .marks { font-size: 13px; color: #2e6b34; line-height: 1.2; word-break: break-all; }
+  table.cal td.hasev { background: #e8f4e9; }
+  table.cal td.hasev.today { background: #fff8d6; }
+
+  /* 予定カード */
+  .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 12px; margin-top: 12px; background: #fff; }
+  .ev .evdate { font-size: 17px; font-weight: bold; color: #2e6b34; }
+  .ev .evdate .sun { color: #c62828; }
+  .ev .evdate .sat { color: #1565c0; }
+  .ev .evtitle { font-size: 22px; font-weight: bold; margin: 2px 0 6px; }
+  .ev .evinfo { font-size: 16px; color: #444; }
+  .ev .evowner { font-size: 14px; color: #888; margin-top: 4px; }
+
+  /* 出欠ボタン */
+  .attbtns { margin-top: 10px; }
+  .attbtns button {
+    width: 32%;
+    font-size: 18px;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: 2px solid #aaa;
+    background: #fff;
+    margin-right: 1%;
+  }
+  .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
+  .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
+  .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
+  .attlist { font-size: 15px; margin-top: 8px; background: #f5f8f5; border-radius: 8px; padding: 8px 10px; }
+  .attlist b.yes { color: #2e6b34; }
+  .attlist b.maybe { color: #b57e00; }
+  .attlist b.no { color: #666; }
+  .evdel { text-align: right; margin-top: 8px; }
+  .evdel a { font-size: 14px; color: #b00020; }
+
+  /* 追加ボタン・フォーム */
+  .bigbtn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 14px 0;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 12px;
+    margin-top: 16px;
+  }
+  .bigbtn.gray { background: #789a7c; }
+  .row3 { width: 100%; border-collapse: collapse; }
+  .row3 td { padding-right: 6px; }
+  .row3 td:last-child { padding-right: 0; }
+  .subbtn {
+    width: 100%; font-size: 20px; font-weight: bold;
+    padding: 12px 0; margin-top: 14px;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 10px;
+  }
+  .cancelbtn {
+    width: 100%; font-size: 16px;
+    padding: 8px 0; margin-top: 8px;
+    background: #fff; color: #666;
+    border: 2px solid #bbb; border-radius: 10px;
+  }
+  .note { font-size: 14px; color: #777; margin-top: 6px; }
+  #noev { text-align: center; color: #888; padding: 16px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OHC カレンダー</h1>
+  <p>山行予定の共有と出欠確認</p>
+</header>
+
+<div id="status">読み込み中…</div>
+
+<main>
+  <!-- 名前 -->
+  <div class="card">
+    <label for="myname">あなたの名前（出欠の回答に使います）</label>
+    <input type="text" id="myname" placeholder="例）山田">
+  </div>
+
+  <!-- カレンダー -->
+  <div class="card">
+    <table class="monthnav"><tr>
+      <td><button class="mv" id="prevM" type="button">◀</button></td>
+      <td class="ym" id="ymLabel"></td>
+      <td><button class="mv" id="nextM" type="button">▶</button></td>
+    </tr></table>
+    <table class="cal" id="calTable"></table>
+    <p class="note">緑色の日は予定あり。日付を押すとその予定に移動します。</p>
+  </div>
+
+  <!-- 予定追加 -->
+  <button class="bigbtn" id="showAdd" type="button">＋ 予定を追加する</button>
+  <div class="card" id="addCard" style="display:none">
+    <h2>予定を追加</h2>
+    <label>日付</label>
+    <table class="row3"><tr>
+      <td style="width:38%"><select id="addY"></select></td>
+      <td style="width:31%"><select id="addM"></select></td>
+      <td style="width:31%"><select id="addD"></select></td>
+    </tr></table>
+    <label>山名・タイトル（必須）</label>
+    <input type="text" id="addTitle" placeholder="例）高尾山">
+    <label>集合時間</label>
+    <input type="text" id="addTime" placeholder="例）8:00 集合">
+    <label>集合場所</label>
+    <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
+    <label>メモ</label>
+    <input type="text" id="addMemo" placeholder="例）雨天中止">
+    <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
+    <button class="cancelbtn" id="addCancel" type="button">やめる</button>
+  </div>
+
+  <!-- 予定一覧 -->
+  <div class="card">
+    <h2 id="listTitle">今月の予定</h2>
+    <div id="evList"></div>
+  </div>
+
+  <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
+</main>
+
+<script>
+/* ============================================================
+   ここに GAS のウェブアプリURL を貼り付けてください
+   （https://script.google.com/macros/s/…/exec で終わるURL）
+   ============================================================ */
+var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec';
+
+var WEEK = ['日','月','火','水','木','金','土'];
+var state = {
+  events: [],
+  attendance: [],
+  year: 0,
+  month: 0   /* 1〜12 */
+};
+
+/* ---------- 便利関数 ---------- */
+function $(id){ return document.getElementById(id); }
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function dkey(y, m, d){ return y + '-' + pad2(m) + '-' + pad2(d); }
+
+function lsGet(k){ try { return window.localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+function lsSet(k, v){ try { window.localStorage.setItem(k, v); } catch(e){} }
+
+function setStatus(msg, isErr){
+  var s = $('status');
+  s.innerHTML = msg || '';
+  s.className = isErr ? 'err' : '';
+}
+
+/* ---------- 通信 ---------- */
+function api(method, body, cb){
+  if (API_URL.indexOf('http') !== 0){
+    setStatus('設定が終わっていません（GASのURLが未設定です）', true);
+    return;
+  }
+  var xhr = new XMLHttpRequest();
+  var url = API_URL;
+  if (method === 'GET'){
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + new Date().getTime();
+    xhr.open('GET', url, true);
+  } else {
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+  }
+  xhr.onreadystatechange = function(){
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300){
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch(e){}
+      if (data){ cb(null, data); } else { cb(true); }
+    } else {
+      cb(true);
+    }
+  };
+  try {
+    xhr.send(method === 'GET' ? null : JSON.stringify(body));
+  } catch(e){ cb(true); }
+}
+
+function applyData(data){
+  state.events = data.events || [];
+  state.attendance = data.attendance || [];
+  render();
+}
+
+function load(){
+  setStatus('読み込み中…');
+  api('GET', null, function(err, data){
+    if (err){ setStatus('読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true); return; }
+    setStatus('');
+    applyData(data);
+  });
+}
+
+function post(body, doneMsg){
+  setStatus('送信中…');
+  api('POST', body, function(err, data){
+    if (err){ setStatus('送信に失敗しました。もう一度お試しください。', true); return; }
+    setStatus(doneMsg || '');
+    applyData(data);
+  });
+}
+
+/* ---------- カレンダー描画 ---------- */
+function eventsOn(key){
+  var r = [];
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].date === key) r.push(state.events[i]);
+  }
+  return r;
+}
+
+function renderCalendar(){
+  var y = state.year, m = state.month;
+  $('ymLabel').innerHTML = y + '年' + m + '月';
+  $('listTitle').innerHTML = m + '月の予定';
+
+  var first = new Date(y, m - 1, 1);
+  var startDow = first.getDay();
+  var days = new Date(y, m, 0).getDate();
+  var now = new Date();
+  var todayKey = dkey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+  var html = '<tr>';
+  for (var w = 0; w < 7; w++){
+    var cls = w === 0 ? ' class="sun"' : (w === 6 ? ' class="sat"' : '');
+    html += '<th' + cls + '>' + WEEK[w] + '</th>';
+  }
+  html += '</tr>';
+
+  var cell = 0;
+  var d = 1;
+  while (d <= days){
+    html += '<tr>';
+    for (var c = 0; c < 7; c++){
+      if ((cell < startDow) || d > days){
+        html += '<td class="out"></td>';
+      } else {
+        var key = dkey(y, m, d);
+        var evs = eventsOn(key);
+        var classes = [];
+        if (c === 0) classes.push('sun');
+        if (c === 6) classes.push('sat');
+        if (evs.length > 0) classes.push('hasev');
+        if (key === todayKey) classes.push('today');
+        var marks = '';
+        for (var e = 0; e < evs.length && e < 2; e++){
+          var t = evs[e].title;
+          if (t.length > 4) t = t.substring(0, 4) + '…';
+          marks += '●' + t + '<br>';
+        }
+        if (evs.length > 2) marks += '他' + (evs.length - 2) + '件';
+        html += '<td class="' + classes.join(' ') + '" onclick="tapDay(' + d + ')">' +
+                '<div class="dnum">' + d + '</div>' +
+                '<div class="marks">' + marks + '</div></td>';
+        d++;
+      }
+      cell++;
+    }
+    html += '</tr>';
+  }
+  $('calTable').innerHTML = html;
+}
+
+function tapDay(d){
+  var key = dkey(state.year, state.month, d);
+  var evs = eventsOn(key);
+  if (evs.length > 0){
+    var el = $('ev-' + evs[0].id);
+    if (el && el.scrollIntoView) el.scrollIntoView(true);
+  } else {
+    /* 予定がない日 → 追加フォームをその日付で開く */
+    openAddForm(state.year, state.month, d);
+  }
+}
+
+/* ---------- 予定一覧描画 ---------- */
+function fmtDate(key){
+  var p = key.split('-');
+  var y = parseInt(p[0], 10), m = parseInt(p[1], 10), d = parseInt(p[2], 10);
+  var dow = new Date(y, m - 1, d).getDay();
+  var wcls = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
+  return m + '月' + d + '日 <span class="' + wcls + '">(' + WEEK[dow] + ')</span>';
+}
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function attOf(evId){
+  var r = { yes: [], maybe: [], no: [] };
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId !== evId) continue;
+    if (a.status === 'yes') r.yes.push(a.name);
+    else if (a.status === 'maybe') r.maybe.push(a.name);
+    else if (a.status === 'no') r.no.push(a.name);
+  }
+  return r;
+}
+
+function myStatus(evId){
+  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  if (!name) return '';
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId === evId && a.name === name) return a.status;
+  }
+  return '';
+}
+
+function renderList(){
+  var y = state.year, m = state.month;
+  var prefix = y + '-' + pad2(m);
+  var list = [];
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].date.indexOf(prefix) === 0) list.push(state.events[i]);
+  }
+  list.sort(function(a, b){
+    if (a.date < b.date) return -1;
+    if (a.date > b.date) return 1;
+    return 0;
+  });
+
+  if (list.length === 0){
+    $('evList').innerHTML = '<div id="noev">この月の予定はまだありません</div>';
+    return;
+  }
+
+  var html = '';
+  for (var j = 0; j < list.length; j++){
+    var ev = list[j];
+    var att = attOf(ev.id);
+    var mine = myStatus(ev.id);
+    var info = '';
+    if (ev.time)  info += '🕒 ' + esc(ev.time) + '<br>';
+    if (ev.place) info += '📍 ' + esc(ev.place) + '<br>';
+    if (ev.memo)  info += '📝 ' + esc(ev.memo) + '<br>';
+
+    html += '<div class="ev" id="ev-' + ev.id + '">' +
+      '<div class="evdate">' + fmtDate(ev.date) + '</div>' +
+      '<div class="evtitle">' + esc(ev.title) + '</div>' +
+      (info ? '<div class="evinfo">' + info + '</div>' : '') +
+      (ev.owner ? '<div class="evowner">登録：' + esc(ev.owner) + 'さん</div>' : '') +
+      '<div class="attbtns">' +
+        '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
+        '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
+        '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
+      '</div>' +
+      '<div class="attlist">' +
+        '<b class="yes">参加 ' + att.yes.length + '人</b>：' + esc(att.yes.join('、') || 'まだいません') + '<br>' +
+        '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + esc(att.maybe.join('、') || '－') + '<br>' +
+        '<b class="no">不参加 ' + att.no.length + '人</b>：' + esc(att.no.join('、') || '－') +
+      '</div>' +
+      '<div class="evdel"><a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a></div>' +
+    '</div>';
+  }
+  $('evList').innerHTML = html;
+}
+
+function render(){
+  renderCalendar();
+  renderList();
+}
+
+/* ---------- 操作 ---------- */
+function moveMonth(diff){
+  var m = state.month + diff;
+  if (m < 1){ m = 12; state.year--; }
+  if (m > 12){ m = 1; state.year++; }
+  state.month = m;
+  render();
+}
+
+function answer(evId, st){
+  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  if (!name){
+    alert('先に、上の欄に「あなたの名前」を入れてください');
+    return;
+  }
+  lsSet('ohcName', name);
+  post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+}
+
+function delEvent(evId, title){
+  if (!confirm('「' + title + '」を削除します。よろしいですか？')) return;
+  post({ action: 'deleteEvent', id: evId }, '削除しました');
+}
+
+function openAddForm(y, m, d){
+  $('addCard').style.display = 'block';
+  $('showAdd').style.display = 'none';
+  fillDateSelects(y, m, d);
+  if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
+}
+
+function closeAddForm(){
+  $('addCard').style.display = 'none';
+  $('showAdd').style.display = 'block';
+  $('addTitle').value = '';
+  $('addTime').value = '';
+  $('addPlace').value = '';
+  $('addMemo').value = '';
+}
+
+function fillDateSelects(y, m, d){
+  var now = new Date();
+  var thisY = now.getFullYear();
+  var html = '', i;
+  for (i = thisY; i <= thisY + 1; i++){
+    html += '<option value="' + i + '"' + (i === y ? ' selected' : '') + '>' + i + '年</option>';
+  }
+  $('addY').innerHTML = html;
+  html = '';
+  for (i = 1; i <= 12; i++){
+    html += '<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + i + '月</option>';
+  }
+  $('addM').innerHTML = html;
+  html = '';
+  for (i = 1; i <= 31; i++){
+    html += '<option value="' + i + '"' + (i === d ? ' selected' : '') + '>' + i + '日</option>';
+  }
+  $('addD').innerHTML = html;
+}
+
+function submitAdd(){
+  var title = $('addTitle').value.replace(/^\s+|\s+$/g, '');
+  if (!title){
+    alert('山名・タイトルを入れてください');
+    return;
+  }
+  var y = parseInt($('addY').value, 10);
+  var m = parseInt($('addM').value, 10);
+  var d = parseInt($('addD').value, 10);
+  var check = new Date(y, m - 1, d);
+  if (check.getMonth() !== m - 1){
+    alert('その月に ' + d + '日 はありません。日付を確認してください');
+    return;
+  }
+  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  if (name) lsSet('ohcName', name);
+  post({
+    action: 'addEvent',
+    date: dkey(y, m, d),
+    title: title,
+    time: $('addTime').value,
+    place: $('addPlace').value,
+    memo: $('addMemo').value,
+    owner: name
+  }, '予定を登録しました');
+  /* 追加した月を表示 */
+  state.year = y;
+  state.month = m;
+  closeAddForm();
+}
+
+/* ---------- 初期化 ---------- */
+function init(){
+  var now = new Date();
+  state.year = now.getFullYear();
+  state.month = now.getMonth() + 1;
+
+  $('myname').value = lsGet('ohcName');
+  $('myname').onchange = function(){
+    lsSet('ohcName', $('myname').value.replace(/^\s+|\s+$/g, ''));
+    render();
+  };
+
+  $('prevM').onclick = function(){ moveMonth(-1); };
+  $('nextM').onclick = function(){ moveMonth(1); };
+  $('showAdd').onclick = function(){
+    var n = new Date();
+    openAddForm(state.year, state.month, state.year === n.getFullYear() && state.month === n.getMonth() + 1 ? n.getDate() : 1);
+  };
+  $('addCancel').onclick = closeAddForm;
+  $('addBtn').onclick = submitAdd;
+  $('reloadBtn').onclick = load;
+
+  render();
+  load();
+}
+init();
+</script>
+</body>
+</html>
