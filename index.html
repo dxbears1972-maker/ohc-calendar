@@ -191,10 +191,23 @@
       <td style="width:31%"><select id="addM"></select></td>
       <td style="width:31%"><select id="addD"></select></td>
     </tr></table>
+    <label>くり返し</label>
+    <select id="addRep">
+      <option value="none">なし（この日だけ）</option>
+      <option value="week">毎週（同じ曜日にくり返す）</option>
+    </select>
+    <div id="repLenWrap" style="display:none">
+      <label>いつの分まで登録するか</label>
+      <select id="addRepLen">
+        <option value="1">1ヶ月分</option>
+        <option value="3" selected>3ヶ月分</option>
+        <option value="6">6ヶ月分</option>
+      </select>
+    </div>
     <label>山名・タイトル（必須）</label>
-    <input type="text" id="addTitle" placeholder="例）高尾山">
-    <label>集合時間</label>
-    <input type="text" id="addTime" placeholder="例）8:00 集合">
+    <input type="text" id="addTitle" placeholder="例）高尾山、例会 など">
+    <label>時間</label>
+    <input type="text" id="addTime" placeholder="例）8:00 集合、16:00〜 など">
     <label>集合場所</label>
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>メモ</label>
@@ -496,6 +509,8 @@ function closeAddForm(){
   $('addTime').value = '';
   $('addPlace').value = '';
   $('addMemo').value = '';
+  $('addRep').value = 'none';
+  $('repLenWrap').style.display = 'none';
 }
 
 function fillDateSelects(y, m, d){
@@ -534,15 +549,32 @@ function submitAdd(){
   }
   var name = $('myname').value.replace(/^\s+|\s+$/g, '');
   if (name) lsSet('ohcName', name);
+
+  /* くり返し設定に応じて日付リストを作る */
+  var dates = [];
+  if ($('addRep').value === 'week'){
+    var months = parseInt($('addRepLen').value, 10);
+    var endDt = new Date(y, m - 1 + months, d);
+    var cur = new Date(y, m - 1, d);
+    var guard = 0;
+    while (cur <= endDt && guard < 60){
+      dates.push(dkey(cur.getFullYear(), cur.getMonth() + 1, cur.getDate()));
+      cur.setDate(cur.getDate() + 7);
+      guard++;
+    }
+  } else {
+    dates.push(dkey(y, m, d));
+  }
+
   post({
-    action: 'addEvent',
-    date: dkey(y, m, d),
+    action: 'addEvents',
+    dates: dates,
     title: title,
     time: $('addTime').value,
     place: $('addPlace').value,
     memo: $('addMemo').value,
     owner: name
-  }, '予定を登録しました');
+  }, '予定を登録しました（' + dates.length + '件）');
   /* 追加した月を表示 */
   state.year = y;
   state.month = m;
@@ -554,6 +586,18 @@ function init(){
   var now = new Date();
   state.year = now.getFullYear();
   state.month = now.getMonth() + 1;
+
+  /* URLに ?name=○○ が付いていたら、その名前を自動セット */
+  try {
+    var q = window.location.search;
+    var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
+    if (mm){
+      var qn = '';
+      try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
+      qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
+      if (qn) lsSet('ohcName', qn);
+    }
+  } catch(e){}
 
   $('myname').value = lsGet('ohcName');
   $('myname').onchange = function(){
@@ -569,6 +613,9 @@ function init(){
   };
   $('addCancel').onclick = closeAddForm;
   $('addBtn').onclick = submitAdd;
+  $('addRep').onchange = function(){
+    $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
+  };
   $('reloadBtn').onclick = load;
 
   render();
