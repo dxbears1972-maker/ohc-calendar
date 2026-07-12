@@ -131,6 +131,18 @@
   .attlist b.no { color: #666; }
   .evdel { text-align: right; margin-top: 8px; }
   .evdel a { font-size: 14px; color: #b00020; }
+  .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
+  .lockedmsg {
+    margin-top: 10px;
+    background: #fff3e0;
+    border: 2px solid #e8a000;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #8a5a00;
+    text-align: center;
+  }
 
   /* 追加ボタン・フォーム */
   .bigbtn {
@@ -452,6 +464,7 @@ function renderList(){
     var att = attOf(ev.id);
     var mine = myStatus(ev.id);
     var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || myn === ADMIN_NAME));
+    var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
     var info = '';
     if (ev.time)  info += '🕒 ' + esc(ev.time) + '<br>';
     if (ev.place) info += '📍 ' + esc(ev.place) + '<br>';
@@ -462,17 +475,26 @@ function renderList(){
       '<div class="evtitle">' + esc(ev.title) + '</div>' +
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
       (ev.owner ? '<div class="evowner">登録：' + esc(ev.owner) + 'さん</div>' : '') +
-      '<div class="attbtns">' +
-        '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
-        '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
-        '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
-      '</div>' +
+      (locked ?
+        '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>'
+      :
+        '<div class="attbtns">' +
+          '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
+          '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
+          '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
+        '</div>'
+      ) +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + esc(att.yes.join('、') || 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + esc(att.maybe.join('、') || '－') + '<br>' +
         '<b class="no">不参加 ' + att.no.length + '人</b>：' + esc(att.no.join('、') || '－') +
       '</div>' +
-      (canDel ? '<div class="evdel"><a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a></div>' : '') +
+      (canDel ?
+        '<div class="evdel">' +
+          '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
+            (locked ? '締め切りを解除' : '出欠を締め切る') + '</a>' +
+          '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a>' +
+        '</div>' : '') +
     '</div>';
   }
   $('evList').innerHTML = html;
@@ -498,8 +520,24 @@ function answer(evId, st){
     alert('先に、上の欄に「あなたの名前」を入れてください');
     return;
   }
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      return;
+    }
+  }
   lsSet('ohcName', name);
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+}
+
+function setLock(evId, lock){
+  var name = $('myname').value.replace(/^\s+|\s+$/g, '');
+  var msg = lock
+    ? '出欠を締め切ります。メンバーは参加・不参加を変更できなくなります。よろしいですか？'
+    : '締め切りを解除して、出欠を変更できるようにします。よろしいですか？';
+  if (!confirm(msg)) return;
+  post({ action: 'setLocked', id: evId, locked: lock ? '1' : '', name: name },
+    lock ? '出欠を締め切りました' : '締め切りを解除しました');
 }
 
 function delEvent(evId, title){
