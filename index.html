@@ -218,25 +218,27 @@
   <!-- 予定追加 -->
   <button class="bigbtn" id="showAdd" type="button">＋ 予定を追加する</button>
   <div class="card" id="addCard" style="display:none">
-    <h2>予定を追加</h2>
+    <h2 id="addTitleH">予定を追加</h2>
     <label>日付</label>
     <table class="row3"><tr>
       <td style="width:38%"><select id="addY"></select></td>
       <td style="width:31%"><select id="addM"></select></td>
       <td style="width:31%"><select id="addD"></select></td>
     </tr></table>
-    <label>くり返し</label>
-    <select id="addRep">
-      <option value="none">なし（この日だけ）</option>
-      <option value="week">毎週（同じ曜日にくり返す）</option>
-    </select>
-    <div id="repLenWrap" style="display:none">
-      <label>いつの分まで登録するか</label>
-      <select id="addRepLen">
-        <option value="1">1ヶ月分</option>
-        <option value="3" selected>3ヶ月分</option>
-        <option value="6">6ヶ月分</option>
+    <div id="repRow">
+      <label>くり返し</label>
+      <select id="addRep">
+        <option value="none">なし（この日だけ）</option>
+        <option value="week">毎週（同じ曜日にくり返す）</option>
       </select>
+      <div id="repLenWrap" style="display:none">
+        <label>いつの分まで登録するか</label>
+        <select id="addRepLen">
+          <option value="1">1ヶ月分</option>
+          <option value="3" selected>3ヶ月分</option>
+          <option value="6">6ヶ月分</option>
+        </select>
+      </div>
     </div>
     <label>山名・タイトル（必須）</label>
     <input type="text" id="addTitle" placeholder="例）高尾山、例会 など">
@@ -287,6 +289,7 @@ var MEMBERS = ['只隈', '杉野', '大原', '蓮尾', '宮本'];
 
 var WEEK = ['日','月','火','水','木','金','土'];
 var myName = '';
+var editingId = '';
 function getName(){ return myName; }
 var state = {
   events: [],
@@ -539,6 +542,7 @@ function renderList(){
       '</div>' +
       (canDel ?
         '<div class="evdel">' +
+          '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
             (locked ? '締め切りを解除' : '出欠を締め切る') + '</a>' +
           '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a>' +
@@ -618,6 +622,39 @@ function closeAddForm(){
   $('addMemo').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
+  editingId = '';
+  $('addTitleH').innerHTML = '予定を追加';
+  $('addBtn').innerHTML = 'この内容で登録する';
+  $('repRow').style.display = 'block';
+}
+
+function editEvent(evId){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+  var p = ev.date.split('-');
+  openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
+  editingId = evId;
+  $('addTitleH').innerHTML = '予定を変更';
+  $('addBtn').innerHTML = '変更を保存する';
+  $('repRow').style.display = 'none';
+  $('addTitle').value = ev.title;
+  $('addPlace').value = ev.place;
+  $('addMemo').value = ev.memo;
+  $('addHour').value = '';
+  $('addMin').value = '00';
+  var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
+  if (tm){
+    $('addHour').value = String(parseInt(tm[1], 10));
+    $('addMin').value = tm[2];
+    if ($('addMin').value !== tm[2]){
+      /* 5分きざみ以外の分は選択肢を足して保持 */
+      $('addMin').innerHTML += '<option value="' + tm[2] + '">' + tm[2] + '分</option>';
+      $('addMin').value = tm[2];
+    }
+  }
 }
 
 function fillTimeSelects(){
@@ -637,8 +674,10 @@ function fillTimeSelects(){
 function fillDateSelects(y, m, d){
   var now = new Date();
   var thisY = now.getFullYear();
+  var y0 = Math.min(thisY, y);
+  var y1 = Math.max(thisY + 1, y);
   var html = '', i;
-  for (i = thisY; i <= thisY + 1; i++){
+  for (i = y0; i <= y1; i++){
     html += '<option value="' + i + '"' + (i === y ? ' selected' : '') + '>' + i + '年</option>';
   }
   $('addY').innerHTML = html;
@@ -694,6 +733,24 @@ function submitAdd(){
   var time = '';
   if ($('addHour').value !== ''){
     time = $('addHour').value + ':' + $('addMin').value;
+  }
+
+  /* 編集モードなら既存の予定を書き換える */
+  if (editingId){
+    post({
+      action: 'updateEvent',
+      id: editingId,
+      date: dkey(y, m, d),
+      title: title,
+      time: time,
+      place: $('addPlace').value,
+      memo: $('addMemo').value,
+      name: name
+    }, '予定を変更しました');
+    state.year = y;
+    state.month = m;
+    closeAddForm();
+    return;
   }
 
   post({
