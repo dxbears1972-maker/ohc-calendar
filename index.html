@@ -344,6 +344,7 @@ var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
 var WEEK = ['日','月','火','水','木','金','土'];
 var myName = '';
 var editingId = '';
+var gotoId = '';
 function getName(){ return myName; }
 var state = {
   events: [],
@@ -408,7 +409,25 @@ function load(){
     if (err){ setStatus('読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true); return; }
     setStatus('');
     applyData(data);
+    tryGoto();
   });
+}
+
+/* 精算アプリから戻ってきたとき、その予定の場所を表示する */
+function tryGoto(){
+  if (!gotoId) return;
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === gotoId) ev = state.events[i];
+  }
+  gotoId = '';
+  if (!ev) return;
+  var p = ev.date.split('-');
+  state.year = parseInt(p[0], 10);
+  state.month = parseInt(p[1], 10);
+  render();
+  var el = $('ev-' + ev.id);
+  if (el && el.scrollIntoView) el.scrollIntoView(true);
 }
 
 function post(body, doneMsg){
@@ -578,7 +597,9 @@ function renderList(){
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
     files += '<a class="filebtn" href="' + CARPOOL_URL + '?event=' + ev.id +
-             '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) + '" target="_blank">🚗 精算</a>';
+             '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
+             '&time=' + encodeURIComponent(ev.time || '') +
+             '&place=' + encodeURIComponent(ev.place || '') + '" target="_blank">🚗 精算</a>';
     if (ev.settle) files += '<a class="filebtn" href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')">💰 精算結果</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
@@ -994,6 +1015,8 @@ function init(){
   /* URLに ?name=○○ が付いていたら、その名前を自動セット */
   try {
     var q = window.location.search;
+    var mg = q ? q.match(/[?&]goto=([^&]+)/) : null;
+    if (mg) gotoId = mg[1];
     var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
     if (mm){
       var qn = '';
