@@ -931,8 +931,11 @@ function byName_(a, b){
 function loadPickerFolder(folderId){
   $('pickerList').innerHTML = '<p class="note">読み込み中…</p>';
   api('POST', { action: 'listFiles', folderId: folderId }, function(err, data){
-    if (err || !data || data.error){
-      $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。</p>';
+    if (err || !data || data.error || !data.folderId){
+      $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。' +
+        (data && data.error ? '<br>詳細：' + esc(data.error) : '') +
+        (data && !data.error && !data.folderId ? '<br>詳細：GASが古いバージョンのままの可能性があります（新バージョンでデプロイしてください）' : '') +
+        '</p>';
       return;
     }
     lsSet('ohcPickDir', data.folderId);
