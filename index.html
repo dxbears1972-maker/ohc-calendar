@@ -922,30 +922,32 @@ function submitImport(){
   }
   if (r.events.length === 0){ alert('登録する予定がありません。表を貼り付けてください'); return; }
 
-  /* すでにある予定（同じ日付＋同じタイトル）と、貼り付け内のダブりはスキップ */
-  var fresh = [], dup = 0, i2, j2;
+  /* 貼り付け内に同じ予定（日付＋タイトル）が2回あれば、後の行を採用 */
+  var list = [], i2, j2;
   for (i2 = 0; i2 < r.events.length; i2++){
     var ne = r.events[i2];
-    var exists = false;
+    var repl = false;
+    for (j2 = 0; j2 < list.length; j2++){
+      if (list[j2].date === ne.date && list[j2].title === ne.title){ list[j2] = ne; repl = true; break; }
+    }
+    if (!repl) list.push(ne);
+  }
+
+  /* すでにある予定（同じ日付＋同じタイトル）は上書きになる。その件数を数える */
+  var over = 0;
+  for (i2 = 0; i2 < list.length; i2++){
     for (j2 = 0; j2 < state.events.length; j2++){
-      if (state.events[j2].date === ne.date && state.events[j2].title === ne.title){ exists = true; break; }
+      if (state.events[j2].date === list[i2].date && state.events[j2].title === list[i2].title){ over++; break; }
     }
-    if (!exists){
-      for (j2 = 0; j2 < fresh.length; j2++){
-        if (fresh[j2].date === ne.date && fresh[j2].title === ne.title){ exists = true; break; }
-      }
-    }
-    if (exists) dup++; else fresh.push(ne);
   }
-  if (fresh.length === 0){
-    alert('貼り付けた' + dup + '件は、すべて登録済みの予定でした。新しく登録するものはありません');
-    return;
-  }
-  var ex = fresh[0];
-  var dupMsg = dup > 0 ? '\n（すでにある' + dup + '件はスキップします）' : '';
-  if (!confirm(fresh.length + '件の予定をまとめて登録します。よろしいですか？\n（1件目：' + ex.date + ' ' + ex.title + '）' + dupMsg)) return;
-  post({ action: 'importEvents', events: fresh, owner: name },
-    '予定を登録しました（' + fresh.length + '件' + (dup > 0 ? '・ダブり' + dup + '件はスキップ' : '') + '）');
+
+  var ex = list[0];
+  var overMsg = over > 0 ? '\n（うち' + over + '件は登録済みのため上書きします。出欠はそのまま残ります）' : '';
+  if (!confirm(list.length + '件の予定をまとめて登録します。よろしいですか？\n（1件目：' + ex.date + ' ' + ex.title + '）' + overMsg)) return;
+  post({ action: 'importEvents', events: list, owner: name },
+    over > 0
+      ? '予定を登録しました（新規' + (list.length - over) + '件・上書き' + over + '件）'
+      : '予定を登録しました（' + list.length + '件）');
   $('importText').value = '';
   closeImport();
 }
