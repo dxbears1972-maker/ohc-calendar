@@ -145,6 +145,17 @@
     text-decoration: none; padding: 0 4px;
   }
   .filelinks { margin-top: 8px; }
+  pre.settle {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: inherit;
+    font-size: 15px;
+    background: #f5f8f5;
+    border: 2px solid #cfe0d0;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+  }
   .filelinks a.filebtn {
     display: inline-block;
     font-size: 16px; font-weight: bold;
@@ -543,6 +554,7 @@ function renderList(){
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
     files += '<a class="filebtn" href="' + CARPOOL_URL + '?event=' + ev.id +
              '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) + '" target="_blank">🚗 精算</a>';
+    if (ev.settle) files += '<a class="filebtn" href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')">💰 精算結果</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
       '<div class="evdate">' + fmtDate(ev.date) + '</div>' +
@@ -550,6 +562,7 @@ function renderList(){
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
       (ev.owner ? '<div class="evowner">登録：' + esc(ev.owner) + 'さん</div>' : '') +
       (files ? '<div class="filelinks">' + files + '</div>' : '') +
+      (ev.settle ? '<pre class="settle" id="settle-' + ev.id + '" style="display:none">' + esc(ev.settle) + '</pre>' : '') +
       (locked ?
         '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>'
       :
@@ -604,6 +617,11 @@ function answer(evId, st){
     }
   }
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+}
+
+function toggleSettle(evId){
+  var el = $('settle-' + evId);
+  if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
 }
 
 function delAnswer(evId, name){
