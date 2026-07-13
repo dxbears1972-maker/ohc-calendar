@@ -144,6 +144,18 @@
     color: #b00020; font-size: 14px; font-weight: bold;
     text-decoration: none; padding: 0 4px;
   }
+  .refbtn {
+    width: 100%; font-size: 18px; font-weight: bold;
+    padding: 12px 0; margin-top: 4px;
+    background: #e8f4e9; color: #2e6b34;
+    border: 2px solid #2e6b34; border-radius: 8px;
+  }
+  .pickitem {
+    display: block; width: 100%; text-align: left;
+    font-size: 17px; padding: 10px; margin-top: 6px;
+    background: #fff; border: 2px solid #cfe0d0; border-radius: 8px;
+    word-break: break-all;
+  }
   .filelinks { margin-top: 8px; }
   pre.settle {
     white-space: pre-wrap;
@@ -272,11 +284,24 @@
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
-    <label>計画表のリンク（あれば）</label>
-    <input type="text" id="addPlan" placeholder="https://drive.google.com/…">
-    <label>報告書のリンク（あれば）</label>
-    <input type="text" id="addReport" placeholder="https://drive.google.com/…">
-    <p class="note">Googleドライブでファイルを開き「共有」→「リンクをコピー」（リンクを知っている全員が閲覧できる設定にする）で取ったURLを貼り付けてください。</p>
+    <label>計画表（あれば）</label>
+    <table class="row3"><tr>
+      <td><input type="text" id="addPlan" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td style="width:100px"><button type="button" class="refbtn" id="refPlan">参照</button></td>
+    </tr></table>
+    <label>報告書（あれば）</label>
+    <table class="row3"><tr>
+      <td><input type="text" id="addReport" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td style="width:100px"><button type="button" class="refbtn" id="refReport">参照</button></td>
+    </tr></table>
+    <p class="note">「参照」でGoogleドライブの「OHCカレンダー資料」フォルダから選べます（閲覧の共有設定も自動）。別の場所のファイルはURLの貼り付けでもOKです。</p>
+
+    <!-- ファイル選択 -->
+    <div id="pickerCard" style="display:none; border:2px solid #2e6b34; border-radius:10px; padding:10px; margin-top:10px; background:#f7fbf7;">
+      <p class="note" id="pickerPath"></p>
+      <div id="pickerList"></div>
+      <button class="cancelbtn" id="pickerClose" type="button">選ぶのをやめる</button>
+    </div>
     <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
     <button class="cancelbtn" id="addCancel" type="button">やめる</button>
   </div>
@@ -666,6 +691,7 @@ function closeAddForm(){
   $('addReport').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
+  closePicker();
   editingId = '';
   $('addTitleH').innerHTML = '予定を追加';
   $('addBtn').innerHTML = 'この内容で登録する';
@@ -885,6 +911,67 @@ function closeImport(){
   $('showImport').style.display = 'block';
 }
 
+/* ---------- ファイル参照（Googleドライブ） ---------- */
+var pickTarget = '';
+
+function openPicker(target){
+  pickTarget = target;
+  $('pickerCard').style.display = 'block';
+  loadPickerFolder(lsGet('ohcPickDir') || '');
+}
+
+function closePicker(){
+  $('pickerCard').style.display = 'none';
+}
+
+function byName_(a, b){
+  return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+}
+
+function loadPickerFolder(folderId){
+  $('pickerList').innerHTML = '<p class="note">読み込み中…</p>';
+  api('POST', { action: 'listFiles', folderId: folderId }, function(err, data){
+    if (err || !data || data.error){
+      $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。</p>';
+      return;
+    }
+    lsSet('ohcPickDir', data.folderId);
+    $('pickerPath').innerHTML = '📁 「' + esc(data.folderName) + '」の中から選んでください';
+    var html = '';
+    if (data.parentId){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + data.parentId + '\')">⬆ 上のフォルダへ戻る</button>';
+    }
+    var folders = data.folders || [];
+    var files = data.files || [];
+    folders.sort(byName_);
+    files.sort(byName_);
+    var i;
+    for (i = 0; i < folders.length; i++){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + folders[i].id + '\')">📁 ' + esc(folders[i].name) + '</button>';
+    }
+    for (i = 0; i < files.length; i++){
+      html += '<button type="button" class="pickitem" onclick="pickFile(\'' + files[i].id + '\')">📄 ' + esc(files[i].name) + '</button>';
+    }
+    if (folders.length === 0 && files.length === 0){
+      html += '<p class="note">このフォルダは空です。Googleドライブでこのフォルダにファイルを入れてください。</p>';
+    }
+    $('pickerList').innerHTML = html;
+  });
+}
+
+function pickFile(fileId){
+  $('pickerList').innerHTML = '<p class="note">リンクを取得しています…</p>';
+  api('POST', { action: 'pickFile', fileId: fileId }, function(err, data){
+    if (err || !data || !data.url){
+      $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。</p>';
+      return;
+    }
+    $(pickTarget === 'report' ? 'addReport' : 'addPlan').value = data.url;
+    closePicker();
+    setStatus('「' + data.name + '」を' + (pickTarget === 'report' ? '報告書' : '計画表') + 'に入れました');
+  });
+}
+
 /* ---------- 名前の表示 ---------- */
 function updateWho(){
   $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
@@ -940,6 +1027,9 @@ function init(){
   };
   $('addCancel').onclick = closeAddForm;
   $('addBtn').onclick = submitAdd;
+  $('refPlan').onclick = function(){ openPicker('plan'); };
+  $('refReport').onclick = function(){ openPicker('report'); };
+  $('pickerClose').onclick = closePicker;
   $('addRep').onchange = function(){
     $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
   };
