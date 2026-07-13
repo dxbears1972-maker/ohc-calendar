@@ -287,9 +287,6 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-
-  <!-- 関連アプリ -->
-  <a class="bigbtn" href="https://dxbears1972-maker.github.io/ohc-carpool/" target="_blank">🚗 マイカー精算を開く</a>
 </main>
 
 <script>
@@ -304,6 +301,9 @@ var ADMIN_NAME = '只隈';
 
 /* メンバー一覧（増減したらここを修正してGitHubに上げ直す） */
 var MEMBERS = ['只隈', '杉野', '大原', '蓮尾', '宮本'];
+
+/* マイカー精算アプリのURL */
+var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
 
 var WEEK = ['日','月','火','水','木','金','土'];
 var myName = '';
@@ -541,6 +541,8 @@ function renderList(){
     var files = '';
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
+    files += '<a class="filebtn" href="' + CARPOOL_URL + '?event=' + ev.id +
+             '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) + '" target="_blank">🚗 精算</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
       '<div class="evdate">' + fmtDate(ev.date) + '</div>' +
