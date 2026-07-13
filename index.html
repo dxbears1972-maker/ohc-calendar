@@ -24,18 +24,17 @@
   header {
     background: #2e6b34;
     color: #fff;
-    padding: 14px;
-    text-align: center;
+    padding: 6px 12px;
   }
-  header h1 { font-size: 26px; }
-  header p { font-size: 14px; opacity: .9; }
-  header #whoami { font-size: 16px; opacity: 1; margin-top: 2px; font-weight: bold; }
-  main { max-width: 640px; margin: 0 auto; padding: 12px; }
+  header table { width: 100%; border-collapse: collapse; }
+  header h1 { font-size: 20px; text-align: left; }
+  header #whoami { font-size: 15px; font-weight: bold; text-align: right; white-space: nowrap; }
+  main { max-width: 640px; margin: 0 auto; padding: 0 10px 12px; }
   .card {
     background: #fff;
     border-radius: 12px;
-    padding: 14px;
-    margin-top: 14px;
+    padding: 12px 10px;
+    margin-top: 10px;
     box-shadow: 0 1px 4px rgba(0,0,0,.12);
   }
   .card h2 {
@@ -70,10 +69,10 @@
   /* 状態表示 */
   #status {
     text-align: center;
-    font-size: 15px;
-    padding: 6px;
+    font-size: 14px;
+    padding: 2px;
     color: #555;
-    min-height: 30px;
+    min-height: 22px;
   }
   #status.err { color: #b00020; font-weight: bold; }
 
@@ -223,9 +222,10 @@
 </head>
 <body>
 <header>
-  <h1>OHC カレンダー</h1>
-  <p>山行予定の共有と出欠確認</p>
-  <p id="whoami"></p>
+  <table><tr>
+    <td><h1>OHC カレンダー</h1></td>
+    <td id="whoami"></td>
+  </tr></table>
 </header>
 
 <div id="status">読み込み中…</div>
@@ -485,8 +485,8 @@ function renderCalendar(){
         var marks = '';
         for (var e = 0; e < evs.length && e < 2; e++){
           var t = evs[e].title;
-          if (t.length > 4) t = t.substring(0, 4) + '…';
-          marks += '●' + t + '<br>';
+          if (t.length > 5) t = t.substring(0, 5) + '…';
+          marks += t + '<br>';
         }
         if (evs.length > 2) marks += '他' + (evs.length - 2) + '件';
         html += '<td class="' + classes.join(' ') + '" onclick="tapDay(' + d + ')">' +
