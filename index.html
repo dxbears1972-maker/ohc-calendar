@@ -113,16 +113,16 @@
   table.cal td.hasev.today { background: #fff8d6; }
 
   /* 予定カード */
-  .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 12px; margin-top: 12px; background: #fff; }
-  .ev .evdate { font-size: 17px; font-weight: bold; color: #2e6b34; }
+  .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 10px; margin-top: 10px; background: #fff; }
+  .ev .evdate { font-size: 16px; font-weight: bold; color: #2e6b34; margin-right: 8px; }
   .ev .evdate .sun { color: #c62828; }
   .ev .evdate .sat { color: #1565c0; }
-  .ev .evtitle { font-size: 22px; font-weight: bold; margin: 2px 0 6px; }
-  .ev .evinfo { font-size: 16px; color: #444; }
-  .ev .evowner { font-size: 14px; color: #888; margin-top: 4px; }
+  .ev .evtitle { font-size: 20px; font-weight: bold; }
+  .ev .evinfo { font-size: 15px; color: #444; margin-top: 2px; }
+  .ev .evowner { font-size: 14px; color: #888; }
 
   /* 出欠ボタン */
-  .attbtns { margin-top: 10px; }
+  .attbtns { margin-top: 8px; }
   .attbtns button {
     width: 32%;
     font-size: 18px;
@@ -135,7 +135,7 @@
   .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
   .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
   .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
-  .attlist { font-size: 15px; margin-top: 8px; background: #f5f8f5; border-radius: 8px; padding: 8px 10px; }
+  .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
   .attlist b.no { color: #666; }
@@ -155,7 +155,7 @@
     background: #fff; border: 2px solid #cfe0d0; border-radius: 8px;
     word-break: break-all;
   }
-  .filelinks { margin-top: 8px; }
+  .filelinks { margin-top: 6px; }
   pre.settle {
     white-space: pre-wrap;
     word-break: break-all;
@@ -175,7 +175,7 @@
     padding: 6px 14px; margin-right: 8px; margin-top: 4px;
     text-decoration: none;
   }
-  .evdel { text-align: right; margin-top: 8px; }
+  .evdel { text-align: right; margin-top: 4px; }
   .evdel a { font-size: 14px; color: #b00020; }
   .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
   .lockedmsg {
@@ -334,6 +334,15 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNX
 
 /* 管理者の名前（この人はどの予定でも削除でき、出欠の回答も取り消せます） */
 var ADMIN_NAME = '只隈';
+
+/* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
+   例：var EDITORS = ['杉野', '大原'];
+   ※GASコード側の EDITORS にも同じ名前を入れること */
+var EDITORS = [];
+
+function isStaff(name){
+  return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
+}
 
 /* メンバー一覧（増減したらここを修正してGitHubに上げ直す） */
 var MEMBERS = ['只隈', '杉野', '大原', '蓮尾', '宮本'];
@@ -587,12 +596,14 @@ function renderList(){
     var ev = list[j];
     var att = attOf(ev.id);
     var mine = myStatus(ev.id);
-    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || myn === ADMIN_NAME));
+    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || isStaff(myn)));
     var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
-    var info = '';
-    if (ev.time)  info += '🕒 ' + esc(ev.time) + '<br>';
-    if (ev.place) info += '📍 ' + esc(ev.place) + '<br>';
-    if (ev.memo)  info += '📝 ' + esc(ev.memo) + '<br>';
+    var parts = [];
+    if (ev.time)  parts.push('🕒 ' + esc(ev.time));
+    if (ev.place) parts.push('📍 ' + esc(ev.place));
+    if (ev.owner) parts.push('<span class="evowner">（' + esc(ev.owner) + '）</span>');
+    var info = parts.join('　');
+    if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
     var files = '';
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
@@ -603,10 +614,8 @@ function renderList(){
     if (ev.settle) files += '<a class="filebtn" href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')">💰 精算結果</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
-      '<div class="evdate">' + fmtDate(ev.date) + '</div>' +
-      '<div class="evtitle">' + esc(ev.title) + '</div>' +
+      '<div><span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + esc(ev.title) + '</span></div>' +
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
-      (ev.owner ? '<div class="evowner">登録：' + esc(ev.owner) + 'さん</div>' : '') +
       (files ? '<div class="filelinks">' + files + '</div>' : '') +
       (ev.settle ? '<pre class="settle" id="settle-' + ev.id + '" style="display:none">' + esc(ev.settle) + '</pre>' : '') +
       (locked ?
@@ -1061,8 +1070,8 @@ function init(){
   updateWho();
   if (!myName) $('nameCard').style.display = 'block';
 
-  /* 管理者だけ「まとめて登録」ボタンを表示 */
-  if (myName === ADMIN_NAME) $('showImport').style.display = 'block';
+  /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
+  if (isStaff(myName)) $('showImport').style.display = 'block';
   $('showImport').onclick = function(){
     $('importCard').style.display = 'block';
     $('showImport').style.display = 'none';
