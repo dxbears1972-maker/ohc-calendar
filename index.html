@@ -884,6 +884,8 @@ function parseImport(text){
     var cols = line.indexOf('\t') >= 0 ? line.split('\t') : line.split(',');
     var dRaw = (cols[0] || '').replace(/^\s+|\s+$/g, '');
     var title = (cols[1] || '').replace(/^\s+|\s+$/g, '');
+    /* 見出し行（「日付」など）は黙って読み飛ばす */
+    if (dRaw === '日付') continue;
     var y = 0, mo = 0, d = 0;
     var m = dRaw.match(/^(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})日?$/);
     if (m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
