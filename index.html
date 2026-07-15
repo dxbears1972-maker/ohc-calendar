@@ -344,8 +344,18 @@ function isStaff(name){
   return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
 }
 
-/* メンバー一覧（増減したらここを修正してGitHubに上げ直す） */
-var MEMBERS = ['只隈', '杉野', '大原', '蓮尾', '宮本'];
+/* メンバー一覧（増減したらここを修正してGitHubに上げ直す）
+   ※50音順に並べておくこと。出欠の名前がこの順で表示される */
+var MEMBERS = ['大原', '杉野', '只隈', '蓮尾', '宮本'];
+
+/* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
+function byMember_(a, b){
+  var ia = MEMBERS.indexOf(a), ib = MEMBERS.indexOf(b);
+  if (ia < 0) ia = 999;
+  if (ib < 0) ib = 999;
+  if (ia !== ib) return ia - ib;
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
 
 /* マイカー精算アプリのURL */
 var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
@@ -558,6 +568,9 @@ function attOf(evId){
     else if (a.status === 'maybe') r.maybe.push(a.name);
     else if (a.status === 'no') r.no.push(a.name);
   }
+  r.yes.sort(byMember_);
+  r.maybe.sort(byMember_);
+  r.no.sort(byMember_);
   return r;
 }
 
