@@ -135,6 +135,9 @@
   .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
   .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
   .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
+  .proxybox { margin-top: 8px; padding: 8px 10px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
+  .proxylbl { font-size: 14px; font-weight: bold; color: #2e6b34; margin-bottom: 6px; }
+  .proxysel { width: 100%; margin-bottom: 6px; }
   .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
@@ -645,6 +648,10 @@ function renderList(){
 
   var myn = getName();
   var isAdmin = (myn === ADMIN_NAME);
+  var memOpts = '<option value="">▼ 代理する人を選ぶ</option>';
+  for (var mi = 0; mi < MEMBERS.length; mi++){
+    memOpts += '<option value="' + esc(MEMBERS[mi]) + '">' + esc(MEMBERS[mi]) + '</option>';
+  }
   var html = '';
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
@@ -681,6 +688,16 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>'
       ) +
+      (isAdmin && !locked ?
+        '<div class="proxybox">' +
+          '<div class="proxylbl">代理で回答（管理者）</div>' +
+          '<select id="proxy-' + ev.id + '" class="proxysel">' + memOpts + '</select>' +
+          '<div class="attbtns">' +
+            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
+            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
+            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
+          '</div>' +
+        '</div>' : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
@@ -726,6 +743,24 @@ function answer(evId, st){
     }
   }
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+}
+
+/* 管理者が他のメンバーの代わりに出欠を登録する */
+function proxyAnswer(evId, st){
+  if (getName() !== ADMIN_NAME){ return; }
+  var sel = $('proxy-' + evId);
+  var name = sel ? sel.value : '';
+  if (!name){ alert('代理で回答するメンバーを選んでください'); return; }
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      return;
+    }
+  }
+  var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
+  if (!confirm('「' + name + '」さんの回答として「' + label + '」を登録します。よろしいですか？')) return;
+  post({ action: 'setAttendance', eventId: evId, name: name, status: st },
+    name + 'さんの回答を送りました');
 }
 
 function toggleSettle(evId){
