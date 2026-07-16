@@ -379,7 +379,7 @@ var ADMIN_NAME = '只隈';
 /* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
    例：var EDITORS = ['杉野', '大原'];
    ※GASコード側の EDITORS にも同じ名前を入れること */
-var EDITORS = [];
+var EDITORS = ['杉野', '大原'];
 
 function isStaff(name){
   return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
