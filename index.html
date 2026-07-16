@@ -221,6 +221,47 @@
 </style>
 </head>
 <body>
+
+<!-- LINE内ブラウザで開いたときの案内（外部ブラウザへ誘導） -->
+<div id="lineWarn" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#eef3ee; padding:24px 18px; overflow:auto;">
+  <div style="max-width:420px; margin:6vh auto 0; background:#fff; border-radius:14px; padding:22px 18px; box-shadow:0 2px 10px rgba(0,0,0,.15); text-align:center;">
+    <div style="font-size:40px; margin-bottom:8px;">📅</div>
+    <div style="font-size:21px; font-weight:bold; color:#2e6b34; margin-bottom:12px;">
+      LINEの中では正しく動きません
+    </div>
+    <div style="font-size:17px; line-height:1.7; color:#333; text-align:left; margin-bottom:18px;">
+      OHCカレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>
+      下のボタンを押してください。
+    </div>
+    <button id="lineOpenBtn" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
+      ブラウザで開く
+    </button>
+    <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#f4f7f4; border-radius:8px; padding:12px;">
+      ボタンで開けないときは、<br>
+      画面右上の <b>「⋮」または「≡」</b> を押して<br>
+      <b>「ブラウザで開く」</b>（iPhoneは「Safariで開く」）<br>
+      を選んでください。
+    </div>
+  </div>
+</div>
+<script>
+/* LINE内ブラウザ判定：UAに Line/ が含まれる場合だけ案内を出す */
+(function(){
+  var ua = navigator.userAgent || '';
+  if (ua.indexOf('Line') === -1) return;
+  var warn = document.getElementById('lineWarn');
+  warn.style.display = 'block';
+  document.getElementById('lineOpenBtn').onclick = function(){
+    /* openExternalBrowser=1 を付けるとLINEが外部ブラウザで開く（主にAndroid） */
+    var url = location.href;
+    if (url.indexOf('openExternalBrowser=1') === -1) {
+      url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
+    }
+    location.href = url;
+  };
+})();
+</script>
+
 <header>
   <table><tr>
     <td><h1>OHC カレンダー</h1></td>
