@@ -155,17 +155,27 @@
   .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
   .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
   .proxybox { margin-top: 8px; padding: 6px 8px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
-  table.proxyrow { width: 100%; border-collapse: collapse; }
-  table.proxyrow td { vertical-align: middle; padding-left: 6px; }
-  table.proxyrow td:first-child { padding-left: 0; width: 100%; }
-  .proxysel { width: 100%; font-size: 16px; padding: 8px 6px; margin: 0; }
-  .proxybtn {
-    width: 46px; height: 44px; font-size: 20px; font-weight: bold;
-    border-radius: 8px; border: 2px solid #aaa; background: #fff;
+  table.proxytbl { width: 100%; border-collapse: collapse; }
+  .proxytbl td { padding: 2px 0; vertical-align: middle; }
+  .proxytbl td.pname { font-size: 16px; font-weight: bold; }
+  .proxytbl td.pb { width: 52px; text-align: right; }
+  .pbtn {
+    width: 46px; height: 40px; font-size: 18px; font-weight: bold;
+    border-radius: 8px; border: 2px solid #aaa; background: #fff; color: #444;
   }
-  .proxybtn.py { color: #2e6b34; border-color: #2e6b34; }
-  .proxybtn.pm { color: #b57e00; border-color: #e8a000; }
-  .proxybtn.pn { color: #666; border-color: #888; }
+  .pbtn.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; }
+  .pbtn.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; }
+  .pbtn.on-no { background: #888; border-color: #888; color: #fff; }
+  .pnote, .pfoot { font-size: 14px; color: #555; }
+  .pfoot { text-align: right; margin-top: 4px; }
+  a.pset { color: #2e6b34; font-weight: bold; }
+  .psetlbl { font-size: 14px; font-weight: bold; color: #2e6b34; margin-bottom: 4px; }
+  label.pchk { display: inline-block; margin: 4px 12px 4px 0; font-size: 17px; }
+  label.pchk input { transform: scale(1.4); margin-right: 6px; }
+  .psavebtn {
+    width: 100%; font-size: 17px; font-weight: bold; padding: 10px 0; margin-top: 8px;
+    background: #2e6b34; color: #fff; border: none; border-radius: 8px;
+  }
   .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
@@ -359,6 +369,8 @@
     </tr></table>
     <label>集合場所</label>
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
+    <label>係・担当（いれば）</label>
+    <input type="text" id="addStaff" placeholder="例）留守宅：山本／受付：荒木、議事録：竹田">
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
     <label>計画表（あれば）</label>
@@ -400,7 +412,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18d</p>
+  <p class="note" style="text-align:center">版 2026-07-18f</p>
 </main>
 
 <script>
@@ -707,6 +719,7 @@ function calTimes(ev){
 /* 予定の説明文（メモ・計画表・報告書のリンクをまとめる） */
 function calDesc(ev){
   var desc = [];
+  if (ev.staff)  desc.push('係・担当: ' + ev.staff);
   if (ev.memo)   desc.push(ev.memo);
   if (ev.plan)   desc.push('計画表: ' + ev.plan);
   if (ev.report) desc.push('報告書: ' + ev.report);
@@ -754,14 +767,103 @@ function attOf(evId){
   return r;
 }
 
-function myStatus(evId){
-  var name = getName();
+function statusOfName(evId, name){
   if (!name) return '';
   for (var i = 0; i < state.attendance.length; i++){
     var a = state.attendance[i];
     if (a.eventId === evId && a.name === name) return a.status;
   }
   return '';
+}
+
+function myStatus(evId){
+  return statusOfName(evId, getName());
+}
+
+/* ---------- 代理回答（管理者） ----------
+   対象メンバーはこの端末に記憶し、各予定に○△×の表を出す */
+var proxySetupFor = '';   /* 設定パネルを開いている予定のid */
+
+function getProxyList(){
+  var r = [];
+  try {
+    var arr = JSON.parse(lsGet('ohcProxyList') || '[]');
+    for (var i = 0; i < arr.length; i++){
+      if (MEMBERS.indexOf(arr[i]) >= 0 && r.indexOf(arr[i]) < 0) r.push(arr[i]);
+    }
+  } catch(e){}
+  r.sort(byMember_);
+  return r;
+}
+
+function openProxySetup(evId){ proxySetupFor = evId; render(); }
+function closeProxySetup(){ proxySetupFor = ''; render(); }
+
+function saveProxySetup(evId){
+  var box = $('psetup-' + evId);
+  if (!box) return;
+  var ins = box.getElementsByTagName('input');
+  var sel = [];
+  for (var i = 0; i < ins.length; i++){
+    if (ins[i].checked) sel.push(ins[i].value);
+  }
+  try { lsSet('ohcProxyList', JSON.stringify(sel)); } catch(e){}
+  proxySetupFor = '';
+  render();
+}
+
+/* 代理で○△×を押したとき：先に画面へ反映してから送信する */
+function proxySet(evId, name, st){
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      return;
+    }
+  }
+  var found = false;
+  for (var j = 0; j < state.attendance.length; j++){
+    var a = state.attendance[j];
+    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+  }
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  render();
+  var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
+  post({ action: 'setAttendance', eventId: evId, name: name, status: st },
+    name + 'さん：' + label + ' を記録しました');
+}
+
+/* 予定カード内の代理回答欄を作る */
+function buildProxyBox(ev){
+  var plist = getProxyList();
+  var html = '<div class="proxybox">';
+  if (proxySetupFor === ev.id){
+    html += '<div class="psetlbl">代理で回答する人に印を付けてください（この端末に記憶されます）</div>';
+    html += '<div id="psetup-' + ev.id + '">';
+    for (var i = 0; i < MEMBERS.length; i++){
+      var m = MEMBERS[i];
+      html += '<label class="pchk"><input type="checkbox" value="' + esc(m) + '"' +
+        (plist.indexOf(m) >= 0 ? ' checked' : '') + '>' + esc(m) + '</label>';
+    }
+    html += '</div>';
+    html += '<button type="button" class="psavebtn" onclick="saveProxySetup(\'' + ev.id + '\')">この内容で記憶する</button>';
+    html += '<button type="button" class="cancelbtn" onclick="closeProxySetup()">やめる</button>';
+  } else if (plist.length === 0){
+    html += '<div class="pnote">代理回答：<a href="javascript:void(0)" class="pset" onclick="openProxySetup(\'' + ev.id + '\')">設定</a> で対象の人を選ぶと、ここに○△×が並びます</div>';
+  } else {
+    html += '<table class="proxytbl">';
+    for (var j = 0; j < plist.length; j++){
+      var nm = plist[j];
+      var st = statusOfName(ev.id, nm);
+      html += '<tr><td class="pname">' + esc(nm) + '</td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'yes' ? ' on-yes' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'yes\')">○</button></td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'maybe' ? ' on-maybe' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'maybe\')">△</button></td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'no' ? ' on-no' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'no\')">×</button></td></tr>';
+    }
+    html += '</table>';
+    html += '<div class="pfoot"><a href="javascript:void(0)" class="pset" onclick="openProxySetup(\'' + ev.id + '\')">代理する人を変更</a></div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderList(){
@@ -784,10 +886,6 @@ function renderList(){
 
   var myn = getName();
   var isAdmin = (myn === ADMIN_NAME);
-  var memOpts = '<option value="">▼ 代理</option>';
-  for (var mi = 0; mi < MEMBERS.length; mi++){
-    memOpts += '<option value="' + esc(MEMBERS[mi]) + '">' + esc(MEMBERS[mi]) + '</option>';
-  }
   var html = '';
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
@@ -798,6 +896,7 @@ function renderList(){
     var parts = [];
     if (ev.time)  parts.push('🕒 ' + esc(ev.time));
     if (ev.place) parts.push('📍 ' + esc(ev.place));
+    if (ev.staff) parts.push('👤 ' + esc(ev.staff));
     if (ev.owner) parts.push('<span class="evowner">（' + esc(ev.owner) + '）</span>');
     var info = parts.join('　');
     if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
@@ -834,13 +933,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>'
       ) +
-      (isAdmin && !locked ?
-        '<div class="proxybox"><table class="proxyrow"><tr>' +
-          '<td><select id="proxy-' + ev.id + '" class="proxysel" title="代理で回答する人">' + memOpts + '</select></td>' +
-          '<td><button type="button" class="proxybtn py" onclick="proxyAnswer(\'' + ev.id + '\',\'yes\')">○</button></td>' +
-          '<td><button type="button" class="proxybtn pm" onclick="proxyAnswer(\'' + ev.id + '\',\'maybe\')">△</button></td>' +
-          '<td><button type="button" class="proxybtn pn" onclick="proxyAnswer(\'' + ev.id + '\',\'no\')">×</button></td>' +
-        '</tr></table></div>' : '') +
+      (isAdmin && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
@@ -888,24 +981,6 @@ function answer(evId, st){
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
 }
 
-/* 管理者が他のメンバーの代わりに出欠を登録する */
-function proxyAnswer(evId, st){
-  if (getName() !== ADMIN_NAME){ return; }
-  var sel = $('proxy-' + evId);
-  var name = sel ? sel.value : '';
-  if (!name){ alert('代理で回答するメンバーを選んでください'); return; }
-  for (var i = 0; i < state.events.length; i++){
-    if (state.events[i].id === evId && state.events[i].locked){
-      alert('この予定の出欠は締め切られています');
-      return;
-    }
-  }
-  var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
-  if (!confirm('「' + name + '」さんの回答として「' + label + '」を登録します。よろしいですか？')) return;
-  post({ action: 'setAttendance', eventId: evId, name: name, status: st },
-    name + 'さんの回答を送りました');
-}
-
 function toggleSettle(evId){
   var el = $('settle-' + evId);
   if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
@@ -948,6 +1023,7 @@ function closeAddForm(){
   $('addHour').value = '';
   $('addMin').value = '00';
   $('addPlace').value = '';
+  $('addStaff').value = '';
   $('addMemo').value = '';
   $('addPlan').value = '';
   $('addReport').value = '';
@@ -974,6 +1050,7 @@ function editEvent(evId){
   $('repRow').style.display = 'none';
   $('addTitle').value = ev.title;
   $('addPlace').value = ev.place;
+  $('addStaff').value = ev.staff || '';
   $('addMemo').value = ev.memo;
   $('addPlan').value = ev.plan || '';
   $('addReport').value = ev.report || '';
@@ -1086,6 +1163,7 @@ function submitAdd(){
       title: title,
       time: time,
       place: $('addPlace').value,
+      staff: $('addStaff').value,
       memo: $('addMemo').value,
       plan: plan,
       report: report,
@@ -1103,6 +1181,7 @@ function submitAdd(){
     title: title,
     time: time,
     place: $('addPlace').value,
+    staff: $('addStaff').value,
     memo: $('addMemo').value,
     plan: plan,
     report: report,
