@@ -4,7 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#2e6b34">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json" id="manifestLink">
+<script>
+/* iPhone(iOS)では manifest があると「ホーム画面に追加」時に
+   start_url が使われ、URLの ?key=○○ が消えてしまう。
+   そこで iOS だけ manifest を外し、開いているURLのまま登録させる。
+   （Androidは manifest ありのままでOK） */
+(function(){
+  try {
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+      (/Macintosh/.test(ua) && 'ontouchend' in document);
+    if (isIOS){
+      var ml = document.getElementById('manifestLink');
+      if (ml && ml.parentNode) ml.parentNode.removeChild(ml);
+    }
+  } catch(e){}
+})();
+</script>
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -278,7 +295,7 @@
   <!-- 名前が分からないときの案内 -->
   <div class="card" id="nameCard" style="display:none">
     <h2>あなた専用のURLで開いてください</h2>
-    <p class="note">LINEで届いた「自分の名前入りのURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
+    <p class="note">LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
   </div>
 
   <!-- カレンダー -->
@@ -391,6 +408,29 @@ function isStaff(name){
 /* メンバー一覧（増減したらここを修正してGitHubに上げ直す）
    ※50音順に並べておくこと。出欠の名前がこの順で表示される */
 var MEMBERS = ['荒木', '植松', '大原', '岡本', '奥村', '上口', '川村', '小柳', '後藤', '杉野', '竹田', '只隈', '永野', '蓮尾', '福永', '松田', '宮本', '山本', '若杉'];
+
+/* 個人コード → 名前（URLの ?key=○○ で本人確認する） */
+var KEYS = {
+  'v50cbx': '荒木',
+  'nyzeaj': '植松',
+  'u7lr9x': '大原',
+  'tt89j5': '岡本',
+  'g751dl': '奥村',
+  'il9s3s': '上口',
+  'ndqvpe': '川村',
+  'xm6jfn': '小柳',
+  'al3b77': '後藤',
+  'twhy2g': '杉野',
+  'gexa0n': '竹田',
+  'tw8vg5': '只隈',
+  'cxtntt': '永野',
+  'uza40b': '蓮尾',
+  'xhf3aj': '福永',
+  'r7ceqh': '松田',
+  'xlt64o': '宮本',
+  'qn8ji3': '山本',
+  'dzgqoa': '若杉'
+};
 
 /* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
 function byMember_(a, b){
@@ -1135,17 +1175,23 @@ function init(){
   state.year = now.getFullYear();
   state.month = now.getMonth() + 1;
 
-  /* URLに ?name=○○ が付いていたら、その名前を自動セット */
+  /* URLに ?key=○○（個人コード）が付いていたら、その人の名前を自動セット */
   try {
     var q = window.location.search;
     var mg = q ? q.match(/[?&]goto=([^&]+)/) : null;
     if (mg) gotoId = mg[1];
-    var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
-    if (mm){
-      var qn = '';
-      try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
-      qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
-      if (qn) lsSet('ohcName', qn);
+    var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
+    if (mk && KEYS[mk[1]]){
+      lsSet('ohcName', KEYS[mk[1]]);
+    } else {
+      /* 旧形式 ?name=○○ にも当面対応 */
+      var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
+      if (mm){
+        var qn = '';
+        try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
+        qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
+        if (qn) lsSet('ohcName', qn);
+      }
     }
   } catch(e){}
 
