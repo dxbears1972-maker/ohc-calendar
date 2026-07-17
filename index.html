@@ -154,9 +154,18 @@
   .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
   .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
   .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
-  .proxybox { margin-top: 8px; padding: 8px 10px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
-  .proxylbl { font-size: 14px; font-weight: bold; color: #2e6b34; margin-bottom: 6px; }
-  .proxysel { width: 100%; margin-bottom: 6px; }
+  .proxybox { margin-top: 8px; padding: 6px 8px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
+  table.proxyrow { width: 100%; border-collapse: collapse; }
+  table.proxyrow td { vertical-align: middle; padding-left: 6px; }
+  table.proxyrow td:first-child { padding-left: 0; width: 100%; }
+  .proxysel { width: 100%; font-size: 16px; padding: 8px 6px; margin: 0; }
+  .proxybtn {
+    width: 46px; height: 44px; font-size: 20px; font-weight: bold;
+    border-radius: 8px; border: 2px solid #aaa; background: #fff;
+  }
+  .proxybtn.py { color: #2e6b34; border-color: #2e6b34; }
+  .proxybtn.pm { color: #b57e00; border-color: #e8a000; }
+  .proxybtn.pn { color: #666; border-color: #888; }
   .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
@@ -391,7 +400,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18b</p>
+  <p class="note" style="text-align:center">版 2026-07-18d</p>
 </main>
 
 <script>
@@ -533,13 +542,23 @@ function api(method, body, cb){
 function applyData(data){
   state.events = data.events || [];
   state.attendance = data.attendance || [];
+  /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
+  try {
+    lsSet('ohcCache', JSON.stringify({ events: state.events, attendance: state.attendance }));
+  } catch(e){}
   render();
 }
 
 function load(){
-  setStatus('読み込み中…');
+  var hasCache = state.events.length > 0;
+  setStatus(hasCache ? '最新の情報を確認しています…' : '読み込み中…');
   api('GET', null, function(err, data){
-    if (err){ setStatus('読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true); return; }
+    if (err){
+      setStatus(hasCache
+        ? '通信できませんでした。前回の内容を表示しています。'
+        : '読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true);
+      return;
+    }
     setStatus('');
     applyData(data);
     tryGoto();
@@ -765,7 +784,7 @@ function renderList(){
 
   var myn = getName();
   var isAdmin = (myn === ADMIN_NAME);
-  var memOpts = '<option value="">▼ 代理する人を選ぶ</option>';
+  var memOpts = '<option value="">▼ 代理</option>';
   for (var mi = 0; mi < MEMBERS.length; mi++){
     memOpts += '<option value="' + esc(MEMBERS[mi]) + '">' + esc(MEMBERS[mi]) + '</option>';
   }
@@ -816,15 +835,12 @@ function renderList(){
         '</div>'
       ) +
       (isAdmin && !locked ?
-        '<div class="proxybox">' +
-          '<div class="proxylbl">代理で回答（管理者）</div>' +
-          '<select id="proxy-' + ev.id + '" class="proxysel">' + memOpts + '</select>' +
-          '<div class="attbtns">' +
-            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
-            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
-            '<button type="button" onclick="proxyAnswer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
-          '</div>' +
-        '</div>' : '') +
+        '<div class="proxybox"><table class="proxyrow"><tr>' +
+          '<td><select id="proxy-' + ev.id + '" class="proxysel" title="代理で回答する人">' + memOpts + '</select></td>' +
+          '<td><button type="button" class="proxybtn py" onclick="proxyAnswer(\'' + ev.id + '\',\'yes\')">○</button></td>' +
+          '<td><button type="button" class="proxybtn pm" onclick="proxyAnswer(\'' + ev.id + '\',\'maybe\')">△</button></td>' +
+          '<td><button type="button" class="proxybtn pn" onclick="proxyAnswer(\'' + ev.id + '\',\'no\')">×</button></td>' +
+        '</tr></table></div>' : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
@@ -1316,6 +1332,16 @@ function init(){
     $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
   };
   $('reloadBtn').onclick = load;
+
+  /* 前回の内容をまず表示し、そのあと裏で最新を取りに行く（起動を速く見せる） */
+  try {
+    var cache = lsGet('ohcCache');
+    if (cache){
+      var cd = JSON.parse(cache);
+      state.events = cd.events || [];
+      state.attendance = cd.attendance || [];
+    }
+  } catch(e){}
 
   render();
   load();
