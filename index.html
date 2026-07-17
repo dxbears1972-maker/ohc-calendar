@@ -197,9 +197,11 @@
     padding: 6px 14px; margin-right: 8px; margin-top: 4px;
     text-decoration: none;
   }
-  /* カレンダー追加ボタン（青系で区別） */
+  /* カレンダー追加ボタン（青系・小さめで区別） */
   .filelinks a.calbtn {
     color: #1565c0; background: #e7f0fb; border-color: #1565c0;
+    font-size: 13px; font-weight: normal;
+    padding: 3px 9px; margin-right: 6px;
   }
   .evdel { text-align: right; margin-top: 4px; }
   .evdel a { font-size: 14px; color: #b00020; }
@@ -390,7 +392,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-17e</p>
+  <p class="note" style="text-align:center">版 2026-07-17f</p>
 </main>
 
 <script>
@@ -838,8 +840,8 @@ function renderList(){
              '&time=' + encodeURIComponent(ev.time || '') +
              '&place=' + encodeURIComponent(ev.place || '') + '" target="_blank">🚗 精算</a>';
     /* マイカレンダーに追加（Google／iPhone・Yahoo等） */
-    files += '<a class="filebtn calbtn" href="' + esc(gcalUrl(ev)) + '" target="_blank">📅 Googleに追加</a>';
-    files += '<a class="filebtn calbtn" href="javascript:void(0)" onclick="dlIcs(\'' + ev.id + '\')">📆 iPhone等に追加</a>';
+    files += '<a class="filebtn calbtn" href="' + esc(gcalUrl(ev)) + '" target="_blank">📅 Google</a>';
+    files += '<a class="filebtn calbtn" href="javascript:void(0)" onclick="dlIcs(\'' + ev.id + '\')">📆 iPhone</a>';
     if (ev.settle) files += '<a class="filebtn" href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')">💰 精算結果</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
