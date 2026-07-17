@@ -4,21 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#2e6b34">
-<link rel="manifest" href="manifest.json" id="manifestLink">
 <script>
 /* iPhone(iOS)では manifest があると「ホーム画面に追加」時に
    start_url が使われ、URLの ?key=○○ が消えてしまう。
-   そこで iOS だけ manifest を外し、開いているURLのまま登録させる。
-   （Androidは manifest ありのままでOK） */
+   HTMLには manifest を書かず、iPhone以外のときだけJSで追加する。
+   （iPhoneは manifest 無し＝開いているURLのまま登録される。
+   　Androidは従来どおり manifest あり） */
 (function(){
   try {
     var ua = navigator.userAgent || '';
     var isIOS = /iPhone|iPad|iPod/.test(ua) ||
       (/Macintosh/.test(ua) && 'ontouchend' in document);
-    if (isIOS){
-      var ml = document.getElementById('manifestLink');
-      if (ml && ml.parentNode) ml.parentNode.removeChild(ml);
-    }
+    if (isIOS) return;
+    var l = document.createElement('link');
+    l.rel = 'manifest';
+    l.href = 'manifest.json';
+    var head = document.head || document.getElementsByTagName('head')[0];
+    head.appendChild(l);
   } catch(e){}
 })();
 </script>
@@ -384,7 +386,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-17b</p>
+  <p class="note" style="text-align:center">版 2026-07-17c</p>
 </main>
 
 <script>
