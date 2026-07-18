@@ -404,7 +404,7 @@
   <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
-    <p class="note">Excelで「日付・タイトル・時間・場所・メモ」の順（時間以降は省略可）に並べた表を範囲コピーして、下に貼り付けてください。</p>
+    <p class="note">Excelで「日付・タイトル・時間・場所・メモ・計画表・報告書・係担当」の順（時間以降は省略可）に並べた表を範囲コピーして、下に貼り付けてください。</p>
     <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
     <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
@@ -417,7 +417,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18j</p>
+  <p class="note" style="text-align:center">版 2026-07-18k</p>
 </main>
 
 <script>
@@ -1350,7 +1350,8 @@ function parseImport(text){
       place: (cols[3] || '').replace(/^\s+|\s+$/g, ''),
       memo: (cols[4] || '').replace(/^\s+|\s+$/g, ''),
       plan: (cols[5] || '').replace(/^\s+|\s+$/g, ''),
-      report: (cols[6] || '').replace(/^\s+|\s+$/g, '')
+      report: (cols[6] || '').replace(/^\s+|\s+$/g, ''),
+      staff: (cols[7] || '').replace(/^\s+|\s+$/g, '')
     });
   }
   return { events: evs, errors: errs };
