@@ -373,6 +373,7 @@
     <select id="staffType">
       <option value="山行">山行の係</option>
       <option value="定例会">定例会の係</option>
+      <option value="懇親会">懇親会の係</option>
     </select>
     <div id="staffRows"></div>
     <label>メモ</label>
@@ -416,7 +417,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18i</p>
+  <p class="note" style="text-align:center">版 2026-07-18j</p>
 </main>
 
 <script>
@@ -895,7 +896,7 @@ function renderList(){
     var ev = list[j];
     var att = attOf(ev.id);
     var mine = myStatus(ev.id);
-    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || isStaff(myn)));
+    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || isStaff(myn) || staffCanEdit(ev, myn)));
     var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
     var parts = [];
     if (ev.time)  parts.push('🕒 ' + esc(ev.time));
@@ -937,7 +938,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>'
       ) +
-      (myn !== '' && (isStaff(myn) || myn === ev.owner) && !locked ? buildProxyBox(ev) : '') +
+      (myn !== '' && (isStaff(myn) || myn === ev.owner || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
@@ -1024,8 +1025,24 @@ function delEvent(evId, title){
    保存は「係：名前、係：名前」の文字列（今まで通りの形式） */
 var STAFF_ROLES = {
   '山行':   ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅'],
-  '定例会': ['受付', '議事', '司会']
+  '定例会': ['司会', '書記', '受付', '自己PR'],
+  '懇親会': ['幹事']
 };
+
+/* その予定の係の中で、編集・代理の権限を持つ人か？
+   （定例会の「司会」と懇親会の「幹事」が対象） */
+function staffCanEdit(ev, name){
+  if (!name || !ev || !ev.staff) return false;
+  var items = String(ev.staff).split(/[、,，]/);
+  for (var i = 0; i < items.length; i++){
+    var kv = items[i].split(/[：:]/);
+    if (kv.length < 2) continue;
+    var role = kv[0].replace(/^\s+|\s+$/g, '');
+    var nm = kv[1].replace(/^\s+|\s+$/g, '');
+    if (nm === name && (role === '司会' || role === '幹事')) return true;
+  }
+  return false;
+}
 var staffRows = [];
 
 function resetStaff(){
@@ -1100,8 +1117,13 @@ function parseStaff(s){
       var role = kv[0].replace(/^\s+|\s+$/g, '');
       var name = kv[1].replace(/^\s+|\s+$/g, '');
       if (!role || !name) continue;
-      if (STAFF_ROLES['定例会'].indexOf(role) >= 0) type = '定例会';
-      var known = STAFF_ROLES['山行'].indexOf(role) >= 0 || STAFF_ROLES['定例会'].indexOf(role) >= 0;
+      var known = false;
+      for (var t in STAFF_ROLES){
+        if (STAFF_ROLES[t].indexOf(role) >= 0){
+          known = true;
+          if (t !== '山行') type = t;
+        }
+      }
       staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
     }
   }
