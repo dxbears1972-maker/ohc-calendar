@@ -417,7 +417,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18k</p>
+  <p class="note" style="text-align:center">版 2026-07-18m</p>
 </main>
 
 <script>
@@ -499,6 +499,25 @@ var GCAL_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
   '<rect x="30" y="4" width="5" height="9" rx="2.5" fill="#1a73e8"/>' +
   '<text x="24" y="34" font-size="16" font-weight="bold" fill="#1a73e8" text-anchor="middle" font-family="Arial,sans-serif">31</text>' +
   '</svg>';
+var LINE_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
+  '<rect x="3" y="3" width="42" height="42" rx="10" fill="#06C755"/>' +
+  '<ellipse cx="24" cy="22" rx="15" ry="11" fill="#fff"/>' +
+  '<path fill="#fff" d="M16 31l-2.5 6.5L23 33z"/>' +
+  '<text x="24" y="26" font-size="10" font-weight="bold" fill="#06C755" text-anchor="middle" font-family="Arial,sans-serif">LINE</text>' +
+  '</svg>';
+
+/* LINEで送る用の文章を作って、共有画面を開くURLを返す */
+function lineShareUrl(ev){
+  var p = ev.date.split('-');
+  var dow = WEEK[new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getDay()];
+  var t = '【OHC予定】' + parseInt(p[1],10) + '月' + parseInt(p[2],10) + '日(' + dow + ') ' + (ev.title || '') + '\n';
+  if (ev.time)  t += '時間：' + ev.time + '\n';
+  if (ev.place) t += '場所：' + ev.place + '\n';
+  if (ev.staff) t += '係：' + ev.staff + '\n';
+  if (ev.memo)  t += 'メモ：' + ev.memo + '\n';
+  t += '出欠の回答は、OHCカレンダー（ホーム画面のアイコン）から！';
+  return 'https://line.me/R/share?text=' + encodeURIComponent(t);
+}
 
 var WEEK = ['日','月','火','水','木','金','土'];
 var myName = '';
@@ -920,6 +939,7 @@ function renderList(){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
     icons += '<a href="' + esc(gcalUrl(ev)) + '" target="_blank" title="Googleカレンダーに追加">' + GCAL_ICON + '</a>';
+    icons += '<a href="' + esc(lineShareUrl(ev)) + '" target="_blank" title="LINEで送る">' + LINE_ICON + '</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
       '<table class="evhead"><tr>' +
@@ -1462,7 +1482,11 @@ function pickFile(fileId){
     }
     $(pickTarget === 'report' ? 'addReport' : 'addPlan').value = data.url;
     closePicker();
-    setStatus('「' + data.name + '」を' + (pickTarget === 'report' ? '報告書' : '計画表') + 'に入れました');
+    if (data.shared === false){
+      setStatus('「' + data.name + '」を入れましたが、共有設定を変更できませんでした。このままだと開けない人が出ます。Googleドライブでこのファイルを「リンクを知っている全員（閲覧者）」にしてください', true);
+    } else {
+      setStatus('「' + data.name + '」を' + (pickTarget === 'report' ? '報告書' : '計画表') + 'に入れました');
+    }
   });
 }
 
