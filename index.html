@@ -370,7 +370,11 @@
     <label>集合場所</label>
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>係・担当（いれば）</label>
-    <input type="text" id="addStaff" placeholder="例）留守宅：山本／受付：荒木、議事録：竹田">
+    <select id="staffType">
+      <option value="山行">山行の係</option>
+      <option value="定例会">定例会の係</option>
+    </select>
+    <div id="staffRows"></div>
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
     <label>計画表（あれば）</label>
@@ -412,7 +416,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18f</p>
+  <p class="note" style="text-align:center">版 2026-07-18h</p>
 </main>
 
 <script>
@@ -933,7 +937,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>'
       ) +
-      (isAdmin && !locked ? buildProxyBox(ev) : '') +
+      (myn !== '' && (isStaff(myn) || myn === ev.owner) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
@@ -1008,11 +1012,101 @@ function delEvent(evId, title){
   post({ action: 'deleteEvent', id: evId, name: name }, '削除しました');
 }
 
+/* ---------- 係・担当の入力（種別ごとのプルダウン） ----------
+   保存は「係：名前、係：名前」の文字列（今まで通りの形式） */
+var STAFF_ROLES = {
+  '山行':   ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅'],
+  '定例会': ['受付', '議事', '司会']
+};
+var staffRows = [];
+
+function resetStaff(){
+  staffRows = [];
+  if ($('staffType')) $('staffType').value = '山行';
+  renderStaffRows();
+}
+
+function currentRoles_(){
+  return STAFF_ROLES[$('staffType').value] || STAFF_ROLES['山行'];
+}
+
+function renderStaffRows(){
+  /* 空の行を除いてから、最後に空の行を1つ足す（1つ選ぶと次の行が出る仕組み） */
+  var rows = [];
+  for (var i = 0; i < staffRows.length; i++){
+    var r = staffRows[i];
+    if (r.role || r.name || r.roleFree) rows.push(r);
+  }
+  rows.push({ role: '', roleFree: '', name: '' });
+  staffRows = rows;
+
+  var roles = currentRoles_();
+  var html = '';
+  for (var j = 0; j < staffRows.length; j++){
+    var row = staffRows[j];
+    var ropt = '<option value="">（係を選ぶ）</option>';
+    for (var k = 0; k < roles.length; k++){
+      ropt += '<option value="' + esc(roles[k]) + '"' + (row.role === roles[k] ? ' selected' : '') + '>' + esc(roles[k]) + '</option>';
+    }
+    ropt += '<option value="その他"' + (row.role === 'その他' ? ' selected' : '') + '>その他</option>';
+    var nopt = '<option value="">（名前）</option>';
+    var names = MEMBERS.slice();
+    if (row.name && names.indexOf(row.name) < 0) names.push(row.name);
+    for (var m = 0; m < names.length; m++){
+      nopt += '<option value="' + esc(names[m]) + '"' + (row.name === names[m] ? ' selected' : '') + '>' + esc(names[m]) + '</option>';
+    }
+    html += '<table class="row3" style="margin-top:6px"><tr>' +
+      '<td style="width:48%"><select onchange="staffRoleChg(' + j + ', this.value)">' + ropt + '</select></td>' +
+      '<td style="width:52%"><select onchange="staffNameChg(' + j + ', this.value)">' + nopt + '</select></td>' +
+      '</tr></table>';
+    if (row.role === 'その他'){
+      html += '<input type="text" placeholder="係の名前を入力（例）車出し）" value="' + esc(row.roleFree || '') + '" oninput="staffFreeChg(' + j + ', this.value)">';
+    }
+  }
+  $('staffRows').innerHTML = html;
+}
+
+function staffRoleChg(i, v){ if (staffRows[i]){ staffRows[i].role = v; renderStaffRows(); } }
+function staffNameChg(i, v){ if (staffRows[i]){ staffRows[i].name = v; renderStaffRows(); } }
+function staffFreeChg(i, v){ if (staffRows[i]) staffRows[i].roleFree = v; }
+
+function serializeStaff(){
+  var parts = [];
+  for (var i = 0; i < staffRows.length; i++){
+    var r = staffRows[i];
+    var label = (r.role === 'その他') ? String(r.roleFree || '').replace(/^\s+|\s+$/g, '') : r.role;
+    if (label && r.name) parts.push(label + '：' + r.name);
+  }
+  return parts.join('、');
+}
+
+function parseStaff(s){
+  staffRows = [];
+  var type = '山行';
+  s = String(s || '');
+  if (s){
+    var items = s.split(/[、,，]/);
+    for (var i = 0; i < items.length; i++){
+      var kv = items[i].split(/[：:]/);
+      if (kv.length < 2) continue;
+      var role = kv[0].replace(/^\s+|\s+$/g, '');
+      var name = kv[1].replace(/^\s+|\s+$/g, '');
+      if (!role || !name) continue;
+      if (STAFF_ROLES['定例会'].indexOf(role) >= 0) type = '定例会';
+      var known = STAFF_ROLES['山行'].indexOf(role) >= 0 || STAFF_ROLES['定例会'].indexOf(role) >= 0;
+      staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
+    }
+  }
+  if ($('staffType')) $('staffType').value = type;
+  renderStaffRows();
+}
+
 function openAddForm(y, m, d){
   $('addCard').style.display = 'block';
   $('showAdd').style.display = 'none';
   fillDateSelects(y, m, d);
   if (!$('addHour').innerHTML) fillTimeSelects();
+  resetStaff();
   if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
 }
 
@@ -1023,7 +1117,7 @@ function closeAddForm(){
   $('addHour').value = '';
   $('addMin').value = '00';
   $('addPlace').value = '';
-  $('addStaff').value = '';
+  resetStaff();
   $('addMemo').value = '';
   $('addPlan').value = '';
   $('addReport').value = '';
@@ -1050,7 +1144,7 @@ function editEvent(evId){
   $('repRow').style.display = 'none';
   $('addTitle').value = ev.title;
   $('addPlace').value = ev.place;
-  $('addStaff').value = ev.staff || '';
+  parseStaff(ev.staff || '');
   $('addMemo').value = ev.memo;
   $('addPlan').value = ev.plan || '';
   $('addReport').value = ev.report || '';
@@ -1163,7 +1257,7 @@ function submitAdd(){
       title: title,
       time: time,
       place: $('addPlace').value,
-      staff: $('addStaff').value,
+      staff: serializeStaff(),
       memo: $('addMemo').value,
       plan: plan,
       report: report,
@@ -1181,7 +1275,7 @@ function submitAdd(){
     title: title,
     time: time,
     place: $('addPlace').value,
-    staff: $('addStaff').value,
+    staff: serializeStaff(),
     memo: $('addMemo').value,
     plan: plan,
     report: report,
@@ -1409,6 +1503,10 @@ function init(){
   $('pickerClose').onclick = closePicker;
   $('addRep').onchange = function(){
     $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
+  };
+  $('staffType').onchange = function(){
+    staffRows = [];
+    renderStaffRows();
   };
   $('reloadBtn').onclick = load;
 
