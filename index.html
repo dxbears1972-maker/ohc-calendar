@@ -404,7 +404,7 @@
   <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
-    <p class="note">Excelで「日付・タイトル・時間・場所・メモ・計画表・報告書・係担当」の順（時間以降は省略可）に並べた表を範囲コピーして、下に貼り付けてください。</p>
+    <p class="note">Excelの表を<b>見出し行ごと</b>範囲コピーして貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
     <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
     <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
@@ -417,7 +417,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18m</p>
+  <p class="note" style="text-align:center">版 2026-07-18n</p>
 </main>
 
 <script>
@@ -1337,19 +1337,54 @@ function submitAdd(){
   closeAddForm();
 }
 
-/* ---------- まとめて登録（管理者用） ---------- */
+/* ---------- まとめて登録（管理者用） ----------
+   見出し行（「日付」で始まる行）ごと貼り付けると、列名で読み取る。
+   決まった列名（日付・タイトル・時間…）以外の列は「係の名前」とみなし、
+   例えば「受付」列に「永野」とあれば自動で「受付：永野」を作る */
+var IMPORT_FIXED = {
+  '日付': 'date',
+  '山名・タイトル': 'title', 'タイトル': 'title', '山名': 'title',
+  '時間': 'time',
+  '集合場所': 'place', '場所': 'place',
+  'メモ': 'memo',
+  '計画表リンク': 'plan', '計画表': 'plan',
+  '報告書リンク': 'report', '報告書': 'report',
+  '係・担当': 'staff', '係': 'staff', '担当': 'staff'
+};
+
 function parseImport(text){
   var lines = text.split(/\r\n|\n|\r/);
   var evs = [], errs = [];
   var nowY = new Date().getFullYear();
+  var headers = null;
+
+  function trimS(s){ return String(s == null ? '' : s).replace(/^\s+|\s+$/g, ''); }
+
   for (var i = 0; i < lines.length; i++){
     var line = lines[i].replace(/^\s+|\s+$/g, '');
     if (!line) continue;
     var cols = line.indexOf('\t') >= 0 ? line.split('\t') : line.split(',');
-    var dRaw = (cols[0] || '').replace(/^\s+|\s+$/g, '');
-    var title = (cols[1] || '').replace(/^\s+|\s+$/g, '');
-    /* 見出し行（「日付」など）は黙って読み飛ばす */
-    if (dRaw === '日付') continue;
+    var dRaw = trimS(cols[0]);
+
+    /* 見出し行なら列名を覚える */
+    if (dRaw === '日付'){
+      headers = [];
+      for (var h = 0; h < cols.length; h++) headers.push(trimS(cols[h]));
+      continue;
+    }
+
+    /* 列の値を取り出す（見出しがあれば列名で、なければ位置で） */
+    function val(field, defIdx){
+      if (headers){
+        for (var c = 0; c < headers.length; c++){
+          if (IMPORT_FIXED[headers[c]] === field) return trimS(cols[c]);
+        }
+        return '';
+      }
+      return trimS(cols[defIdx]);
+    }
+
+    var title = val('title', 1);
     var y = 0, mo = 0, d = 0;
     var m = dRaw.match(/^(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})日?$/);
     if (m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
@@ -1360,18 +1395,38 @@ function parseImport(text){
     if (!m || !title){ errs.push((i + 1) + '行目'); continue; }
     var chk = new Date(y, mo - 1, d);
     if (chk.getMonth() !== mo - 1){ errs.push((i + 1) + '行目（日付）'); continue; }
-    var time = (cols[2] || '').replace(/^\s+|\s+$/g, '');
+    var time = val('time', 2);
     var tm = time.match(/^(\d{1,2}:\d{2}):\d{2}$/);
     if (tm) time = tm[1];
+
+    /* 係を組み立てる：「係・担当」列＋役割ごとの列（司会・書記・受付など） */
+    var staffParts = [];
+    var combined = val('staff', 7);
+    if (combined) staffParts.push(combined);
+    if (headers){
+      for (var rc = 0; rc < headers.length && rc < cols.length; rc++){
+        var hname = headers[rc];
+        if (!hname || IMPORT_FIXED[hname]) continue;
+        var v = trimS(cols[rc]);
+        if (!v) continue;
+        /* 1つの欄に複数人（永野、松田 など）はそれぞれに分ける */
+        var nms = v.split(/[、,，・\/／]/);
+        for (var ni = 0; ni < nms.length; ni++){
+          var n1 = trimS(nms[ni]);
+          if (n1) staffParts.push(hname + '：' + n1);
+        }
+      }
+    }
+
     evs.push({
       date: dkey(y, mo, d),
       title: title,
       time: time,
-      place: (cols[3] || '').replace(/^\s+|\s+$/g, ''),
-      memo: (cols[4] || '').replace(/^\s+|\s+$/g, ''),
-      plan: (cols[5] || '').replace(/^\s+|\s+$/g, ''),
-      report: (cols[6] || '').replace(/^\s+|\s+$/g, ''),
-      staff: (cols[7] || '').replace(/^\s+|\s+$/g, '')
+      place: val('place', 3),
+      memo: val('memo', 4),
+      plan: val('plan', 5),
+      report: val('report', 6),
+      staff: staffParts.join('、')
     });
   }
   return { events: evs, errors: errs };
