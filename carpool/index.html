@@ -328,9 +328,9 @@
   <button type="button" class="btn btn-sub" onclick="clearForm()" style="margin-top:24px;">入力を全部消して最初から</button>
 
   <!-- 関連アプリ -->
-  <a class="btn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
+  <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-19g</p>
+  <p class="note" style="text-align:center">版 2026-07-19h</p>
 
 </main>
 
@@ -1127,6 +1127,8 @@ function setToday() {
   /* 予定と連動しているときはボタンの文言を変える */
   if (EVENT_ID) {
     document.getElementById("saveHistBtn").textContent = "この結果をカレンダーに記録する（全員が見られる）";
+    /* 「戻る」で、見ていた予定の場所に戻す */
+    document.getElementById("backCalBtn").href = CAL_PAGE + "?goto=" + EVENT_ID;
   }
   /* どの予定の精算かをヘッダーに表示 */
   if (EVENT_DATE || EVENT_TITLE) {
