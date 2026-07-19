@@ -433,7 +433,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19i</p>
+  <p class="note" style="text-align:center">版 2026-07-19j</p>
 </main>
 
 <script>
@@ -731,6 +731,21 @@ function esc(s){
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/* Googleドライブ／ドキュメントのリンクを、アカウント選択の出にくい
+   「プレビュー表示」に変換して開く。編集したい人はプレビュー画面から
+   「Googleドキュメントで開く」を押せば通常画面に進める。 */
+function previewLink(url){
+  var u = String(url == null ? '' : url);
+  if (!u) return u;
+  /* .../d/<ID>/... 形式（docs, drive/file など）→ /d/<ID>/preview */
+  var m = u.match(/^(https:\/\/[^\/]*\.google\.com\/[^?]*\/d\/[a-zA-Z0-9_-]+)/);
+  if (m) return m[1] + '/preview';
+  /* open?id=<ID> 形式 → ドライブのプレビューURLに変換 */
+  var m2 = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2 && u.indexOf('google.com') >= 0) return 'https://drive.google.com/file/d/' + m2[1] + '/preview';
+  return u;
+}
+
 /* ============================================================
    カレンダー連携（Googleカレンダーに追加 / .icsダウンロード）
    ・時間ありの予定：開始＝その時刻、終了＝2時間後（日本時間）
@@ -941,8 +956,8 @@ function renderList(){
     var info = parts.join('　');
     if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
     var files = '';
-    if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
-    if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
+    if (ev.plan)   files += '<a class="filebtn" href="' + esc(previewLink(ev.plan)) + '" target="_blank">📄 計画表</a>';
+    if (ev.report) files += '<a class="filebtn" href="' + esc(previewLink(ev.report)) + '" target="_blank">📝 報告書</a>';
 
     /* 表題行の右端に常時表示するアイコン
        （車＝マイカー精算、¥＝精算結果〔ある時だけ〕、カレンダー＝Googleカレンダーに追加） */
