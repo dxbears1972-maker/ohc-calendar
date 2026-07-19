@@ -216,6 +216,10 @@
     padding: 6px 14px; margin-right: 8px; margin-top: 4px;
     text-decoration: none;
   }
+  /* 山行グループLINEボタン（緑で区別） */
+  .filelinks a.linebtn {
+    color: #fff; background: #06C755; border-color: #06C755;
+  }
   /* 予定の表題行（左＝日付・山名、右＝アイコンボタン） */
   table.evhead { width: 100%; border-collapse: collapse; }
   table.evhead td { vertical-align: top; }
@@ -389,6 +393,9 @@
       <td style="width:100px"><button type="button" class="refbtn" id="refReport">参照</button></td>
     </tr></table>
     <p class="note">「参照」でGoogleドライブの「OHCカレンダー資料」フォルダから選べます（閲覧の共有設定も自動）。別の場所のファイルはURLの貼り付けでもOKです。</p>
+    <label>山行グループLINE（あれば）</label>
+    <input type="text" id="addLineGroup" placeholder="LINEの招待リンク（https://line.me/... ）を貼る">
+    <p class="note">LINEでその山行グループを開く→メンバー→招待→「リンクをコピー・共有」で出るURLを貼ってください。参加者はここから直接グループに入れます。</p>
 
     <!-- ファイル選択 -->
     <div id="pickerCard" style="display:none; border:2px solid #2e6b34; border-radius:10px; padding:10px; margin-top:10px; background:#f7fbf7;">
@@ -417,7 +424,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-18n</p>
+  <p class="note" style="text-align:center">版 2026-07-19b</p>
 </main>
 
 <script>
@@ -513,7 +520,7 @@ function lineShareUrl(ev){
   var t = '【OHC予定】' + parseInt(p[1],10) + '月' + parseInt(p[2],10) + '日(' + dow + ') ' + (ev.title || '') + '\n';
   if (ev.time)  t += '時間：' + ev.time + '\n';
   if (ev.place) t += '場所：' + ev.place + '\n';
-  if (ev.staff) t += '係：' + ev.staff + '\n';
+  if (ev.staff) t += '係：' + sortStaffStr(ev.staff) + '\n';
   if (ev.memo)  t += 'メモ：' + ev.memo + '\n';
   t += '出欠の回答は、OHCカレンダー（ホーム画面のアイコン）から！';
   return 'https://line.me/R/share?text=' + encodeURIComponent(t);
@@ -743,7 +750,7 @@ function calTimes(ev){
 /* 予定の説明文（メモ・計画表・報告書のリンクをまとめる） */
 function calDesc(ev){
   var desc = [];
-  if (ev.staff)  desc.push('係・担当: ' + ev.staff);
+  if (ev.staff)  desc.push('係・担当: ' + sortStaffStr(ev.staff));
   if (ev.memo)   desc.push(ev.memo);
   if (ev.plan)   desc.push('計画表: ' + ev.plan);
   if (ev.report) desc.push('報告書: ' + ev.report);
@@ -920,13 +927,14 @@ function renderList(){
     var parts = [];
     if (ev.time)  parts.push('🕒 ' + esc(ev.time));
     if (ev.place) parts.push('📍 ' + esc(ev.place));
-    if (ev.staff) parts.push('👤 ' + esc(ev.staff));
+    if (ev.staff) parts.push('👤 ' + esc(sortStaffStr(ev.staff)));
     if (ev.owner) parts.push('<span class="evowner">（' + esc(ev.owner) + '）</span>');
     var info = parts.join('　');
     if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
     var files = '';
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
+    if (ev.lineGroup) files += '<a class="filebtn linebtn" href="' + esc(ev.lineGroup) + '" target="_blank">💬 山行LINE</a>';
 
     /* 表題行の右端に常時表示するアイコン
        （車＝マイカー精算、¥＝精算結果〔ある時だけ〕、カレンダー＝Googleカレンダーに追加） */
@@ -1049,6 +1057,32 @@ var STAFF_ROLES = {
   '懇親会': ['幹事']
 };
 
+/* 係の表示順（この順に並び替えて表示する。一覧にない係は最後） */
+var STAFF_ORDER = ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅', '司会', '書記', '受付', '自己PR'];
+
+function staffOrderOf_(item){
+  var kv = item.split(/[：:]/);
+  var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
+  var i = STAFF_ORDER.indexOf(role);
+  return i < 0 ? 999 : i;
+}
+
+/* 「係：名前、係：名前」の文字列を決まった順に並び替える */
+function sortStaffStr(s){
+  s = String(s == null ? '' : s);
+  if (!s) return '';
+  var items = s.split(/[、,，]/);
+  var dec = [];
+  for (var i = 0; i < items.length; i++){
+    var it = items[i].replace(/^\s+|\s+$/g, '');
+    if (it) dec.push({ o: staffOrderOf_(it), i: i, t: it });
+  }
+  dec.sort(function(a, b){ return a.o !== b.o ? a.o - b.o : a.i - b.i; });
+  var r = [];
+  for (var j = 0; j < dec.length; j++) r.push(dec[j].t);
+  return r.join('、');
+}
+
 /* その予定の係の中で、編集・代理の権限を持つ人か？
    （定例会の「司会」と懇親会の「幹事」が対象） */
 function staffCanEdit(ev, name){
@@ -1122,13 +1156,13 @@ function serializeStaff(){
     var label = (r.role === 'その他') ? String(r.roleFree || '').replace(/^\s+|\s+$/g, '') : r.role;
     if (label && r.name) parts.push(label + '：' + r.name);
   }
-  return parts.join('、');
+  return sortStaffStr(parts.join('、'));
 }
 
 function parseStaff(s){
   staffRows = [];
   var type = '山行';
-  s = String(s || '');
+  s = sortStaffStr(String(s || ''));
   if (s){
     var items = s.split(/[、,，]/);
     for (var i = 0; i < items.length; i++){
@@ -1171,6 +1205,7 @@ function closeAddForm(){
   $('addMemo').value = '';
   $('addPlan').value = '';
   $('addReport').value = '';
+  $('addLineGroup').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
   closePicker();
@@ -1198,6 +1233,7 @@ function editEvent(evId){
   $('addMemo').value = ev.memo;
   $('addPlan').value = ev.plan || '';
   $('addReport').value = ev.report || '';
+  $('addLineGroup').value = ev.lineGroup || '';
   $('addHour').value = '';
   $('addMin').value = '00';
   var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
@@ -1293,7 +1329,9 @@ function submitAdd(){
   /* 計画表・報告書のリンク（貼るならhttpで始まるURL） */
   var plan = $('addPlan').value.replace(/^\s+|\s+$/g, '');
   var report = $('addReport').value.replace(/^\s+|\s+$/g, '');
-  if ((plan && plan.indexOf('http') !== 0) || (report && report.indexOf('http') !== 0)){
+  var lineGroup = $('addLineGroup').value.replace(/^\s+|\s+$/g, '');
+  if ((plan && plan.indexOf('http') !== 0) || (report && report.indexOf('http') !== 0) ||
+      (lineGroup && lineGroup.indexOf('http') !== 0)){
     alert('リンクは https:// で始まるURLを貼り付けてください');
     return;
   }
@@ -1311,6 +1349,7 @@ function submitAdd(){
       memo: $('addMemo').value,
       plan: plan,
       report: report,
+      lineGroup: lineGroup,
       name: name
     }, '予定を変更しました');
     state.year = y;
@@ -1329,6 +1368,7 @@ function submitAdd(){
     memo: $('addMemo').value,
     plan: plan,
     report: report,
+    lineGroup: lineGroup,
     owner: name
   }, '予定を登録しました（' + dates.length + '件）');
   /* 追加した月を表示 */
@@ -1426,7 +1466,7 @@ function parseImport(text){
       memo: val('memo', 4),
       plan: val('plan', 5),
       report: val('report', 6),
-      staff: staffParts.join('、')
+      staff: sortStaffStr(staffParts.join('、'))
     });
   }
   return { events: evs, errors: errs };
