@@ -417,6 +417,15 @@
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
+  <!-- Googleカレンダー連携の設定 -->
+  <div class="card" style="padding:10px 12px">
+    <label style="font-size:16px; display:flex; align-items:center; margin:0;">
+      <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
+      参加した予定をGoogleカレンダーにも追加する
+    </label>
+    <p class="note" style="margin-top:6px">チェックを入れると、「参加」を押したときにGoogleカレンダーの追加画面が開きます。外すと開きません。（この設定はこの端末に記憶されます）</p>
+  </div>
+
   <!-- 予定一覧 -->
   <div class="card">
     <h2 id="listTitle">今月の予定</h2>
@@ -424,7 +433,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19b</p>
+  <p class="note" style="text-align:center">版 2026-07-19g</p>
 </main>
 
 <script>
@@ -934,7 +943,6 @@ function renderList(){
     var files = '';
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(ev.plan) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(ev.report) + '" target="_blank">📝 報告書</a>';
-    if (ev.lineGroup) files += '<a class="filebtn linebtn" href="' + esc(ev.lineGroup) + '" target="_blank">💬 山行LINE</a>';
 
     /* 表題行の右端に常時表示するアイコン
        （車＝マイカー精算、¥＝精算結果〔ある時だけ〕、カレンダー＝Googleカレンダーに追加） */
@@ -946,8 +954,7 @@ function renderList(){
     if (ev.settle){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
-    icons += '<a href="' + esc(gcalUrl(ev)) + '" target="_blank" title="Googleカレンダーに追加">' + GCAL_ICON + '</a>';
-    icons += '<a href="' + esc(lineShareUrl(ev)) + '" target="_blank" title="LINEで送る">' + LINE_ICON + '</a>';
+    if (ev.lineGroup) icons += '<a href="' + esc(ev.lineGroup) + '" target="_blank" title="山行グループLINE">' + LINE_ICON + '</a>';
 
     html += '<div class="ev" id="ev-' + ev.id + '">' +
       '<table class="evhead"><tr>' +
@@ -1011,6 +1018,7 @@ function answer(evId, st){
       return;
     }
   }
+  var prev = myStatus(evId);
   /* 押した瞬間にボタンの色を変え、送信は裏で行う */
   var found = false;
   for (var j = 0; j < state.attendance.length; j++){
@@ -1020,6 +1028,18 @@ function answer(evId, st){
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
   render();
   post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+  /* チェックが入っている人だけ、新たに「参加」にしたときGoogleカレンダー追加を開く */
+  if (st === 'yes' && prev !== 'yes' && lsGet('ohcGcalPref') === 'yes'){
+    var ev = null;
+    for (var g = 0; g < state.events.length; g++){
+      if (state.events[g].id === evId) ev = state.events[g];
+    }
+    if (ev) window.open(gcalUrl(ev), '_blank');
+  }
+  /* 参加→不参加/未定 に変えたとき、連携オンの人には手動削除を案内する */
+  if (prev === 'yes' && st !== 'yes' && lsGet('ohcGcalPref') === 'yes'){
+    alert('この予定をGoogleカレンダーに入れていた場合は、\nお手数ですがGoogleカレンダーから手動で削除してください。\n（アプリから自動では消せません）');
+  }
 }
 
 function toggleSettle(evId){
@@ -1659,6 +1679,12 @@ function init(){
     renderStaffRows();
   };
   $('reloadBtn').onclick = load;
+
+  /* Googleカレンダー連携チェックボックス（この端末に記憶） */
+  $('gcalChk').checked = (lsGet('ohcGcalPref') === 'yes');
+  $('gcalChk').onchange = function(){
+    lsSet('ohcGcalPref', this.checked ? 'yes' : 'no');
+  };
 
   /* 前回の内容をまず表示し、そのあと裏で最新を取りに行く（起動を速く見せる） */
   try {
