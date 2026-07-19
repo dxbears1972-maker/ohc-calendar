@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2e6b34">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="OHC精算">
+<title>OHC マイカー精算</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 18px;
+    background: #eef3ee;
+    color: #222;
+    line-height: 1.6;
+    padding-bottom: 60px;
+  }
+  header {
+    background: #2e6b34;
+    color: #fff;
+    padding: 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+  header h1 { font-size: 26px; }
+  header p { font-size: 15px; opacity: .9; }
+  main { max-width: 640px; margin: 0 auto; padding: 12px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card h2 {
+    font-size: 20px;
+    color: #2e6b34;
+    border-left: 6px solid #2e6b34;
+    padding-left: 10px;
+    margin-bottom: 12px;
+  }
+  label { font-size: 17px; font-weight: bold; display: block; margin-top: 10px; }
+  .hint { font-size: 14px; font-weight: normal; color: #777; }
+  input[type=text], input[type=number], input[type=date], input[type=time], select {
+    width: 100%;
+    font-size: 22px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+  }
+  input:focus, select:focus { border-color: #2e6b34; outline: none; }
+  input.err { border-color: #c33; background: #fff0f0; }
+  /* チェックで入力欄を出す */
+  .chk-row { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 12px; }
+  .chk-row label {
+    font-size: 17px; font-weight: bold; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+    background: #eef3ee; border: 2px solid #cdd6cd;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .chk-row label.on { background: #d6ead6; border-color: #2e6b34; color: #2e6b34; }
+  .chk-row input[type=checkbox] { width: 26px; height: 26px; }
+  .opt-blk { display: none; }
+  .opt-blk.on { display: block; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .subhead { font-size: 15px; font-weight: bold; color: #2e6b34; margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
+  /* 人数ステッパー */
+  .stepper { display: flex; align-items: center; gap: 14px; justify-content: center; margin-top: 8px; }
+  .stepper button {
+    width: 64px; height: 64px;
+    font-size: 34px; font-weight: bold;
+    border: none; border-radius: 50%;
+    background: #2e6b34; color: #fff;
+    cursor: pointer;
+  }
+  .stepper button:active { background: #1d4a22; }
+  .stepper .num { font-size: 44px; font-weight: bold; min-width: 90px; text-align: center; }
+  .btn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 16px; margin-top: 14px;
+    border: none; border-radius: 10px;
+    cursor: pointer;
+  }
+  .btn-main { background: #d9541e; color: #fff; font-size: 26px; }
+  .btn-main:active { background: #b34317; }
+  .btn-sub { background: #e8f0e8; color: #2e6b34; border: 2px dashed #2e6b34; }
+  a.btn { text-align: center; text-decoration: none; }
+  .btn-small {
+    font-size: 16px; padding: 8px 14px;
+    border: none; border-radius: 8px;
+    background: #c33; color: #fff; cursor: pointer;
+  }
+  .car-card {
+    border: 2px solid #2e6b34;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+    background: #f7fbf7;
+  }
+  .car-card .car-head { display: flex; justify-content: space-between; align-items: center; }
+  .car-card .car-title { font-size: 19px; font-weight: bold; color: #2e6b34; }
+  /* 結果 */
+  #result .per-person {
+    background: #fff8e1;
+    border: 3px solid #d9541e;
+    border-radius: 12px;
+    text-align: center;
+    padding: 14px;
+    margin-top: 10px;
+  }
+  #result .per-person .label { font-size: 18px; }
+  #result .per-person .yen { font-size: 44px; font-weight: bold; color: #d9541e; }
+  #result .per-person .sub { font-size: 15px; color: #555; margin-top: 6px; }
+  .result-car {
+    border-bottom: 1px solid #ccc;
+    padding: 12px 0;
+  }
+  .result-car .name { font-size: 20px; font-weight: bold; }
+  .result-car .receive { font-size: 26px; font-weight: bold; color: #2e6b34; }
+  .result-car .detail { font-size: 14px; color: #555; }
+  .check-ok {
+    background: #e7f4e7; border: 2px solid #2e6b34; color: #1d4a22;
+    border-radius: 10px; padding: 10px; margin-top: 12px;
+    font-size: 16px; font-weight: bold; text-align: center;
+  }
+  .note { font-size: 15px; color: #555; margin-top: 8px; }
+  .warn { color: #c33; font-weight: bold; margin-top: 8px; font-size: 17px; }
+  details { margin-top: 14px; }
+  summary {
+    font-size: 18px; font-weight: bold;
+    background: #dde8dd; color: #2e6b34;
+    padding: 12px; border-radius: 10px;
+    cursor: pointer;
+  }
+  .etc-row {
+    border: 2px solid #b9ccb9;
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 10px;
+    background: #fafcfa;
+  }
+  .etc-row input { font-size: 20px; padding: 8px; }
+  .etc-fees { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+  .etc-fees > div { flex: 1; }
+  .etc-fees .fee-label { font-size: 14px; font-weight: bold; color: #555; display: block; margin: 0; }
+  .copied { text-align: center; color: #2e6b34; font-weight: bold; margin-top: 6px; display: none; }
+  .youbi { font-size: 18px; font-weight: bold; color: #2e6b34; margin-top: 4px; text-align: center; }
+  /* 履歴 */
+  .hist-item { border-bottom: 1px solid #ccc; padding: 12px 0; }
+  .hist-item .h-title { font-size: 18px; font-weight: bold; }
+  .hist-item .h-sub { font-size: 14px; color: #555; margin-top: 2px; }
+  .hist-btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .hist-btns .h-btn {
+    font-size: 16px; padding: 8px 14px;
+    border: none; border-radius: 8px;
+    background: #2e6b34; color: #fff; cursor: pointer;
+  }
+  .hist-item pre {
+    white-space: pre-wrap; background: #f4f7f4;
+    padding: 10px; border-radius: 8px;
+    font-size: 15px; margin-top: 8px; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>OHC マイカー精算</h1>
+  <p>大牟田ハイキングクラブ　カープール費用計算</p>
+</header>
+<main>
+
+  <div id="loadMsg" class="check-ok" style="display:none; margin-top:14px;"></div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <h2>1. ハイクの情報</h2>
+    <div class="row">
+      <div>
+        <label>山行日</label>
+        <input type="date" id="hikeDate">
+        <div class="youbi" id="youbiDisp"></div>
+      </div>
+      <div>
+        <label>山行名（任意）</label>
+        <input type="text" id="hikeName" placeholder="例：烏帽子岳">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>集合場所</label>
+        <input type="text" id="meetPlace" placeholder="例：大牟田市役所前">
+      </div>
+      <div>
+        <label>集合時間</label>
+        <input type="time" id="meetTime">
+      </div>
+    </div>
+    <label style="text-align:center; margin-top:16px;">参加人数（運転手も含む）</label>
+    <div class="stepper">
+      <button type="button" onclick="changeN(-1)">−</button>
+      <div class="num" id="nDisp">4</div>
+      <button type="button" onclick="changeN(1)">＋</button>
+    </div>
+  </div>
+
+  <!-- 車にかかる費用 -->
+  <div class="card">
+    <h2>2. 車にかかる費用</h2>
+    <p class="note">ドライバーが立替え、参加者全員で等分してドライバーに戻します。無い費用は空欄でOKです。</p>
+    <div id="cars"></div>
+    <button type="button" class="btn btn-sub" onclick="addCar()">＋ 車を追加する</button>
+  </div>
+
+  <!-- 人にかかる費用 -->
+  <div class="card">
+    <h2>3. 人にかかる費用</h2>
+    <p class="note">一人ずつにかかる費用です。あるものだけチェックを入れてください。</p>
+    <div class="chk-row">
+      <label><input type="checkbox" id="chkPFerry" onchange="togglePerson()">フェリー（一人あたり）</label>
+      <label><input type="checkbox" id="chkPEnt" onchange="togglePerson()">入場料（一人あたり）</label>
+    </div>
+    <div class="opt-blk blk-pferry">
+      <label>フェリー（1人あたり）</label>
+      <div style="display:flex;gap:8px;">
+        <input type="number" id="ferryPerson" placeholder="0" min="0" style="flex:2;min-width:0;">
+        <select id="ferryPersonType" style="flex:1;min-width:0;"><option value="round">往復</option><option value="one">片道</option></select>
+      </div>
+    </div>
+    <div class="opt-blk blk-pent">
+      <label>入場料（1人あたり）</label>
+      <input type="number" id="entPerson" placeholder="0" min="0">
+    </div>
+    <div class="opt-blk blk-payer">
+      <label>この費用を立替えた人</label>
+      <select id="personPayer">
+        <option value="-1">各自でその場払い（精算しない）</option>
+      </select>
+      <p class="hint">「各自でその場払い」なら一人あたり金額に含めて表示だけします。誰かがまとめて払った場合はその人を選ぶと精算に入ります。</p>
+    </div>
+  </div>
+
+  <button type="button" class="btn btn-main" onclick="calc()">計算する</button>
+
+  <!-- 結果 -->
+  <div class="card" id="result" style="display:none;">
+    <h2>4. 精算結果</h2>
+    <div id="resultBody"></div>
+    <button type="button" class="btn btn-sub" onclick="copyResult()">結果をコピーする（LINE用）</button>
+    <div class="copied" id="copiedMsg">コピーしました！</div>
+    <button type="button" class="btn btn-sub" id="saveHistBtn" onclick="saveHistory()">この結果を履歴に残す</button>
+    <div class="copied" id="histSavedMsg">履歴に保存しました！</div>
+  </div>
+
+  <!-- 履歴 -->
+  <details>
+    <summary>精算の履歴</summary>
+    <div class="card">
+      <p class="note">保存した精算結果の一覧です（この端末に保存・最新50件）。精算結果の「この結果を履歴に残す」ボタンで追加されます。</p>
+      <div id="histList"></div>
+    </div>
+  </details>
+
+  <!-- 高速料金表 -->
+  <details>
+    <summary>高速料金表の登録・編集</summary>
+    <div class="card">
+      <p class="note">よく使うルートを登録しておくと、車の入力でドロップダウンから選べます。金額はどちらも<b>往復</b>で、ETC料金と通常料金（現金）を入れてください。<b>この料金表はメンバー全員で共有</b>されます。誰かが登録・修正すると、みんなの画面にも反映されます。</p>
+      <div id="etcRows"></div>
+      <button type="button" class="btn btn-sub" onclick="addEtcRow()">＋ ルートを追加</button>
+      <div class="copied" id="etcSyncMsg"></div>
+    </div>
+  </details>
+
+  <!-- 便利リンク -->
+  <details>
+    <summary>便利リンク（料金・距離を調べる）</summary>
+    <div class="card">
+      <a class="btn btn-sub" href="https://search.w-nexco.co.jp/" target="_blank" rel="noopener"
+         onclick="window.open(this.href, '_blank', 'noopener'); return false;">高速料金を調べる（NEXCO西日本）</a>
+      <a class="btn btn-sub" href="https://www.google.com/maps/dir/" target="_blank" rel="noopener"
+         onclick="window.open(this.href, '_blank', 'noopener'); return false;">距離を調べる（Googleマップ）</a>
+      <p class="note">調べた金額・距離は、上の料金表や車の入力欄に書き写してください。</p>
+    </div>
+  </details>
+
+  <!-- 設定 -->
+  <details>
+    <summary>設定</summary>
+    <div class="card">
+      <label>ガソリン代の単価（円/km）</label>
+      <input type="number" id="gasRate" value="50" onchange="saveSettings()">
+      <label>一人あたり金額の端数</label>
+      <select id="roundUnit" onchange="saveSettings()">
+        <option value="100">100円単位に切り上げ</option>
+        <option value="10">10円単位に切り上げ</option>
+        <option value="1">1円単位（切り上げなし）</option>
+      </select>
+      <p class="note">切り上げで出た余りはドライバーが受け取ります（複数台のときはドライバーで等分）。</p>
+    </div>
+  </details>
+
+  <!-- 使い方 -->
+  <details>
+    <summary>使い方・計算のしくみ</summary>
+    <div class="card">
+      <p><b>計算のしくみ</b></p>
+      <p>車にかかる費用（ガソリン＝往復距離×50円　＋　高速往復　＋　フェリー車分　＋　駐車料金　＋　入場料車分）を全部合計し、参加者全員で等分します。ドライバーには立替えた車の費用が全額戻ります（本人負担分を差し引いた額を受け取り）。切り上げで出た余りもドライバーが受け取ります。</p>
+      <p>人にかかる費用（フェリー人分・入場料人分）は一人あたりに加えます。各自その場で払った場合は精算せず表示のみ、誰かがまとめて立替えた場合はその人が受け取ります。</p>
+      <p><b>手順</b></p>
+      <p>① 人数を入れる　② 車ごとに費用を入れる　③ 人にかかる費用を入れる　④「計算する」　⑤ 結果をコピーして共有</p>
+      <p style="margin-top:8px;">入力した内容は自動で記憶され、次に開いたときに復元されます。カレンダーの予定から開いた場合は、前に誰かが記録した精算内容が自動で読み込まれます。</p>
+    </div>
+  </details>
+
+  <button type="button" class="btn btn-sub" onclick="clearForm()" style="margin-top:24px;">入力を全部消して最初から</button>
+
+  <!-- 関連アプリ -->
+  <a class="btn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
+
+  <p class="note" style="text-align:center">版 2026-07-19g</p>
+
+</main>
+
+<script>
+"use strict";
+var LS_ETC = "ohc_carpool_etc";
+var LS_SET = "ohc_carpool_set";
+var LS_FORM = "ohc_carpool_form";
+var LS_HIST = "ohc_carpool_hist";
+
+/* カレンダーの予定から開かれた場合は、その予定専用に入力データを分ける */
+var EVENT_ID = "", EVENT_DATE = "", EVENT_TITLE = "", EVENT_TIME = "", EVENT_PLACE = "";
+try {
+  var q0 = location.search || "";
+  var mE = q0.match(/[?&]event=([^&]+)/); if (mE) EVENT_ID = mE[1];
+  var mD = q0.match(/[?&]date=([^&]+)/); if (mD) EVENT_DATE = mD[1];
+  var mT = q0.match(/[?&]title=([^&]+)/);
+  if (mT) { try { EVENT_TITLE = decodeURIComponent(mT[1]); } catch (e) { EVENT_TITLE = mT[1]; } }
+  var mTm = q0.match(/[?&]time=([^&]+)/);
+  if (mTm) { try { EVENT_TIME = decodeURIComponent(mTm[1]); } catch (e) { EVENT_TIME = mTm[1]; } }
+  var mP = q0.match(/[?&]place=([^&]+)/);
+  if (mP) { try { EVENT_PLACE = decodeURIComponent(mP[1]); } catch (e) { EVENT_PLACE = mP[1]; } }
+} catch (e) {}
+if (EVENT_ID) LS_FORM = "ohc_carpool_form_" + EVENT_ID;
+
+/* カレンダーのデータ保存先（GAS）。精算結果の記録と料金表の共有に使う */
+var CAL_API = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec";
+
+/* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う */
+var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
+var carCount = 0;
+var lastResultText = "";
+var lastResultData = null;
+
+function lsGet(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+}
+function yen(n) { return "¥" + n.toLocaleString("ja-JP"); }
+function jpn(n) { return n.toLocaleString("ja-JP"); }
+/* 数値欄を安全に読む（空欄・不正は0）。負の値も0にする */
+function numOf(el) { var v = parseInt(el.value, 10); return (isNaN(v) || v < 0) ? 0 : v; }
+function youbiOf(dateVal) {
+  if (!dateVal) return "";
+  var p = dateVal.split("-");
+  return ["日", "月", "火", "水", "木", "金", "土"][
+    new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay()
+  ];
+}
+function updateYoubi() {
+  var y = youbiOf(document.getElementById("hikeDate").value);
+  document.getElementById("youbiDisp").textContent = y ? y + "曜日" : "";
+}
+
+/* ---------- サーバー通信（カレンダーと同じGASを使う） ---------- */
+function apiPost(body, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", CAL_API, true);
+  xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300) {
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      cb(data ? null : true, data);
+    } else { cb(true, null); }
+  };
+  try { xhr.send(JSON.stringify(body)); } catch (e) { cb(true, null); }
+}
+
+/* ---------- 参加人数 ---------- */
+var nPeople = 4;
+function changeN(d) {
+  nPeople = Math.max(1, nPeople + d);
+  document.getElementById("nDisp").textContent = nPeople;
+  saveForm();
+}
+
+/* ---------- 高速料金表（メンバー全員で共有） ---------- */
+function getEtcRoutes() {
+  var rows = document.querySelectorAll("#etcRows .etc-row");
+  var routes = [];
+  rows.forEach(function (tr) {
+    var name = tr.querySelector(".etc-name").value.trim();
+    var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
+    var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
+    if (name && (!isNaN(etc) || !isNaN(normal))) {
+      routes.push({
+        name: name,
+        etc: isNaN(etc) ? null : etc,
+        normal: isNaN(normal) ? null : normal
+      });
+    }
+  });
+  return routes;
+}
+var etcSaveTimer = null;
+function saveEtc() {
+  var routes = getEtcRoutes();
+  lsSet(LS_ETC, routes);
+  refreshAllDropdowns();
+  /* みんなで使えるよう、サーバーにも保存する（連続入力は1秒待ってまとめて送る） */
+  if (etcSaveTimer) clearTimeout(etcSaveTimer);
+  etcSaveTimer = setTimeout(function () {
+    apiPost({ action: "saveRoutes", routes: getEtcRoutes() }, function (err, data) {
+      var m = document.getElementById("etcSyncMsg");
+      if (!m) return;
+      m.textContent = err ? "共有の保存に失敗しました。電波の良い所でもう一度直してください" : "みんなの料金表に保存しました";
+      m.style.display = "block";
+      setTimeout(function () { m.style.display = "none"; }, 3000);
+    });
+  }, 1000);
+}
+function addEtcRow(name, etcFee, normalFee) {
+  var box = document.getElementById("etcRows");
+  var div = document.createElement("div");
+  div.className = "etc-row";
+  div.innerHTML =
+    '<input type="text" class="etc-name" placeholder="ルート名　例：南関⇔鳥栖" onchange="saveEtc()">' +
+    '<div class="etc-fees">' +
+    '<div><span class="fee-label">ETC往復(円)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">通常往復(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
+    '<button type="button" class="btn-small" onclick="this.closest(\'.etc-row\').remove(); saveEtc();">削除</button>' +
+    '</div>';
+  div.querySelector(".etc-name").value = name || "";
+  if (etcFee != null) div.querySelector(".etc-fee").value = etcFee;
+  if (normalFee != null) div.querySelector(".etc-normal").value = normalFee;
+  box.appendChild(div);
+}
+function rebuildEtcRows(routes) {
+  var box = document.getElementById("etcRows");
+  box.innerHTML = "";
+  if (routes && routes.length) {
+    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal); });
+  } else {
+    addEtcRow();
+  }
+}
+function loadEtc() {
+  var saved = lsGet(LS_ETC);
+  if (saved && saved.length) {
+    saved.forEach(function (r) {
+      /* 旧形式（fee）からの移行：feeはETC料金として扱う */
+      if (r.fee != null && r.etc == null) {
+        addEtcRow(r.name, r.fee, null);
+      } else {
+        addEtcRow(r.name, r.etc, r.normal);
+      }
+    });
+  } else {
+    addEtcRow();
+  }
+}
+/* サーバーからみんなの料金表を取り込む（起動時） */
+function fetchRoutes() {
+  apiPost({ action: "listRoutes" }, function (err, data) {
+    if (err || !data || !data.routes) return;
+    var local = getEtcRoutes();
+    /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
+    if (!data.routes.length && local.length) {
+      apiPost({ action: "saveRoutes", routes: local }, function () {});
+      return;
+    }
+    var cur = JSON.stringify(local);
+    var svr = JSON.stringify(data.routes);
+    if (cur !== svr) {
+      lsSet(LS_ETC, data.routes);
+      rebuildEtcRows(data.routes);
+      refreshAllDropdowns();
+    }
+  });
+}
+
+/* ---------- 車 ---------- */
+function addCar(data) {
+  carCount++;
+  var div = document.createElement("div");
+  div.className = "car-card";
+  div.innerHTML =
+    '<div class="car-head"><span class="car-title">車 ' + carCount + '</span>' +
+    '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
+    '<label>ドライバー名</label>' +
+    '<input type="text" class="car-name" placeholder="例：只隈" oninput="renumberCars()">' +
+    '<label>走行距離（km）</label>' +
+    '<div style="display:flex;gap:8px;">' +
+    '<input type="number" class="car-km" placeholder="例：90" min="0" step="0.1" style="flex:2;min-width:0;">' +
+    '<select class="car-kmtype" style="flex:1;min-width:0;">' +
+    '<option value="round">往復</option>' +
+    '<option value="one">片道</option></select>' +
+    '</div>' +
+    '<div class="subhead">かかる費用にチェック</div>' +
+    '<div class="chk-row">' +
+      '<label><input type="checkbox" class="chk-etc" onchange="toggleOpt(this,\'blk-etc\')">高速道路</label>' +
+      '<label><input type="checkbox" class="chk-ferry" onchange="toggleOpt(this,\'blk-ferry\')">フェリー</label>' +
+      '<label><input type="checkbox" class="chk-park" onchange="toggleOpt(this,\'blk-park\')">駐車料金</label>' +
+      '<label><input type="checkbox" class="chk-ent" onchange="toggleOpt(this,\'blk-ent\')">入場料</label>' +
+    '</div>' +
+    '<div class="opt-blk blk-etc">' +
+      '<label>高速ルート（料金表から選ぶ）</label>' +
+      '<select class="car-route" onchange="routeSelected(this)"><option value="">使わない／下に直接入力</option></select>' +
+      '<label>ETCの有無</label>' +
+      '<select class="car-etcuse" onchange="routeSelected(this)">' +
+      '<option value="etc">ETCあり（ETC料金）</option>' +
+      '<option value="normal">ETCなし（通常料金）</option></select>' +
+      '<label>高速料金（円）</label>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<input type="number" class="car-etc" placeholder="0" min="0" style="flex:2;min-width:0;">' +
+        '<select class="car-etctype" style="flex:1;min-width:0;"><option value="round">往復</option><option value="one">片道</option></select>' +
+      '</div>' +
+    '</div>' +
+    '<div class="opt-blk blk-ferry"><label>フェリー（車分）</label>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<input type="number" class="car-ferry" placeholder="0" min="0" style="flex:2;min-width:0;">' +
+        '<select class="car-ferrytype" style="flex:1;min-width:0;"><option value="round">往復</option><option value="one">片道</option></select>' +
+      '</div></div>' +
+    '<div class="opt-blk blk-park"><label>駐車料金</label>' +
+      '<input type="number" class="car-park" placeholder="0" min="0"></div>' +
+    '<div class="opt-blk blk-ent"><label>入場料（車分）</label>' +
+      '<input type="number" class="car-ent" placeholder="0" min="0"></div>';
+  if (data) {
+    div.querySelector(".car-name").value = data.name || "";
+    setIf(div, ".car-km", data.km);
+    if (data.kmType) div.querySelector(".car-kmtype").value = data.kmType;
+    setIf(div, ".car-etc", data.etc);
+    if (data.etcType) div.querySelector(".car-etctype").value = data.etcType;
+    setIf(div, ".car-ferry", data.ferry);
+    if (data.ferryType) div.querySelector(".car-ferrytype").value = data.ferryType;
+    setIf(div, ".car-park", data.park);
+    setIf(div, ".car-ent", data.ent);
+    setChk(div, ".chk-etc", "blk-etc", data.useEtc != null ? data.useEtc : has(data.etc));
+    setChk(div, ".chk-ferry", "blk-ferry", data.useFerry != null ? data.useFerry : has(data.ferry));
+    setChk(div, ".chk-park", "blk-park", data.usePark != null ? data.usePark : has(data.park));
+    setChk(div, ".chk-ent", "blk-ent", data.useEnt != null ? data.useEnt : has(data.ent));
+  }
+  document.getElementById("cars").appendChild(div);
+  refreshAllDropdowns();
+  renumberCars();
+}
+function setIf(div, sel, v) { if (v != null && v !== "") div.querySelector(sel).value = v; }
+function has(v) { return v != null && v !== "" && v !== "0"; }
+function setChk(scope, chkSel, blkCls, on) {
+  if (!on) return;
+  var chk = scope.querySelector(chkSel);
+  chk.checked = true;
+  scope.querySelector("." + blkCls).classList.add("on");
+  chk.parentNode.classList.add("on");
+}
+/* チェックで入力欄の表示を切り替える（車・人 共通） */
+function toggleOpt(chk, blkCls) {
+  var scope = chk.closest(".car-card") || chk.closest(".card");
+  var blk = scope.querySelector("." + blkCls);
+  if (blk) blk.classList.toggle("on", chk.checked);
+  chk.parentNode.classList.toggle("on", chk.checked);
+  saveForm();
+}
+/* 人にかかる費用のチェック切り替え */
+function togglePerson() {
+  var f = document.getElementById("chkPFerry");
+  var e = document.getElementById("chkPEnt");
+  document.querySelector(".blk-pferry").classList.toggle("on", f.checked);
+  document.querySelector(".blk-pent").classList.toggle("on", e.checked);
+  document.querySelector(".blk-payer").classList.toggle("on", f.checked || e.checked);
+  f.parentNode.classList.toggle("on", f.checked);
+  e.parentNode.classList.toggle("on", e.checked);
+  saveForm();
+}
+function removeCar(btn) {
+  btn.closest(".car-card").remove();
+  renumberCars();
+  saveForm();
+}
+function renumberCars() {
+  var cards = document.querySelectorAll("#cars .car-card");
+  cards.forEach(function (c, i) {
+    c.querySelector(".car-title").textContent = "車 " + (i + 1);
+  });
+  refreshPayerDropdown();
+}
+function refreshAllDropdowns() {
+  var routes = getEtcRoutes();
+  document.querySelectorAll(".car-route").forEach(function (sel) {
+    var current = sel.value;
+    sel.innerHTML = '<option value="">使わない／下に直接入力</option>';
+    routes.forEach(function (r, i) {
+      var op = document.createElement("option");
+      op.value = String(i);
+      op.textContent = r.name +
+        "（ETC " + (r.etc != null ? yen(r.etc) : "未登録") +
+        "／通常 " + (r.normal != null ? yen(r.normal) : "未登録") + "）";
+      sel.appendChild(op);
+    });
+    sel.value = current;
+  });
+}
+function routeSelected(el) {
+  var card = el.closest(".car-card");
+  var idx = card.querySelector(".car-route").value;
+  if (idx === "") return;
+  var routes = getEtcRoutes();
+  var r = routes[parseInt(idx, 10)];
+  if (!r) return;
+  var use = card.querySelector(".car-etcuse").value;
+  var fee = (use === "etc") ? r.etc : r.normal;
+  if (fee == null) {
+    alert("このルートの" + (use === "etc" ? "ETC料金" : "通常料金") + "が料金表に未登録です。料金表に入力するか、下に直接入力してください。");
+    card.querySelector(".car-etc").value = "";
+    return;
+  }
+  card.querySelector(".car-etc").value = fee;
+  saveForm();
+}
+/* 立替者ドロップダウン（人にかかる費用） */
+function refreshPayerDropdown() {
+  var sel = document.getElementById("personPayer");
+  if (!sel) return;
+  var current = sel.value;
+  var cards = document.querySelectorAll("#cars .car-card");
+  sel.innerHTML = '<option value="-1">各自でその場払い（精算しない）</option>';
+  cards.forEach(function (c, i) {
+    var nm = c.querySelector(".car-name").value.trim() || ("車" + (i + 1));
+    var op = document.createElement("option");
+    op.value = String(i);
+    op.textContent = nm + "さん（車" + (i + 1) + "）が立替え";
+    sel.appendChild(op);
+  });
+  sel.value = current;
+  if (sel.selectedIndex === -1) sel.value = "-1";
+}
+
+/* ---------- 計算 ---------- */
+function calc(noScroll) {
+  var gasRate = parseFloat(document.getElementById("gasRate").value) || 50;
+  var unit = parseInt(document.getElementById("roundUnit").value, 10) || 1;
+  var cards = document.querySelectorAll("#cars .car-card");
+  var resultDiv = document.getElementById("result");
+  var body = document.getElementById("resultBody");
+
+  if (cards.length === 0) {
+    showWarn("「＋ 車を追加する」で車の情報を入れてください。");
+    return;
+  }
+  if (nPeople < cards.length) {
+    showWarn("参加人数（" + nPeople + "名）が車の台数（" + cards.length + "台）より少なくなっています。人数を確認してください。");
+    return;
+  }
+
+  /* 入力チェック：走行距離が未入力・不正な車を洗い出す */
+  var badCars = [];
+  cards.forEach(function (c, i) {
+    var el = c.querySelector(".car-km");
+    var km = parseFloat(el.value);
+    el.classList.remove("err");
+    if (el.value.trim() === "" || isNaN(km) || km < 0) { badCars.push(i + 1); el.classList.add("err"); }
+  });
+  if (badCars.length) {
+    showWarn("車 " + badCars.join("・") + " の走行距離が入っていません（赤い枠の欄）。入力してから、もう一度「計算する」を押してください。");
+    return;
+  }
+
+  var cars = [];
+  var carTotal = 0;
+  cards.forEach(function (c, i) {
+    var name = c.querySelector(".car-name").value.trim() || ("車" + (i + 1) + "のドライバー");
+    var km = parseFloat(c.querySelector(".car-km").value);
+    if (c.querySelector(".car-kmtype").value === "one") km = km * 2; /* 片道は2倍して往復に */
+    var etc = c.querySelector(".chk-etc").checked ? numOf(c.querySelector(".car-etc")) : 0;
+    if (etc && c.querySelector(".car-etctype").value === "one") etc = etc * 2;
+    var ferry = c.querySelector(".chk-ferry").checked ? numOf(c.querySelector(".car-ferry")) : 0;
+    if (ferry && c.querySelector(".car-ferrytype").value === "one") ferry = ferry * 2;
+    var park = c.querySelector(".chk-park").checked ? numOf(c.querySelector(".car-park")) : 0;
+    var ent = c.querySelector(".chk-ent").checked ? numOf(c.querySelector(".car-ent")) : 0;
+    var gas = Math.round(km * gasRate);
+    var cost = gas + etc + ferry + park + ent;
+    cars.push({ name: name, km: km, gas: gas, etc: etc, ferry: ferry, park: park, ent: ent, cost: cost, bonus: 0, paidExtra: 0 });
+    carTotal += cost;
+  });
+
+  /* 人にかかる費用 */
+  var ferryPerson = document.getElementById("chkPFerry").checked ? numOf(document.getElementById("ferryPerson")) : 0;
+  if (ferryPerson && document.getElementById("ferryPersonType").value === "one") ferryPerson = ferryPerson * 2;
+  var entPerson = document.getElementById("chkPEnt").checked ? numOf(document.getElementById("entPerson")) : 0;
+  var personRate = ferryPerson + entPerson;
+  var personTotal = personRate * nPeople;
+  var payerIdx = parseInt(document.getElementById("personPayer").value, 10);
+  var personPooled = (payerIdx >= 0 && payerIdx < cars.length);
+
+  var grandTotal = carTotal + (personPooled ? personTotal : 0);
+  var share = Math.ceil(grandTotal / nPeople / unit) * unit;
+  var surplus = share * nPeople - grandTotal;
+
+  /* 切り上げの余りはドライバーが受け取る（等分・端数は車1へ） */
+  var perDriver = Math.floor(surplus / cars.length);
+  var remBonus = surplus - perDriver * cars.length;
+  cars.forEach(function (c, i) { c.bonus = perDriver + (i === 0 ? remBonus : 0); });
+  if (personPooled) cars[payerIdx].paidExtra = personTotal;
+
+  /* 表示情報 */
+  var dateVal = document.getElementById("hikeDate").value;
+  var dateStr = "";
+  if (dateVal) {
+    var p = dateVal.split("-");
+    dateStr = parseInt(p[1], 10) + "月" + parseInt(p[2], 10) + "日（" + youbiOf(dateVal) + "）";
+  }
+  var hikeName = document.getElementById("hikeName").value.trim();
+  var meetPlace = document.getElementById("meetPlace").value.trim();
+  var meetTime = document.getElementById("meetTime").value;
+  var passengers = nPeople - cars.length;
+  var displayTotal = share + (personPooled ? 0 : personRate);
+
+  /* ---------- 画面表示 ---------- */
+  var html = "";
+  if (meetPlace || meetTime) {
+    html += '<p class="note" style="font-size:17px;"><b>集合：' +
+      (meetTime ? meetTime + "　" : "") + escapeHtml(meetPlace) + '</b></p>';
+  }
+  html += '<div class="per-person"><div class="label">一人あたりの支払い</div>' +
+          '<div class="yen">' + yen(displayTotal) + '</div>';
+  if (!personPooled && personRate > 0) {
+    html += '<div class="sub">内訳：車の費用 ' + yen(share) + '　＋　人の費用（各自現地払い） ' + yen(personRate) + '</div>';
+  }
+  html += '</div>';
+
+  html += '<p class="note" style="margin-top:12px;"><b>車費用の合計：' + yen(carTotal) + '</b>' +
+          (personPooled ? '　＋ 人費用 ' + yen(personTotal) + '（' + escapeHtml(cars[payerIdx].name) + 'さん立替え）' : '') + '</p>';
+
+  cars.forEach(function (c) {
+    var net = c.cost + c.paidExtra - share + c.bonus;
+    var netLabel = net >= 0
+      ? '受け取り <span class="receive">' + yen(net) + '</span>'
+      : '支払い <span class="receive" style="color:#c33">' + yen(-net) + '</span>';
+    var parts = ['ガソリン 往復' + c.km + 'km×' + gasRate + '円＝' + yen(c.gas)];
+    if (c.etc) parts.push('高速 ' + yen(c.etc));
+    if (c.ferry) parts.push('フェリー車分 ' + yen(c.ferry));
+    if (c.park) parts.push('駐車 ' + yen(c.park));
+    if (c.ent) parts.push('入場料車分 ' + yen(c.ent));
+    html += '<div class="result-car">' +
+      '<div class="name">' + escapeHtml(c.name) + 'さん（ドライバー）：' + netLabel + '</div>' +
+      '<div class="detail">車の費用 ' + yen(c.cost) + '（' + parts.join('　＋　') + '）' +
+      (c.paidExtra ? '　＋ 人費用立替 ' + yen(c.paidExtra) : '') +
+      '　－ 本人負担 ' + yen(share) +
+      (c.bonus > 0 ? '　＋ 余り ' + yen(c.bonus) : '') + '</div></div>';
+  });
+  if (passengers > 0) {
+    html += '<div class="result-car"><div class="name">同乗者 ' + passengers + '名：一人 ' + yen(displayTotal) + '</div>' +
+      (personPooled && personRate > 0 ? '<div class="detail">車費用 ' + yen(share) + '（人費用 ' + yen(personRate) + ' は立替者へ含む）</div>' : '') +
+      '</div>';
+  }
+  if (surplus > 0) {
+    html += '<p class="note"><b>切り上げの余り ' + yen(surplus) + ' はドライバーの受け取りに含めています。</b></p>';
+  }
+
+  /* 検算：受け取り合計＝支払い合計 を確認して表示 */
+  var totalReceive = 0, totalPay = 0;
+  cars.forEach(function (c) {
+    var net = c.cost + c.paidExtra - share + c.bonus;
+    if (net >= 0) totalReceive += net; else totalPay += -net;
+  });
+  totalPay += passengers * share;
+  if (totalReceive === totalPay) {
+    html += '<div class="check-ok">✓ 検算OK：受け取り合計 ' + yen(totalReceive) +
+            ' ＝ 支払い合計 ' + yen(totalPay) + '</div>';
+  } else {
+    html += '<div class="warn">検算：受け取り ' + yen(totalReceive) + ' と支払い ' + yen(totalPay) +
+            ' が一致しません。入力を確認してください。</div>';
+  }
+  if (!personPooled && personRate > 0) {
+    html += '<p class="note">※ 人の費用（一人 ' + yen(personRate) + '）は各自が現地で支払うため、上の精算には含みません。</p>';
+  }
+
+  body.innerHTML = html;
+  resultDiv.style.display = "block";
+  if (!noScroll) resultDiv.scrollIntoView({ behavior: "smooth" });
+
+  /* ---------- コピー用テキスト ---------- */
+  var t = "【マイカー精算】" + (dateStr ? dateStr + " " : "") + (hikeName ? hikeName : "") + "\n";
+  if (meetPlace || meetTime) t += "集合：" + (meetTime ? meetTime + " " : "") + meetPlace + "\n";
+  t += "参加 " + nPeople + "名 / 車 " + cars.length + "台\n";
+  t += "一人あたり：" + jpn(displayTotal) + "円";
+  if (!personPooled && personRate > 0) t += "（車費用" + jpn(share) + "円＋人費用" + jpn(personRate) + "円は各自現地払い）";
+  t += "\n――――――――――\n";
+  cars.forEach(function (c) {
+    var net = c.cost + c.paidExtra - share + c.bonus;
+    t += "■" + c.name + "さん（ドライバー）\n";
+    t += "　車の費用 " + jpn(c.cost) + "円" + (c.paidExtra ? "＋人費用立替" + jpn(c.paidExtra) + "円" : "") + "\n";
+    t += net >= 0
+      ? "　→ 受け取り " + jpn(net) + "円\n"
+      : "　→ 支払い " + jpn(-net) + "円\n";
+  });
+  if (passengers > 0) t += "■同乗者" + passengers + "名 → 一人 " + jpn(displayTotal) + "円\n";
+  if (surplus > 0) t += "（切り上げの余り " + jpn(surplus) + "円はドライバー受け取り）\n";
+  lastResultText = t;
+  lastResultData = {
+    savedAt: new Date().toLocaleString("ja-JP"),
+    dateStr: dateStr,
+    hikeName: hikeName,
+    n: nPeople,
+    carsCount: cars.length,
+    share: displayTotal,
+    total: grandTotal,
+    text: t
+  };
+
+  /* 計算結果を保存して、次に開いたときも表示したままにする */
+  lsSet(LS_FORM + "_result", { html: html, text: t, data: lastResultData });
+}
+function showWarn(msg) {
+  document.getElementById("resultBody").innerHTML = '<p class="warn">' + escapeHtml(msg) + '</p>';
+  var r = document.getElementById("result");
+  r.style.display = "block";
+  r.scrollIntoView({ behavior: "smooth" });
+}
+
+/* ---------- 履歴 ---------- */
+function saveHistory() {
+  if (!lastResultData) { alert("先に「計算する」を押してください。"); return; }
+  var h = lsGet(LS_HIST) || [];
+  h.unshift(lastResultData);
+  if (h.length > 50) h = h.slice(0, 50);
+  lsSet(LS_HIST, h);
+  renderHist();
+
+  /* カレンダーの予定から開かれた場合は、結果と入力内容をカレンダーにも記録して
+     全員が見られる・引き継げるようにする */
+  if (EVENT_ID && lastResultText) {
+    var m0 = document.getElementById("histSavedMsg");
+    m0.textContent = "カレンダーに記録しています…";
+    m0.style.display = "block";
+    apiPost({
+      action: "setSettle",
+      id: EVENT_ID,
+      text: lastResultText,
+      form: JSON.stringify(getFormData())
+    }, function (err) {
+      if (!err) {
+        m0.textContent = "カレンダーに記録しました！カレンダーに戻ります…";
+        setTimeout(function () { location.href = CAL_PAGE + "?goto=" + EVENT_ID; }, 1200);
+      } else {
+        m0.textContent = "カレンダーへの記録に失敗しました。電波の良い所でもう一度押してください";
+        setTimeout(function () { m0.style.display = "none"; }, 4000);
+      }
+    });
+    return;
+  }
+
+  var m = document.getElementById("histSavedMsg");
+  m.style.display = "block";
+  setTimeout(function () { m.style.display = "none"; }, 2000);
+}
+function renderHist() {
+  var h = lsGet(LS_HIST) || [];
+  var box = document.getElementById("histList");
+  if (!h.length) {
+    box.innerHTML = '<p class="note">まだ履歴はありません。</p>';
+    return;
+  }
+  var html = "";
+  h.forEach(function (e, i) {
+    html += '<div class="hist-item">' +
+      '<div class="h-title">' + escapeHtml((e.dateStr || "日付なし") + (e.hikeName ? "　" + e.hikeName : "")) + '</div>' +
+      '<div class="h-sub">参加' + e.n + '名／車' + e.carsCount + '台　一人 ' + yen(e.share) + '（合計 ' + yen(e.total) + '）<br>保存日時：' + escapeHtml(e.savedAt) + '</div>' +
+      '<div class="hist-btns">' +
+      '<button type="button" class="h-btn" onclick="toggleHist(' + i + ')">内容を見る</button>' +
+      '<button type="button" class="h-btn" onclick="copyHist(' + i + ')">コピー</button>' +
+      '<button type="button" class="btn-small" onclick="delHist(' + i + ')">削除</button></div>' +
+      '<pre id="histText' + i + '" style="display:none;">' + escapeHtml(e.text) + '</pre>' +
+      '</div>';
+  });
+  box.innerHTML = html;
+}
+function toggleHist(i) {
+  var p = document.getElementById("histText" + i);
+  p.style.display = (p.style.display === "none") ? "block" : "none";
+}
+function copyHist(i) {
+  var h = lsGet(LS_HIST) || [];
+  if (!h[i]) return;
+  doCopy(h[i].text, function () { alert("コピーしました。LINE等に貼り付けできます。"); });
+}
+function delHist(i) {
+  var h = lsGet(LS_HIST) || [];
+  if (!h[i]) return;
+  if (!confirm("この履歴を削除します。よろしいですか？")) return;
+  h.splice(i, 1);
+  lsSet(LS_HIST, h);
+  renderHist();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* ---------- コピー ---------- */
+function doCopy(text, done) {
+  function legacy() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) { alert("コピーできませんでした。"); }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, legacy);
+  } else {
+    legacy();
+  }
+}
+function copyResult() {
+  if (!lastResultText) return;
+  doCopy(lastResultText, function () {
+    var m = document.getElementById("copiedMsg");
+    m.style.display = "block";
+    setTimeout(function () { m.style.display = "none"; }, 2000);
+  });
+}
+
+/* ---------- 入力の記憶 ---------- */
+function getFormData() {
+  var cars = [];
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    cars.push({
+      name: c.querySelector(".car-name").value,
+      km: c.querySelector(".car-km").value,
+      kmType: c.querySelector(".car-kmtype").value,
+      etc: c.querySelector(".car-etc").value,
+      etcType: c.querySelector(".car-etctype").value,
+      ferry: c.querySelector(".car-ferry").value,
+      ferryType: c.querySelector(".car-ferrytype").value,
+      park: c.querySelector(".car-park").value,
+      ent: c.querySelector(".car-ent").value,
+      useEtc: c.querySelector(".chk-etc").checked,
+      useFerry: c.querySelector(".chk-ferry").checked,
+      usePark: c.querySelector(".chk-park").checked,
+      useEnt: c.querySelector(".chk-ent").checked
+    });
+  });
+  return {
+    date: document.getElementById("hikeDate").value,
+    hikeName: document.getElementById("hikeName").value,
+    place: document.getElementById("meetPlace").value,
+    time: document.getElementById("meetTime").value,
+    n: nPeople,
+    cars: cars,
+    ferryPerson: document.getElementById("ferryPerson").value,
+    ferryPersonType: document.getElementById("ferryPersonType").value,
+    entPerson: document.getElementById("entPerson").value,
+    payer: document.getElementById("personPayer").value,
+    pFerryOn: document.getElementById("chkPFerry").checked,
+    pEntOn: document.getElementById("chkPEnt").checked
+  };
+}
+function saveForm() {
+  lsSet(LS_FORM, getFormData());
+}
+function applyForm(f) {
+  if (!f) return false;
+  if (f.date) document.getElementById("hikeDate").value = f.date;
+  document.getElementById("hikeName").value = f.hikeName || "";
+  document.getElementById("meetPlace").value = f.place || "";
+  document.getElementById("meetTime").value = f.time || "";
+  if (f.n) { nPeople = f.n; document.getElementById("nDisp").textContent = nPeople; }
+  if (f.ferryPerson != null) document.getElementById("ferryPerson").value = f.ferryPerson;
+  if (f.ferryPersonType) document.getElementById("ferryPersonType").value = f.ferryPersonType;
+  if (f.entPerson != null) document.getElementById("entPerson").value = f.entPerson;
+  document.getElementById("chkPFerry").checked = f.pFerryOn != null ? f.pFerryOn : has(f.ferryPerson);
+  document.getElementById("chkPEnt").checked = f.pEntOn != null ? f.pEntOn : has(f.entPerson);
+  togglePerson();
+  var hasCars = false;
+  if (f.cars && f.cars.length) {
+    f.cars.forEach(function (c) { addCar(c); });
+    hasCars = true;
+  }
+  refreshPayerDropdown();
+  if (f.payer != null) document.getElementById("personPayer").value = f.payer;
+  return hasCars;
+}
+function loadForm() {
+  return applyForm(lsGet(LS_FORM));
+}
+/* この予定で前に誰かが精算していれば、その内容を初期値として取り込む */
+function fetchPrevSettle() {
+  apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
+    if (err || !data) return;
+    if (data.form) {
+      try {
+        var f = JSON.parse(data.form);
+        document.getElementById("cars").innerHTML = "";
+        carCount = 0;
+        if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
+        saveForm();
+        /* 前回の入力を読み込み、計算結果も表示する。ただし画面は入力の先頭のまま
+           （結果へ自動でスクロールしない）。修正したら「計算する」を押す */
+        calc(true);
+        var m = document.getElementById("loadMsg");
+        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。";
+        m.style.display = "block";
+        window.scrollTo(0, 0);
+      } catch (e) {}
+    } else if (data.text) {
+      /* 昔の記録（入力内容なし）の場合は、前回の結果の文章を表示する */
+      document.getElementById("resultBody").innerHTML =
+        '<p class="note"><b>前回記録された精算結果</b></p>' +
+        '<pre style="white-space:pre-wrap;font-family:inherit;background:#f4f7f4;padding:10px;border-radius:8px;">' +
+        escapeHtml(data.text) + "</pre>";
+      document.getElementById("result").style.display = "block";
+      var m2 = document.getElementById("loadMsg");
+      m2.textContent = "この予定は前に精算の記録があります。下に結果を表示しています。";
+      m2.style.display = "block";
+      window.scrollTo(0, 0);
+    }
+  });
+}
+function clearForm() {
+  if (!confirm("入力内容を全部消して最初からにします。よろしいですか？\n（高速料金表・設定・履歴は残ります）")) return;
+  try { localStorage.removeItem(LS_FORM); } catch (e) {}
+  try { localStorage.removeItem(LS_FORM + "_result"); } catch (e) {}
+  document.getElementById("hikeName").value = "";
+  document.getElementById("meetPlace").value = "";
+  document.getElementById("meetTime").value = "";
+  document.getElementById("ferryPerson").value = "";
+  document.getElementById("entPerson").value = "";
+  document.getElementById("chkPFerry").checked = false;
+  document.getElementById("chkPEnt").checked = false;
+  togglePerson();
+  setToday();
+  updateYoubi();
+  nPeople = 4;
+  document.getElementById("nDisp").textContent = nPeople;
+  document.getElementById("cars").innerHTML = "";
+  carCount = 0;
+  addCar();
+  refreshPayerDropdown();
+  document.getElementById("result").style.display = "none";
+  lastResultText = "";
+  lastResultData = null;
+}
+
+/* ---------- 設定 ---------- */
+function saveSettings() {
+  lsSet(LS_SET, {
+    gasRate: document.getElementById("gasRate").value,
+    roundUnit: document.getElementById("roundUnit").value
+  });
+}
+function loadSettings() {
+  var s = lsGet(LS_SET);
+  if (s) {
+    if (s.gasRate) document.getElementById("gasRate").value = s.gasRate;
+    if (s.roundUnit) document.getElementById("roundUnit").value = s.roundUnit;
+  }
+}
+
+/* ---------- 初期化 ---------- */
+function setToday() {
+  var today = new Date();
+  document.getElementById("hikeDate").value =
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+}
+(function init() {
+  setToday();
+  loadSettings();
+  loadEtc();
+  renderHist();
+  var hadLocal = loadForm();
+  if (!hadLocal) {
+    addCar();
+    refreshPayerDropdown();
+    /* 予定から開かれた初回は、日付・山名・集合場所・時間を自動で入れる */
+    if (EVENT_DATE) document.getElementById("hikeDate").value = EVENT_DATE;
+    if (EVENT_TITLE) document.getElementById("hikeName").value = EVENT_TITLE;
+    if (EVENT_PLACE) document.getElementById("meetPlace").value = EVENT_PLACE;
+    if (EVENT_TIME) {
+      var tmm = EVENT_TIME.match(/(\d{1,2}):(\d{2})/);
+      if (tmm) document.getElementById("meetTime").value = ("0" + tmm[1]).slice(-2) + ":" + tmm[2];
+    }
+    /* 前に誰かがこの予定の精算を記録していれば、それを初期値にする */
+    if (EVENT_ID) fetchPrevSettle();
+  }
+  /* 前回の計算結果があれば表示したままにする */
+  var savedResult = lsGet(LS_FORM + "_result");
+  if (savedResult && savedResult.html) {
+    document.getElementById("resultBody").innerHTML = savedResult.html;
+    document.getElementById("result").style.display = "block";
+    lastResultText = savedResult.text || "";
+    lastResultData = savedResult.data || null;
+  }
+  updateYoubi();
+  /* みんなの料金表を取り込む */
+  fetchRoutes();
+  /* 予定と連動しているときはボタンの文言を変える */
+  if (EVENT_ID) {
+    document.getElementById("saveHistBtn").textContent = "この結果をカレンダーに記録する（全員が見られる）";
+  }
+  /* どの予定の精算かをヘッダーに表示 */
+  if (EVENT_DATE || EVENT_TITLE) {
+    var hp = document.querySelector("header p");
+    var dLabel = "";
+    var dm = EVENT_DATE.match(/^\d{4}-0?(\d+)-0?(\d+)$/);
+    if (dm) dLabel = dm[1] + "月" + dm[2] + "日";
+    if (hp) hp.textContent = (dLabel + " " + EVENT_TITLE).replace(/^\s+|\s+$/g, "") + " の精算";
+  }
+  var m = document.querySelector("main");
+  m.addEventListener("input", function () { saveForm(); updateYoubi(); });
+  m.addEventListener("change", function () { saveForm(); updateYoubi(); });
+})();
+</script>
+</body>
+</html>
