@@ -433,7 +433,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19g</p>
+  <p class="note" style="text-align:center">版 2026-07-19h</p>
 </main>
 
 <script>
@@ -1034,7 +1034,11 @@ function answer(evId, st){
     for (var g = 0; g < state.events.length; g++){
       if (state.events[g].id === evId) ev = state.events[g];
     }
-    if (ev) window.open(gcalUrl(ev), '_blank');
+    if (ev){
+      /* Googleカレンダーから戻ってきたとき、この予定へ移動できるよう記憶しておく */
+      lsSet('ohcGotoId', evId);
+      window.open(gcalUrl(ev), '_blank');
+    }
   }
   /* 参加→不参加/未定 に変えたとき、連携オンの人には手動削除を案内する */
   if (prev === 'yes' && st !== 'yes' && lsGet('ohcGcalPref') === 'yes'){
@@ -1626,6 +1630,12 @@ function init(){
     var q = window.location.search;
     var mg = q ? q.match(/[?&]goto=([^&]+)/) : null;
     if (mg) gotoId = mg[1];
+    /* Googleカレンダーへ行って戻ってきた（再読み込みされた）場合、記憶した予定へ移動 */
+    if (!gotoId){
+      var rg = lsGet('ohcGotoId');
+      if (rg){ gotoId = rg; }
+    }
+    lsSet('ohcGotoId', '');
     var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
     if (mk && KEYS[mk[1]]){
       lsSet('ohcName', KEYS[mk[1]]);
