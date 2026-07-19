@@ -392,7 +392,7 @@
       <td><input type="text" id="addReport" placeholder="「参照」から選ぶかURLを貼る"></td>
       <td style="width:100px"><button type="button" class="refbtn" id="refReport">参照</button></td>
     </tr></table>
-    <p class="note">「参照」でGoogleドライブの「OHCカレンダー資料」フォルダから選べます（閲覧の共有設定も自動）。別の場所のファイルはURLの貼り付けでもOKです。</p>
+    <p class="note">「参照」でGoogleドライブから選べます（閲覧の共有設定も自動）。最初は「山行」フォルダが開き、上のフォルダや別のフォルダにも移動できます。別の場所のファイルはURLの貼り付けでもOKです。</p>
     <label>山行グループLINE（あれば）</label>
     <input type="text" id="addLineGroup" placeholder="LINEの招待リンク（https://line.me/... ）を貼る">
     <p class="note">LINEでその山行グループを開く→メンバー→招待→「リンクをコピー・共有」で出るURLを貼ってください。参加者はここから直接グループに入れます。</p>
@@ -491,11 +491,8 @@ function byMember_(a, b){
   return a < b ? -1 : (a > b ? 1 : 0);
 }
 
-/* マイカー精算アプリのURL。
-   カレンダーと同じ ohc-calendar リポジトリ内の carpool/ サブフォルダに置くことで、
-   PWA（ホーム追加アプリ）の守備範囲（scope=/ohc-calendar/）の中の移動になり、
-   上部にアプリ内ブラウザの帯（×やURL）が出なくなる。相対パスで指定する。 */
-var CARPOOL_URL = 'carpool/';
+/* マイカー精算アプリのURL */
+var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
 
 /* 表題行の右端に置くアイコン（どの端末でも同じに出るようSVGで埋め込む・全て26px）
    ・CAR_ICON   ：マイカー精算（緑の車）
@@ -968,7 +965,7 @@ function renderList(){
       '<a href="' + CARPOOL_URL + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
-        '&place=' + encodeURIComponent(ev.place || '') + '" title="マイカー精算">' + CAR_ICON + '</a>';
+        '&place=' + encodeURIComponent(ev.place || '') + '" target="_blank" title="マイカー精算">' + CAR_ICON + '</a>';
     if (ev.settle){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
@@ -1564,7 +1561,14 @@ var pickTarget = '';
 
 function openPicker(target){
   pickTarget = target;
-  $('pickerCard').style.display = 'block';
+  var card = $('pickerCard');
+  /* 押した「参照」ボタンの行のすぐ下に一覧を出す */
+  try {
+    var input = (target === 'report') ? $('addReport') : $('addPlan');
+    var row = input.closest ? input.closest('table') : null;
+    if (row && row.parentNode) row.parentNode.insertBefore(card, row.nextSibling);
+  } catch(e){}
+  card.style.display = 'block';
   loadPickerFolder(lsGet('ohcPickDir') || '');
 }
 
@@ -1591,6 +1595,9 @@ function loadPickerFolder(folderId){
     var html = '';
     if (data.parentId){
       html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + data.parentId + '\')">⬆ 上のフォルダへ戻る</button>';
+    }
+    if (data.baseId && data.folderId !== data.baseId){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + data.baseId + '\')">🏠 「山行」フォルダに戻る</button>';
     }
     var folders = data.folders || [];
     var files = data.files || [];
