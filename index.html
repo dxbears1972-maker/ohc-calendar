@@ -224,7 +224,7 @@
   table.evhead { width: 100%; border-collapse: collapse; }
   table.evhead td { vertical-align: top; }
   table.evhead td.evicons { text-align: right; white-space: nowrap; width: 1%; }
-  td.evicons a { display: inline-block; margin-left: 8px; text-decoration: none; line-height: 1; }
+  td.evicons a { display: inline-block; margin-left: 10px; text-decoration: none; line-height: 1; }
   .evdel { text-align: right; margin-top: 4px; }
   .evdel a { font-size: 14px; color: #b00020; }
   .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
@@ -433,7 +433,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19h</p>
+  <p class="note" style="text-align:center">版 2026-07-19i</p>
 </main>
 
 <script>
@@ -498,24 +498,24 @@ var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
    ・CAR_ICON   ：マイカー精算（緑の車）
    ・SETTLE_ICON：精算結果（¥の丸。精算結果がある予定だけ車の隣に出る）
    ・GCAL_ICON  ：Googleカレンダーに追加（青いカレンダーに「31」） */
-var CAR_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
+var CAR_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
   '<path fill="#2e6b34" d="M10 22l4-9c.6-1.4 2-2.3 3.5-2.3h13c1.5 0 2.9.9 3.5 2.3l4 9v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1H16v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V22z"/>' +
   '<path fill="#fff" d="M15 20l2.4-6h13.2l2.4 6z"/>' +
   '<circle cx="16.5" cy="26.5" r="2.2" fill="#fff"/>' +
   '<circle cx="31.5" cy="26.5" r="2.2" fill="#fff"/>' +
   '</svg>';
-var SETTLE_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
+var SETTLE_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
   '<circle cx="24" cy="24" r="19" fill="#e8a000"/>' +
   '<text x="24" y="31" font-size="22" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">&#165;</text>' +
   '</svg>';
-var GCAL_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
+var GCAL_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
   '<rect x="5" y="9" width="38" height="34" rx="5" fill="#1a73e8"/>' +
   '<rect x="9" y="17" width="30" height="22" rx="2" fill="#fff"/>' +
   '<rect x="13" y="4" width="5" height="9" rx="2.5" fill="#1a73e8"/>' +
   '<rect x="30" y="4" width="5" height="9" rx="2.5" fill="#1a73e8"/>' +
   '<text x="24" y="34" font-size="16" font-weight="bold" fill="#1a73e8" text-anchor="middle" font-family="Arial,sans-serif">31</text>' +
   '</svg>';
-var LINE_ICON = '<svg width="26" height="26" viewBox="0 0 48 48">' +
+var LINE_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
   '<rect x="3" y="3" width="42" height="42" rx="10" fill="#06C755"/>' +
   '<ellipse cx="24" cy="22" rx="15" ry="11" fill="#fff"/>' +
   '<path fill="#fff" d="M16 31l-2.5 6.5L23 33z"/>' +
