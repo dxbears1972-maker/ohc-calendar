@@ -433,7 +433,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19j</p>
+  <p class="note" style="text-align:center">版 2026-07-19k</p>
 </main>
 
 <script>
@@ -965,7 +965,7 @@ function renderList(){
       '<a href="' + CARPOOL_URL + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
-        '&place=' + encodeURIComponent(ev.place || '') + '" target="_blank" title="マイカー精算">' + CAR_ICON + '</a>';
+        '&place=' + encodeURIComponent(ev.place || '') + '" title="マイカー精算">' + CAR_ICON + '</a>';
     if (ev.settle){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
