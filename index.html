@@ -421,8 +421,9 @@
     <p class="note">ファイルを読み込むと下の欄に表が入ります。内容を確認して「まとめて登録する」を押してください。</p>
     <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
     <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
-    <button class="refbtn" id="exportBtn" type="button" style="margin-top:10px">⬇ 今の予定をコピーする（Excel貼り付け用）</button>
-    <p class="note">押すと、登録済みの予定が表の形でコピーされます。Excelの「予定入力」シートのA1に貼り付けて手直しし、そのままコピーして上の欄に貼り戻せば、日付やタイトルの食い違いなく更新できます。</p>
+    <button class="refbtn" id="exportFileBtn" type="button" style="margin-top:10px">⬇ 今の予定をExcelファイルで保存</button>
+    <button class="refbtn" id="exportBtn" type="button" style="margin-top:8px">今の予定をコピーする（Excel貼り付け用）</button>
+    <p class="note">「保存」は予定の一覧をExcelファイル（.xlsx）にして保存します。Excelで手直しして、上の枠にドロップすれば、日付やタイトルの食い違いなく更新できます（出欠はそのまま残ります）。</p>
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
@@ -442,7 +443,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-20c</p>
+  <p class="note" style="text-align:center">版 2026-07-20d</p>
 </main>
 
 <script>
@@ -1618,10 +1619,10 @@ function closeImport(){
    日付・タイトルの食い違いなく上書き更新できる */
 var EXPORT_ROLE_COLS = ['リーダー', '班長', '留守宅', '司会', '書記', '受付', '自己PR'];
 
-function buildExportText(){
+function buildExportRows(){
   var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
               '計画表リンク', '報告書リンク'].concat(EXPORT_ROLE_COLS).concat(['係・担当']);
-  var lines = [head.join('\t')];
+  var rows = [head];
   var evs = state.events.slice();
   evs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   for (var i = 0; i < evs.length; i++){
@@ -1650,9 +1651,68 @@ function buildExportText(){
       row.push(roleMap[EXPORT_ROLE_COLS[k]] || '');
     }
     row.push(others.join('、'));
-    lines.push(row.join('\t'));
+    rows.push(row);
   }
-  return { text: lines.join('\n'), count: evs.length };
+  return { rows: rows, count: evs.length };
+}
+
+function buildExportText(){
+  var r = buildExportRows();
+  var lines = [];
+  for (var i = 0; i < r.rows.length; i++) lines.push(r.rows[i].join('\t'));
+  return { text: lines.join('\n'), count: r.count };
+}
+
+/* 今の予定をExcelファイル(.xlsx)にして保存する */
+function exportEventsFile(){
+  var r = buildExportRows();
+  if (r.count === 0){ alert('保存する予定がまだありません'); return; }
+  loadSheetJS(function(){
+    try {
+      var ws = XLSX.utils.aoa_to_sheet(r.rows);
+      /* 列の幅をほどよく */
+      var wch = [11, 16, 7, 16, 14, 14, 14, 8, 8, 8, 8, 8, 8, 8, 18];
+      ws['!cols'] = [];
+      for (var i = 0; i < wch.length; i++) ws['!cols'].push({ wch: wch[i] });
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '予定入力');
+      var now = new Date();
+      var fname = '予定一覧_' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) + '.xlsx';
+      var out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (window.showSaveFilePicker){
+        /* 保存場所を選べるブラウザ（パソコンのChrome・Edgeなど） */
+        window.showSaveFilePicker({
+          suggestedName: fname,
+          types: [{ description: 'Excelファイル', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
+        }).then(function(handle){
+          return handle.createWritable().then(function(w){
+            return w.write(blob).then(function(){ return w.close(); });
+          });
+        }).then(function(){
+          setStatus(r.count + '件の予定をExcelファイルに保存しました');
+        }).catch(function(e){
+          if (e && e.name === 'AbortError') return; /* 保存をやめただけ */
+          saveBlobFallback_(blob, fname, r.count);
+        });
+      } else {
+        saveBlobFallback_(blob, fname, r.count);
+      }
+    } catch (err){
+      alert('Excelファイルを作れませんでした。「コピーする」の方をお試しください');
+    }
+  }, function(msg){ alert(msg); });
+}
+
+/* 保存場所を選べないブラウザでは、ふつうのダウンロードにする */
+function saveBlobFallback_(blob, fname, count){
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setStatus(count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
 }
 
 function exportEvents(){
@@ -1896,6 +1956,7 @@ function init(){
   $('importCancel').onclick = closeImport;
   $('importBtn').onclick = submitImport;
   $('exportBtn').onclick = exportEvents;
+  $('exportFileBtn').onclick = exportEventsFile;
   $('filePickBtn').onclick = function(){ $('fileInput').click(); };
   $('fileInput').onchange = function(){
     if (this.files && this.files[0]) fileToTable(this.files[0]);
