@@ -412,8 +412,17 @@
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
     <p class="note">Excelの表を<b>見出し行ごと</b>範囲コピーして貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
+    <div id="dropZone" style="border:3px dashed #7aa87e; border-radius:10px; background:#f4f9f4; text-align:center; padding:16px 10px; margin-top:8px; color:#2e6b34; font-size:16px;">
+      📂 ここにExcel（.xlsx）やCSVのファイルをドロップ<br>
+      <span style="font-size:14px; color:#666">または</span><br>
+      <button type="button" class="refbtn" id="filePickBtn" style="width:auto; padding:8px 24px; margin-top:6px">参照（ファイルを選ぶ）</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.tsv,.txt" style="display:none">
+    </div>
+    <p class="note">ファイルを読み込むと下の欄に表が入ります。内容を確認して「まとめて登録する」を押してください。</p>
     <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
     <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
+    <button class="refbtn" id="exportBtn" type="button" style="margin-top:10px">⬇ 今の予定をコピーする（Excel貼り付け用）</button>
+    <p class="note">押すと、登録済みの予定が表の形でコピーされます。Excelの「予定入力」シートのA1に貼り付けて手直しし、そのままコピーして上の欄に貼り戻せば、日付やタイトルの食い違いなく更新できます。</p>
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
@@ -433,7 +442,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-19l</p>
+  <p class="note" style="text-align:center">版 2026-07-20b</p>
 </main>
 
 <script>
@@ -1556,6 +1565,151 @@ function closeImport(){
   $('showImport').style.display = 'block';
 }
 
+/* ---------- 今の予定をコピー（Excel貼り付け用） ----------
+   登録済みの予定を、一括登録フォーマットと同じ列の表（タブ区切り）にして
+   コピーする。Excelに貼り付けて手直し→コピーして貼り戻せば、
+   日付・タイトルの食い違いなく上書き更新できる */
+var EXPORT_ROLE_COLS = ['リーダー', '班長', '留守宅', '司会', '書記', '受付', '自己PR'];
+
+function buildExportText(){
+  var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
+              '計画表リンク', '報告書リンク'].concat(EXPORT_ROLE_COLS).concat(['係・担当']);
+  var lines = [head.join('\t')];
+  var evs = state.events.slice();
+  evs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  for (var i = 0; i < evs.length; i++){
+    var ev = evs[i];
+    var p = ev.date.split('-');
+    var dateStr = (+p[0]) + '/' + (+p[1]) + '/' + (+p[2]);
+    /* 係を「決まった列」と「係・担当」列に振り分ける */
+    var roleMap = {}, others = [];
+    var items = String(ev.staff || '').split(/[、,，]/);
+    for (var j = 0; j < items.length; j++){
+      var it = items[j].replace(/^\s+|\s+$/g, '');
+      if (!it) continue;
+      var kv = it.split(/[：:]/);
+      var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
+      var nm = (kv[1] || '').replace(/^\s+|\s+$/g, '');
+      if (nm && EXPORT_ROLE_COLS.indexOf(role) >= 0){
+        roleMap[role] = roleMap[role] ? roleMap[role] + '、' + nm : nm;
+      } else {
+        others.push(it);
+      }
+    }
+    function cl(s){ return String(s == null ? '' : s).replace(/[\t\r\n]+/g, ' '); }
+    var row = [dateStr, cl(ev.title), cl(ev.time), cl(ev.place), cl(ev.memo),
+               cl(ev.plan), cl(ev.report)];
+    for (var k = 0; k < EXPORT_ROLE_COLS.length; k++){
+      row.push(roleMap[EXPORT_ROLE_COLS[k]] || '');
+    }
+    row.push(others.join('、'));
+    lines.push(row.join('\t'));
+  }
+  return { text: lines.join('\n'), count: evs.length };
+}
+
+function exportEvents(){
+  var r = buildExportText();
+  if (r.count === 0){ alert('コピーする予定がまだありません'); return; }
+  function done(){
+    alert(r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
+  }
+  function fallback(){
+    /* コピーできない環境では、貼り付け欄に表を出して手動コピーしてもらう */
+    $('importText').value = r.text;
+    alert('自動コピーができない環境のようです。\n下の欄に表を出しました。全選択（Ctrl+A）→コピー（Ctrl+C）でExcelに貼り付けてください。\n※このまま「まとめて登録する」は押さないでください');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(r.text).then(done, fallback);
+  } else {
+    fallback();
+  }
+}
+
+/* ---------- ファイルから読み込み（ドロップ・参照） ----------
+   Excel(.xlsx)やCSVのファイルを、コピー＆貼り付けの代わりに
+   そのまま読み込んで貼り付け欄に展開する */
+
+/* Excel読み込み用の部品（SheetJS）を、必要になった時だけ取り寄せる */
+function loadSheetJS(ok, ng){
+  if (window.XLSX){ ok(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = ok;
+  s.onerror = function(){ ng('Excel読み込み用の部品を取得できませんでした。通信状態を確認するか、Excelからコピー＆貼り付けでお試しください'); };
+  document.head.appendChild(s);
+}
+
+/* Excelのセルの値を文字にする（日付・時刻のセルに対応） */
+function xcell(v){
+  if (v == null) return '';
+  if (v instanceof Date){
+    if (v.getFullYear() < 1905){
+      /* 時刻だけのセル（Excel内部では1900年ごろの日付になる） */
+      var mm = v.getMinutes();
+      return v.getHours() + ':' + (mm < 10 ? '0' : '') + mm;
+    }
+    return v.getFullYear() + '/' + (v.getMonth() + 1) + '/' + v.getDate();
+  }
+  return String(v).replace(/[\t\r\n]+/g, ' ');
+}
+
+function fileToTable(file){
+  var name = String(file.name || '');
+  var isExcel = /\.(xlsx|xlsm)$/i.test(name);
+
+  function apply(text, rows){
+    $('importText').value = text;
+    setStatus('「' + name + '」を読み込みました（' + rows + '行）');
+    alert('「' + name + '」を読み込みました（見出しを除いて' + rows + '行）。\n下の欄の内容を確認して「まとめて登録する」を押してください');
+  }
+
+  if (isExcel){
+    loadSheetJS(function(){
+      var fr = new FileReader();
+      fr.onload = function(e){
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          var ws = wb.Sheets['予定入力'] || wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+          var lines = [];
+          for (var i = 0; i < rows.length; i++){
+            var cells = [], empty = true;
+            for (var j = 0; j < rows[i].length; j++){
+              var t = xcell(rows[i][j]);
+              if (t !== '') empty = false;
+              cells.push(t);
+            }
+            if (!empty) lines.push(cells.join('\t'));
+          }
+          if (lines.length === 0){ alert('ファイルに読み取れる行がありませんでした'); return; }
+          apply(lines.join('\n'), Math.max(0, lines.length - 1));
+        } catch (err){
+          alert('Excelファイルを読み込めませんでした。Excelで開いてコピー＆貼り付けでお試しください');
+        }
+      };
+      fr.readAsArrayBuffer(file);
+    }, function(msg){ alert(msg); });
+  } else {
+    /* CSV・TSV：文字コードはUTF-8とShift_JIS（Excelの標準）の両方に対応 */
+    var fr2 = new FileReader();
+    fr2.onload = function(e){
+      var buf = e.target.result;
+      var text = '';
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e2){
+        try { text = new TextDecoder('shift_jis').decode(buf); }
+        catch (e3){ text = new TextDecoder('utf-8').decode(buf); }
+      }
+      text = text.replace(/^\uFEFF/, '');
+      var n = text.split(/\r\n|\n|\r/).filter(function(l){ return l.replace(/[\s,\t]/g, '') !== ''; }).length;
+      if (n === 0){ alert('ファイルに読み取れる行がありませんでした'); return; }
+      apply(text, Math.max(0, n - 1));
+    };
+    fr2.readAsArrayBuffer(file);
+  }
+}
+
 /* ---------- ファイル参照（Googleドライブ） ---------- */
 var pickTarget = '';
 
@@ -1694,6 +1848,22 @@ function init(){
   };
   $('importCancel').onclick = closeImport;
   $('importBtn').onclick = submitImport;
+  $('exportBtn').onclick = exportEvents;
+  $('filePickBtn').onclick = function(){ $('fileInput').click(); };
+  $('fileInput').onchange = function(){
+    if (this.files && this.files[0]) fileToTable(this.files[0]);
+    this.value = '';
+  };
+  var dz = $('dropZone');
+  dz.ondragover = function(e){ e.preventDefault(); dz.style.background = '#dff0e0'; };
+  dz.ondragleave = function(){ dz.style.background = '#f4f9f4'; };
+  dz.ondrop = function(e){
+    e.preventDefault();
+    dz.style.background = '#f4f9f4';
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
+      fileToTable(e.dataTransfer.files[0]);
+    }
+  };
 
   $('prevM').onclick = function(){ moveMonth(-1); };
   $('nextM').onclick = function(){ moveMonth(1); };
