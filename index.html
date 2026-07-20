@@ -442,7 +442,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-20b</p>
+  <p class="note" style="text-align:center">版 2026-07-20c</p>
 </main>
 
 <script>
@@ -640,6 +640,12 @@ function tryGoto(){
   state.month = parseInt(p[1], 10);
   render();
   var el = $('ev-' + ev.id);
+  if (!el && !state.showOldEvents){
+    /* 終わって3日過ぎて隠れている予定なら、表示してから移動 */
+    state.showOldEvents = true;
+    renderList();
+    el = $('ev-' + ev.id);
+  }
   if (el && el.scrollIntoView) el.scrollIntoView(true);
 }
 
@@ -718,6 +724,11 @@ function tapDay(d){
   var key = dkey(state.year, state.month, d);
   var evs = eventsOn(key);
   if (evs.length > 0){
+    /* 隠れている（終わって3日過ぎた）予定なら、いったん全部表示してから移動 */
+    if (!$('ev-' + evs[0].id) && !state.showOldEvents){
+      state.showOldEvents = true;
+      renderList();
+    }
     var el = $('ev-' + evs[0].id);
     if (el && el.scrollIntoView) el.scrollIntoView(true);
   } else {
@@ -930,6 +941,20 @@ function buildProxyBox(ev){
   return html;
 }
 
+/* 終わって3日たった予定は隠す（「表示する」ボタンで出せる） */
+var HIDE_ENDED_AFTER_DAYS = 3;
+
+function hideCutoff_(){
+  var t = new Date();
+  t.setDate(t.getDate() - HIDE_ENDED_AFTER_DAYS);
+  return dkey(t.getFullYear(), t.getMonth() + 1, t.getDate());
+}
+
+function toggleOldEvents(){
+  state.showOldEvents = !state.showOldEvents;
+  renderList();
+}
+
 function renderList(){
   var y = state.year, m = state.month;
   var prefix = y + '-' + pad2(m);
@@ -945,6 +970,28 @@ function renderList(){
 
   if (list.length === 0){
     $('evList').innerHTML = '<div id="noev">この月の予定はまだありません</div>';
+    return;
+  }
+
+  /* 終了から3日を過ぎた予定は隠す */
+  var cutoff = hideCutoff_();
+  var hidden = 0;
+  if (!state.showOldEvents){
+    var keep = [];
+    for (var h = 0; h < list.length; h++){
+      if (list[h].date < cutoff) hidden++;
+      else keep.push(list[h]);
+    }
+    list = keep;
+  }
+  var oldBtn = '';
+  if (hidden > 0){
+    oldBtn = '<button type="button" class="refbtn" style="margin-top:10px" onclick="toggleOldEvents()">終わった予定も表示する（' + hidden + '件）</button>';
+  } else if (state.showOldEvents){
+    oldBtn = '<button type="button" class="refbtn" style="margin-top:10px" onclick="toggleOldEvents()">終わった予定を隠す</button>';
+  }
+  if (list.length === 0){
+    $('evList').innerHTML = '<div id="noev">この月に、これからの予定はありません</div>' + oldBtn;
     return;
   }
 
@@ -1012,7 +1059,7 @@ function renderList(){
         '</div>' : '') +
     '</div>';
   }
-  $('evList').innerHTML = html;
+  $('evList').innerHTML = html + oldBtn;
 }
 
 function render(){
