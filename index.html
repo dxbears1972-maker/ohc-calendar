@@ -443,7 +443,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-20d</p>
+  <p class="note" style="text-align:center">版 2026-07-20e</p>
 </main>
 
 <script>
@@ -457,9 +457,11 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNX
 var ADMIN_NAME = '只隈';
 
 /* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
+   杉野さん・大原さんは、自分が登録した予定／自分がリーダーの予定だけ編集できる
+   扱いに変更したため、ここには入れていません（2026-07-20〜）。
    例：var EDITORS = ['杉野', '大原'];
    ※GASコード側の EDITORS にも同じ名前を入れること */
-var EDITORS = ['杉野', '大原'];
+var EDITORS = [];
 
 function isStaff(name){
   return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
@@ -1180,7 +1182,7 @@ function sortStaffStr(s){
 }
 
 /* その予定の係の中で、編集・代理の権限を持つ人か？
-   （定例会の「司会」と懇親会の「幹事」が対象） */
+   （山行の「リーダー」、定例会の「司会」、懇親会の「幹事」が対象） */
 function staffCanEdit(ev, name){
   if (!name || !ev || !ev.staff) return false;
   var items = String(ev.staff).split(/[、,，]/);
@@ -1189,7 +1191,7 @@ function staffCanEdit(ev, name){
     if (kv.length < 2) continue;
     var role = kv[0].replace(/^\s+|\s+$/g, '');
     var nm = kv[1].replace(/^\s+|\s+$/g, '');
-    if (nm === name && (role === '司会' || role === '幹事')) return true;
+    if (nm === name && (role === 'リーダー' || role === '司会' || role === '幹事')) return true;
   }
   return false;
 }
