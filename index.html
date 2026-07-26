@@ -633,6 +633,9 @@ var KEYS       = CLUB.keys;
    サーバーから名簿を受け取ったときに入れ替わります */
 var MEMBER_YOMI = {};
 
+/* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
+var TAKEN = [];
+
 function isAdmin_(name){
   return !!name && ADMINS.indexOf(name) >= 0;
 }
@@ -763,6 +766,8 @@ function applyData(data){
     ADMINS  = (data.admins && data.admins.length) ? data.admins : [CLUB.adminName];
     EDITORS = data.editors || [];
     ADMIN_NAME = ADMINS[0];
+
+    TAKEN = data.taken || [];
 
     /* 読み方の対応表を作り直す */
     MEMBER_YOMI = {};
@@ -2113,16 +2118,29 @@ var YOMI_ROWS = [
   { label: 'わ行', chars: 'わをん' }
 ];
 
-/* 名前選択に出す人（管理者・幹事は出さない） */
+/* 名前選択に出す人
+   ・管理者・幹事は出さない（専用URLのみ）
+   ・すでにどれかの端末で使い始めている人も出さない
+   　→ 新しい会員には、自分の名前だけが並んで見えます
+   ・機種変更などで自分の名前が要るときは「見つからない方はこちら」で全員出す */
+var showTakenNames = false;
+
 function selectableMembers(){
   var r = [];
   for (var i = 0; i < MEMBERS.length; i++){
     var n = MEMBERS[i];
     if (ADMINS.indexOf(n) >= 0) continue;
     if (EDITORS.indexOf(n) >= 0) continue;
+    if (!showTakenNames && TAKEN.indexOf(n) >= 0) continue;
     r.push({ name: n, yomi: (MEMBER_YOMI[n] || '') });
   }
   return r;
+}
+
+function toggleTakenNames(){
+  showTakenNames = !showTakenNames;
+  namePickRow = '';
+  renderNamePick();
 }
 
 /* その読みが何行か（'あ' 'か' …）。分からなければ空 */
@@ -2146,9 +2164,16 @@ function renderNamePick(){
   var html = '';
 
   if (list.length === 0){
-    $('namePickBody').innerHTML =
-      '<p class="note">名簿がまだ読み込めていません。' +
-      '「最新の情報に更新する」を押してから、もう一度お試しください。</p>';
+    if (!showTakenNames && TAKEN.length > 0){
+      $('namePickBody').innerHTML =
+        '<p class="note">選べるお名前がありません。会員のみなさんは、すでにお使いです。</p>' +
+        '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">' +
+        'スマホを変えた方・お名前が見つからない方はこちら</button>';
+    } else {
+      $('namePickBody').innerHTML =
+        '<p class="note">名簿がまだ読み込めていません。' +
+        '「最新の情報に更新する」を押してから、もう一度お試しください。</p>';
+    }
     return;
   }
 
@@ -2180,6 +2205,13 @@ function renderNamePick(){
   html += '</div>';
   if (shown === 0) html += '<p class="note">この行の方はいません。「全部」を押してください。</p>';
 
+  if (showTakenNames){
+    html += '<p class="note">すでにお使いの方を選ぶときは、確認番号が必要です。</p>' +
+            '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">まだの人だけ表示する</button>';
+  } else if (TAKEN.length > 0){
+    html += '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">' +
+            'スマホを変えた方・お名前が見つからない方はこちら</button>';
+  }
   html += '<p class="note">お名前がないときは' + esc(CLUB.contactLabel) + 'にご連絡ください。</p>';
   $('namePickBody').innerHTML = html;
 }
