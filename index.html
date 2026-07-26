@@ -576,8 +576,22 @@ var LSK = {
   proxyList: 'proxyList_' + CLUB.id,   /* 代理回答でよく選ぶ人 */
   gcalPref:  'gcalPref_'  + CLUB.id,   /* Googleカレンダーに追加するか */
   gotoId:    'gotoId_'    + CLUB.id,   /* 精算アプリから戻ってきたときの行き先 */
-  pickDir:   'pickDir_'   + CLUB.id    /* ファイル参照で最後に開いたフォルダ */
+  pickDir:   'pickDir_'   + CLUB.id,   /* ファイル参照で最後に開いたフォルダ */
+  device:    'device_'    + CLUB.id,   /* この端末を見分けるための記号 */
+  claimed:   'claimed_'   + CLUB.id    /* この端末で登録済みの名前 */
 };
+
+/* この端末を見分けるための記号を作る（初回だけ）。
+   個人を特定するものではなく、「同じスマホかどうか」が分かればよい。 */
+function deviceId(){
+  var d = lsGet(LSK.device);
+  if (!d){
+    d = 'd' + new Date().getTime().toString(36) +
+        Math.random().toString(36).substring(2, 8);
+    lsSet(LSK.device, d);
+  }
+  return d;
+}
 
 /* 旧バージョン（ohcName など共通の名前だったころ）の内容を引き継ぐ。
    起動時に1回だけ実行する。
@@ -2175,17 +2189,55 @@ function setNameRow(r){
   renderNamePick();
 }
 
-function pickName(name){
+/* 名前を選んだとき。サーバーに「この端末で使います」と登録しに行く。
+   ・まだ誰も使っていない名前 → そのまま通る
+   ・別のスマホで使われている名前 → 確認番号を聞く */
+function pickName(name, code){
   if (MEMBERS.indexOf(name) < 0) return;
-  if (!confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
-  myName = name;
-  lsSet(LSK.name, name);
-  namePickRow = '';
-  $('nameCard').style.display = 'none';
-  updateWho();
-  $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
-  setStatus(name + 'さんとして開いています');
-  render();
+  if (!code && !confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
+
+  setStatus('確認しています…');
+  api('POST', { action: 'claimName', name: name, deviceId: deviceId(), code: code || '' },
+    function(err, data){
+      if (err || !data){
+        setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
+        return;
+      }
+      if (data.ok){
+        myName = name;
+        lsSet(LSK.name, name);
+        lsSet(LSK.claimed, name);
+        namePickRow = '';
+        $('nameCard').style.display = 'none';
+        updateWho();
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+        setStatus(name + 'さんとして開いています');
+        render();
+        return;
+      }
+      if (data.needCode){
+        if (data.error) alert(data.error);
+        askPickCode(name, data.first);
+        return;
+      }
+      setStatus('', false);
+      alert(data.error || 'うまくいきませんでした。もう一度お試しください。');
+    });
+}
+
+/* 確認番号を聞く */
+function askPickCode(name, first){
+  var msg = first
+    ? '「' + name + '」さんの確認番号（4けた）を入れてください。\n' +
+      '分からないときは' + CLUB.contactLabel + 'にご連絡ください。'
+    : '「' + name + '」さんは、すでに別のスマホで使われています。\n\n' +
+      'ご本人であれば、確認番号（4けた）を入れてください。\n' +
+      '分からないときは' + CLUB.contactLabel + 'にご連絡ください。';
+  var c = prompt(msg, '');
+  if (c === null){ setStatus(''); return; }
+  c = String(c).replace(/[\s　]/g, '');
+  if (!c){ setStatus(''); return; }
+  pickName(name, c);
 }
 
 /* ヘッダーの名前を押したら、別の人に変えられる */
@@ -2242,6 +2294,18 @@ function init(){
 
   updateWho();
   if (!myName) showNamePick();
+
+  /* 専用URL（?key=）で開いている方も、その名前をこの端末のものとして
+     登録しておく。こうしておかないと、ほかの人が名前選択の画面で
+     その方の名前を選べてしまうため。1つの端末につき1回だけ送る。 */
+  try {
+    if (myName && !isStaff(myName) && lsGet(LSK.claimed) !== myName){
+      api('POST', { action: 'claimName', name: myName, deviceId: deviceId() },
+        function(err, data){
+          if (!err && data && data.ok) lsSet(LSK.claimed, myName);
+        });
+    }
+  } catch(e){}
 
   /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
   if (isStaff(myName)) $('showImport').style.display = 'block';
