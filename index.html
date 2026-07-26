@@ -443,7 +443,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-26b</p>
+  <p class="note" style="text-align:center">版 2026-07-26c</p>
 </main>
 
 <script>
@@ -581,17 +581,27 @@ function migrateOldKeys(){
 
 var API_URL = CLUB.apiUrl;
 
-/* 管理者・幹事の名前（設定は CLUB のほうを直すこと） */
-var ADMIN_NAME = CLUB.adminName;
-var EDITORS = CLUB.editors;
+/* ------------------------------------------------------------------
+   名簿・管理者・幹事は、スプレッドシートの「名簿」シートで管理します。
+   起動時にサーバーから受け取って、下の3つを入れ替えます。
 
-function isStaff(name){
-  return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
+   下の値は「まだ受け取れていないとき」の予備です。
+   会員が増減しても、ここを直す必要はありません。
+   幹事さんが名簿シートに1行足すだけで反映されます。
+   ------------------------------------------------------------------ */
+var ADMINS     = [CLUB.adminName];
+var ADMIN_NAME = CLUB.adminName;
+var EDITORS    = CLUB.editors;
+var MEMBERS    = CLUB.members;
+var KEYS       = CLUB.keys;
+
+function isAdmin_(name){
+  return !!name && ADMINS.indexOf(name) >= 0;
 }
 
-/* メンバー一覧・個人コード（設定は CLUB のほうを直すこと） */
-var MEMBERS = CLUB.members;
-var KEYS = CLUB.keys;
+function isStaff(name){
+  return !!name && (ADMINS.indexOf(name) >= 0 || EDITORS.indexOf(name) >= 0);
+}
 
 /* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
 function byMember_(a, b){
@@ -705,6 +715,28 @@ function api(method, body, cb){
 function applyData(data){
   state.events = data.events || [];
   state.attendance = data.attendance || [];
+
+  /* 名簿シートの内容を受け取ったら、こちらの一覧を入れ替える。
+     （幹事さんがシートに1行足せば、次に開いたときから反映されます）
+     受け取れなかったとき（圏外の控えを表示しているときなど）は、
+     いまの一覧をそのまま使う。 */
+  if (data.members && data.members.length) {
+    MEMBERS = data.members;
+    ADMINS  = (data.admins && data.admins.length) ? data.admins : [CLUB.adminName];
+    EDITORS = data.editors || [];
+    ADMIN_NAME = ADMINS[0];
+
+    /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
+       （退会された方の端末など） */
+    if (myName && MEMBERS.indexOf(myName) < 0) {
+      myName = '';
+      updateWho();
+      showNamePick();
+    }
+    /* 役割が変わっているかもしれないので、管理者向けボタンを出し直す */
+    $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+  }
+
   /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
   try {
     lsSet(LSK.cache, JSON.stringify({ events: state.events, attendance: state.attendance }));
@@ -1005,7 +1037,7 @@ function proxySet(evId, name, st){
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
   render();
   var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
-  post({ action: 'setAttendance', eventId: evId, name: name, status: st },
+  post({ action: 'setAttendance', eventId: evId, name: name, status: st, by: getName() },
     name + 'さん：' + label + ' を記録しました');
 }
 
@@ -1098,7 +1130,7 @@ function renderList(){
   }
 
   var myn = getName();
-  var isAdmin = (myn === ADMIN_NAME);
+  var isAdmin = isAdmin_(myn);
   var html = '';
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
@@ -1200,7 +1232,7 @@ function answer(evId, st){
   }
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
   render();
-  post({ action: 'setAttendance', eventId: evId, name: name, status: st }, '回答を送りました');
+  post({ action: 'setAttendance', eventId: evId, name: name, status: st, by: getName() }, '回答を送りました');
   /* チェックが入っている人だけ、新たに「参加」にしたときGoogleカレンダー追加を開く */
   if (st === 'yes' && prev !== 'yes' && lsGet(LSK.gcalPref) === 'yes'){
     var ev = null;
