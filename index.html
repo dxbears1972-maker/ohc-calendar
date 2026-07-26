@@ -286,8 +286,11 @@
   .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
   .namegrid .namebtn:active { background: #e8f4e9; }
   .namegrid .namebtn.mine { border-color: #2e6b34; background: #f2f8f2; }
+  .cfgbtn {
+    font-size: 15px; color: #789a7c; background: transparent;
+    border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
+  }
   .namegrid .namebtn .mtag { display: block; font-size: 11px; font-weight: normal; color: #2e6b34; }
-  header #whoami .whochg { display: block; font-size: 11px; font-weight: normal; color: #cfe0d0; }
   #noev { text-align: center; color: #888; padding: 16px 0; }
 </style>
 </head>
@@ -465,7 +468,21 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-26e</p>
+
+  <!-- 設定（めったに使わないものは、ここにまとめる） -->
+  <p style="text-align:center; margin-top:14px">
+    <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
+  </p>
+  <div class="card" id="cfgCard" style="display:none">
+    <h2>設定</h2>
+    <p class="note" id="cfgWho"></p>
+    <button type="button" class="subbtn" onclick="changeName()">お名前を変える</button>
+    <p class="note">スマホを買い替えたときや、ちがう方の名前で開いてしまったときに使います。
+      ふだんは触らなくて大丈夫です。</p>
+    <button type="button" class="cancelbtn" onclick="closeCfg()">とじる</button>
+  </div>
+
+  <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
 <script>
@@ -548,13 +565,19 @@ var CLUB = {
 
 /* ============ ここから下は共通。クラブごとに変えないこと ============ */
 
-/* このアプリ（index.html）の版。画面いちばん下に出ます */
-var APP_VER = '2026-07-26e';
+/* ------------------------------------------------------------------
+   このアプリ（index.html）の版。
+   直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
+   付け方：日付 ＋ その日の何回目か（a, b, c …）
+   ------------------------------------------------------------------ */
+var APP_VER = '2026-07-26g';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
   try {
     document.title = CLUB.appTitle;
+    var v0 = $('verLine');
+    if (v0) v0.innerHTML = '版 ' + esc(APP_VER);
     var h = $('appTitle');
     if (h) h.innerHTML = esc(CLUB.appTitle);
     var lw = $('lineWarnMsg');
@@ -2097,14 +2120,26 @@ function pickFile(fileId){
 
 /* ---------- 名前の表示 ---------- */
 function updateWho(){
-  if (myName){
-    $('whoami').innerHTML = esc(myName) + ' さん<span class="whochg">押すと変更</span>';
-    $('whoami').onclick = changeName;
-    $('whoami').style.cursor = 'pointer';
-  } else {
-    $('whoami').innerHTML = '';
-    $('whoami').onclick = null;
-  }
+  /* 名前は表示するだけ。押しても何も起きない。
+     名前の変更は、画面いちばん下の「⚙ 設定」から行う
+     （うっかり押して名乗りが外れないようにするため） */
+  $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
+  var cw = $('cfgWho');
+  if (cw) cw.innerHTML = myName
+    ? 'いまは「' + esc(myName) + '」さんとして開いています。'
+    : 'まだお名前が選ばれていません。';
+}
+
+function openCfg(){
+  updateWho();
+  $('cfgCard').style.display = 'block';
+  $('cfgBtn').style.display = 'none';
+  if ($('cfgCard').scrollIntoView) $('cfgCard').scrollIntoView(true);
+}
+
+function closeCfg(){
+  $('cfgCard').style.display = 'none';
+  $('cfgBtn').style.display = 'inline-block';
 }
 
 /* ==================================================================
@@ -2294,11 +2329,12 @@ function askPickCode(name, first){
   pickName(name, c);
 }
 
-/* ヘッダーの名前を押したら、別の人に変えられる */
+/* 「⚙ 設定」→「お名前を変える」から呼ばれる */
 function changeName(){
-  if (!confirm('別の方に変更しますか？\n（いまの登録は解除されます）')) return;
+  if (!confirm('お名前を選び直しますか？\n\nスマホを買い替えたときなどに使います。\nふだんは変える必要はありません。')) return;
   myName = '';
   lsSet(LSK.name, '');
+  closeCfg();
   updateWho();
   showNamePick();
   render();
@@ -2414,6 +2450,7 @@ function init(){
     renderStaffRows();
   };
   $('reloadBtn').onclick = load;
+  $('cfgBtn').onclick = openCfg;
 
   /* Googleカレンダー連携チェックボックス（この端末に記憶） */
   $('gcalChk').checked = (lsGet(LSK.gcalPref) === 'yes');
