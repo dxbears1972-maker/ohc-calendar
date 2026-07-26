@@ -489,6 +489,17 @@
     <h2>設定</h2>
     <p class="note" id="cfgWho"></p>
 
+    <!-- 幹事が決まっていないときだけ、管理者に出す -->
+    <div id="needEditor" style="display:none; background:#fff3e0; border:2px solid #e8a000;
+         border-radius:10px; padding:12px; margin-bottom:14px">
+      <p style="font-size:17px; font-weight:bold; color:#8a5a00; margin-bottom:6px">
+        連絡窓口が決まっていません</p>
+      <p class="note" style="color:#8a5a00">
+        会員の方が困ったときに、誰に聞けばよいかを案内できません。<br>
+        名簿シートの <b>「連絡窓口」</b> の欄に <b>○</b> を入れて、担当の方を決めてください。<br>
+        <b>役割（権限）とは別です。</b>予定を削除できる権限を渡さなくても、窓口だけお願いできます。</p>
+    </div>
+
     <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
       パソコンなど、べつの端末でも使う
     </button>
@@ -607,7 +618,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-26i';
+var APP_VER = '2026-07-26l';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -701,12 +712,27 @@ var MEMBER_YOMI = {};
 /* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
 var TAKEN = [];
 
+/* 会員向けの案内に出す連絡窓口（名簿の「連絡窓口」に印がある方） */
+var CONTACTS = [];
+
 function isAdmin_(name){
   return !!name && ADMINS.indexOf(name) >= 0;
 }
 
 function isStaff(name){
   return !!name && (ADMINS.indexOf(name) >= 0 || EDITORS.indexOf(name) >= 0);
+}
+
+/* 「分からないときは○○にご連絡ください」の○○。
+   ①名簿の「連絡窓口」に印がある方 → ②幹事 → ③管理者 の順に探す。
+   （設定の CLUB.contactLabel は、名簿がまだ読めていないときの予備） */
+function contactName(){
+  var list = CONTACTS.length ? CONTACTS
+           : (EDITORS.length ? EDITORS : (ADMINS.length ? ADMINS : []));
+  if (!list.length) return CLUB.contactLabel;
+  var s = [];
+  for (var i = 0; i < list.length && i < 3; i++) s.push(list[i] + 'さん');
+  return s.join('・');
 }
 
 /* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
@@ -833,6 +859,7 @@ function applyData(data){
     ADMIN_NAME = ADMINS[0];
 
     TAKEN = data.taken || [];
+    CONTACTS = data.contacts || [];
 
     /* サーバー（GAS）の版も画面いちばん下に出す。
        貼り替えとデプロイができているかを、目で確かめられるように。 */
@@ -852,6 +879,19 @@ function applyData(data){
     }
     /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
     if ($('nameCard').style.display === 'block') renderNamePick();
+
+    /* 連絡窓口が決まっていないことを、管理者に知らせる（起動時に1回だけ） */
+    if (isAdmin_(myName) && CONTACTS.length === 0 && !editorWarned){
+      editorWarned = true;
+      setTimeout(function(){
+        alert('連絡窓口が決まっていません。\n\n' +
+              '会員の方が困ったときに、誰に聞けばよいかを\n' +
+              'アプリの中で案内できません。\n\n' +
+              '名簿シートの「連絡窓口」の欄に「○」を入れて、\n' +
+              '担当の方を決めてください。\n\n' +
+              '（決まるまでは、' + contactName() + 'のお名前が出ます）');
+      }, 800);
+    }
 
     /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
        （退会された方の端末など） */
@@ -2169,6 +2209,36 @@ function updateWho(){
 
 function openCfg(){
   updateWho();
+  closeCodeForm();
+
+  /* 連絡窓口が1人も決まっていなければ、管理者にだけ知らせる */
+  $('needEditor').style.display =
+    (isAdmin_(myName) && CONTACTS.length === 0) ? 'block' : 'none';
+
+  /* 「べつの端末でも使う」を出してよいかを決める。
+     ・管理者と幹事：専用URLでどの端末でも開けるので、この設定は不要
+     ・この端末で名前を登録していない方：ここでは設定できない */
+  var canSet = !!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName);
+  $('setCodeBtn').style.display = canSet ? 'block' : 'none';
+
+  if (!myName){
+    $('setCodeNote').innerHTML = 'まだお名前が選ばれていません。';
+  } else if (isStaff(myName)) {
+    $('setCodeNote').innerHTML =
+      '幹事・管理者の方は、LINEで届いている<b>専用のURL</b>から、' +
+      'スマホでもパソコンでも開けます。この設定は必要ありません。';
+  } else if (!canSet) {
+    $('setCodeNote').innerHTML =
+      'この端末では、べつの端末を追加する設定ができません。<br>' +
+      'ふだんお使いの端末から行ってください。';
+  } else {
+    $('setCodeNote').innerHTML =
+      'いま使っているこの端末のほかに、パソコンや新しいスマホでも' +
+      '同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>' +
+      '1台だけで使う方は、押す必要はありません。';
+  }
+  $('setCodeNote').style.display = 'block';
+
   $('cfgCard').style.display = 'block';
   $('cfgBtn').style.display = 'none';
   if ($('cfgCard').scrollIntoView) $('cfgCard').scrollIntoView(true);
@@ -2190,6 +2260,7 @@ function closeCfg(){
    ================================================================== */
 
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
+var editorWarned = false;  /* 幹事が未設定であることを、管理者に知らせたか */
 
 var YOMI_ROWS = [
   { label: 'あ行', chars: 'あいうえおぁぃぅぇぉ' },
@@ -2306,7 +2377,7 @@ function renderNamePick(){
     html += '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">' +
             'スマホを変えた方・お名前が見つからない方はこちら</button>';
   }
-  html += '<p class="note">お名前がないときは' + esc(CLUB.contactLabel) + 'にご連絡ください。</p>';
+  html += '<p class="note">お名前がないときは' + esc(contactName()) + 'にご連絡ください。</p>';
   $('namePickBody').innerHTML = html;
 }
 
@@ -2365,7 +2436,7 @@ function askPickCode(name, first){
       '<button type="button" class="subbtn" onclick="submitPickCode(\'' +
         esc(name).replace(/'/g, '') + '\')">この番号で使う</button>' +
       '<button type="button" class="cancelbtn" onclick="cancelPickCode()">やめる</button>' +
-      '<p class="note">分からないときは' + esc(CLUB.contactLabel) + 'にご連絡ください。</p>' +
+      '<p class="note">分からないときは' + esc(contactName()) + 'にご連絡ください。</p>' +
     '</div>';
   $('namePickBody').innerHTML = html;
   onlyDigits($('pickCode'));
@@ -2418,8 +2489,10 @@ function askSetCode(){
 
 function closeCodeForm(){
   $('codeForm').style.display = 'none';
-  $('setCodeBtn').style.display = 'block';
   $('setCodeNote').style.display = 'block';
+  /* ボタンを出してよいかは openCfg が決める */
+  var canSet = !!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName);
+  $('setCodeBtn').style.display = canSet ? 'block' : 'none';
 }
 
 function submitSetCode(){
