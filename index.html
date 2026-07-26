@@ -267,6 +267,25 @@
     border: 2px solid #bbb; border-radius: 10px;
   }
   .note { font-size: 14px; color: #777; margin-top: 6px; }
+
+  /* 名前を選ぶ画面 */
+  .rowfilter { margin: 8px 0 4px; }
+  .rowfilter .rowbtn {
+    font-size: 16px; padding: 8px 10px; margin: 0 4px 6px 0;
+    border: 2px solid #7aa87e; background: #fff; color: #2e6b34;
+    border-radius: 8px; min-width: 58px;
+  }
+  .rowfilter .rowbtn.on { background: #2e6b34; color: #fff; border-color: #2e6b34; font-weight: bold; }
+  .namegrid { display: flex; flex-wrap: wrap; margin-top: 6px; }
+  .namegrid .namebtn {
+    width: 48%; margin: 0 4% 8px 0; min-height: 58px;
+    font-size: 21px; font-weight: bold;
+    border: 2px solid #cfe0d0; border-radius: 10px;
+    background: #fff; color: #222;
+  }
+  .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
+  .namegrid .namebtn:active { background: #e8f4e9; }
+  header #whoami .whochg { display: block; font-size: 11px; font-weight: normal; color: #cfe0d0; }
   #noev { text-align: center; color: #888; padding: 16px 0; }
 </style>
 </head>
@@ -324,8 +343,9 @@
 <main>
   <!-- 名前が分からないときの案内 -->
   <div class="card" id="nameCard" style="display:none">
-    <h2>あなた専用のURLで開いてください</h2>
-    <p class="note" id="nameCardNote">LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
+    <h2>あなたのお名前を選んでください</h2>
+    <p class="note" id="nameCardNote">一度選ぶと、この端末はずっとその方のものになります。予定を見るだけなら選ばなくてもできます。</p>
+    <div id="namePickBody"></div>
   </div>
 
   <!-- カレンダー -->
@@ -443,7 +463,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-26c</p>
+  <p class="note" style="text-align:center">版 2026-07-26d</p>
 </main>
 
 <script>
@@ -536,8 +556,8 @@ function applyClubConfig(){
     if (lw) lw.innerHTML = esc(CLUB.appTitle) +
       'は、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>下のボタンを押してください。';
     var nc = $('nameCardNote');
-    if (nc) nc.innerHTML = 'LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。' +
-      '予定を見ることはこのままでもできます。URLが分からないときは' + esc(CLUB.contactLabel) + 'に連絡してください。';
+    if (nc) nc.innerHTML = '一度選ぶと、この端末はずっとその方のものになります。' +
+      '予定を見るだけなら選ばなくてもできます。';
     var tc = document.querySelector('meta[name="theme-color"]');
     if (tc) tc.setAttribute('content', CLUB.themeColor);
     var at = document.querySelector('meta[name="apple-mobile-web-app-title"]');
@@ -594,6 +614,10 @@ var ADMIN_NAME = CLUB.adminName;
 var EDITORS    = CLUB.editors;
 var MEMBERS    = CLUB.members;
 var KEYS       = CLUB.keys;
+
+/* 名字 → ひらがなの読み（名前選択の「あ行・か行…」に使う）
+   サーバーから名簿を受け取ったときに入れ替わります */
+var MEMBER_YOMI = {};
 
 function isAdmin_(name){
   return !!name && ADMINS.indexOf(name) >= 0;
@@ -725,6 +749,16 @@ function applyData(data){
     ADMINS  = (data.admins && data.admins.length) ? data.admins : [CLUB.adminName];
     EDITORS = data.editors || [];
     ADMIN_NAME = ADMINS[0];
+
+    /* 読み方の対応表を作り直す */
+    MEMBER_YOMI = {};
+    if (data.yomis){
+      for (var yi = 0; yi < MEMBERS.length; yi++){
+        MEMBER_YOMI[MEMBERS[yi]] = data.yomis[yi] || '';
+      }
+    }
+    /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
+    if ($('nameCard').style.display === 'block') renderNamePick();
 
     /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
        （退会された方の端末など） */
@@ -1214,7 +1248,7 @@ function answer(evId, st){
   var name = getName();
   if (!name){
     showNamePick();
-    alert('LINEで届いた、自分の名前入りのURLから開いてください');
+    alert('先に、あなたのお名前を選んでください');
     return;
   }
   for (var i = 0; i < state.events.length; i++){
@@ -1530,7 +1564,7 @@ function submitAdd(){
   var name = getName();
   if (!name){
     showNamePick();
-    alert('LINEで届いた、自分の名前入りのURLから開いてください\n（誰が登録した予定か分かるようにするためです）');
+    alert('先に、あなたのお名前を選んでください\n（誰が登録した予定か分かるようにするためです）');
     return;
   }
 
@@ -1703,7 +1737,7 @@ function parseImport(text){
 
 function submitImport(){
   var name = getName();
-  if (!name){ alert('名前入りのURLから開いてください'); return; }
+  if (!name){ alert('先に、あなたのお名前を選んでください'); return; }
   var r = parseImport($('importText').value);
   if (r.errors.length > 0){
     alert('読み取れない行があります：' + r.errors.join('、') + '\n「日付、タイトル、時間…」の順になっているか確認してください');
@@ -2030,12 +2064,138 @@ function pickFile(fileId){
 
 /* ---------- 名前の表示 ---------- */
 function updateWho(){
-  $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
+  if (myName){
+    $('whoami').innerHTML = esc(myName) + ' さん<span class="whochg">押すと変更</span>';
+    $('whoami').onclick = changeName;
+    $('whoami').style.cursor = 'pointer';
+  } else {
+    $('whoami').innerHTML = '';
+    $('whoami').onclick = null;
+  }
+}
+
+/* ==================================================================
+   名前を選ぶ画面
+   ------------------------------------------------------------------
+   ・LINEで届く「自分専用のURL（?key=…）」がある人は、これまでどおり
+     自動で名乗るので、この画面は出ません
+   ・名簿に載っているだけの人（新しく入った会員など）は、
+     ここで自分の名前をタップすれば使えるようになります
+   ・管理者と幹事は、この一覧に出しません（専用URLからのみ名乗れます）
+   ================================================================== */
+
+var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
+
+var YOMI_ROWS = [
+  { label: 'あ行', chars: 'あいうえおぁぃぅぇぉ' },
+  { label: 'か行', chars: 'かきくけこがぎぐげご' },
+  { label: 'さ行', chars: 'さしすせそざじずぜぞ' },
+  { label: 'た行', chars: 'たちつてとだぢづでどっ' },
+  { label: 'な行', chars: 'なにぬねの' },
+  { label: 'は行', chars: 'はひふへほばびぶべぼぱぴぷぺぽ' },
+  { label: 'ま行', chars: 'まみむめも' },
+  { label: 'や行', chars: 'やゆよゃゅょ' },
+  { label: 'ら行', chars: 'らりるれろ' },
+  { label: 'わ行', chars: 'わをん' }
+];
+
+/* 名前選択に出す人（管理者・幹事は出さない） */
+function selectableMembers(){
+  var r = [];
+  for (var i = 0; i < MEMBERS.length; i++){
+    var n = MEMBERS[i];
+    if (ADMINS.indexOf(n) >= 0) continue;
+    if (EDITORS.indexOf(n) >= 0) continue;
+    r.push({ name: n, yomi: (MEMBER_YOMI[n] || '') });
+  }
+  return r;
+}
+
+/* その読みが何行か（'あ' 'か' …）。分からなければ空 */
+function rowOfYomi(y){
+  if (!y) return '';
+  var c = y.charAt(0);
+  for (var i = 0; i < YOMI_ROWS.length; i++){
+    if (YOMI_ROWS[i].chars.indexOf(c) >= 0) return YOMI_ROWS[i].label;
+  }
+  return '';
 }
 
 function showNamePick(){
+  renderNamePick();
   $('nameCard').style.display = 'block';
   if ($('nameCard').scrollIntoView) $('nameCard').scrollIntoView(true);
+}
+
+function renderNamePick(){
+  var list = selectableMembers();
+  var html = '';
+
+  if (list.length === 0){
+    $('namePickBody').innerHTML =
+      '<p class="note">名簿がまだ読み込めていません。' +
+      '「最新の情報に更新する」を押してから、もう一度お試しください。</p>';
+    return;
+  }
+
+  /* 人数が多いときだけ「あ行・か行…」の絞り込みを出す */
+  if (list.length > 20){
+    var used = {};
+    for (var u = 0; u < list.length; u++) used[rowOfYomi(list[u].yomi)] = true;
+    html += '<div class="rowfilter">';
+    html += '<button type="button" class="rowbtn' + (namePickRow === '' ? ' on' : '') +
+            '" onclick="setNameRow(\'\')">全部</button>';
+    for (var g = 0; g < YOMI_ROWS.length; g++){
+      var lb = YOMI_ROWS[g].label;
+      if (!used[lb]) continue;
+      html += '<button type="button" class="rowbtn' + (namePickRow === lb ? ' on' : '') +
+              '" onclick="setNameRow(\'' + lb + '\')">' + lb + '</button>';
+    }
+    html += '</div>';
+  }
+
+  html += '<div class="namegrid">';
+  var shown = 0;
+  for (var i = 0; i < list.length; i++){
+    if (namePickRow && rowOfYomi(list[i].yomi) !== namePickRow) continue;
+    var nm = list[i].name;
+    html += '<button type="button" class="namebtn" onclick="pickName(\'' +
+            esc(nm).replace(/'/g, '') + '\')">' + esc(nm) + '</button>';
+    shown++;
+  }
+  html += '</div>';
+  if (shown === 0) html += '<p class="note">この行の方はいません。「全部」を押してください。</p>';
+
+  html += '<p class="note">お名前がないときは' + esc(CLUB.contactLabel) + 'にご連絡ください。</p>';
+  $('namePickBody').innerHTML = html;
+}
+
+function setNameRow(r){
+  namePickRow = r;
+  renderNamePick();
+}
+
+function pickName(name){
+  if (MEMBERS.indexOf(name) < 0) return;
+  if (!confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
+  myName = name;
+  lsSet(LSK.name, name);
+  namePickRow = '';
+  $('nameCard').style.display = 'none';
+  updateWho();
+  $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+  setStatus(name + 'さんとして開いています');
+  render();
+}
+
+/* ヘッダーの名前を押したら、別の人に変えられる */
+function changeName(){
+  if (!confirm('別の方に変更しますか？\n（いまの登録は解除されます）')) return;
+  myName = '';
+  lsSet(LSK.name, '');
+  updateWho();
+  showNamePick();
+  render();
 }
 
 /* ---------- 初期化 ---------- */
@@ -2081,7 +2241,7 @@ function init(){
   }
 
   updateWho();
-  if (!myName) $('nameCard').style.display = 'block';
+  if (!myName) showNamePick();
 
   /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
   if (isStaff(myName)) $('showImport').style.display = 'block';
