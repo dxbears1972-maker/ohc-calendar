@@ -285,6 +285,8 @@
   }
   .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
   .namegrid .namebtn:active { background: #e8f4e9; }
+  .namegrid .namebtn.mine { border-color: #2e6b34; background: #f2f8f2; }
+  .namegrid .namebtn .mtag { display: block; font-size: 11px; font-weight: normal; color: #2e6b34; }
   header #whoami .whochg { display: block; font-size: 11px; font-weight: normal; color: #cfe0d0; }
   #noev { text-align: center; color: #888; padding: 16px 0; }
 </style>
@@ -2126,13 +2128,20 @@ var YOMI_ROWS = [
 var showTakenNames = false;
 
 function selectableMembers(){
+  var mine = lsGet(LSK.claimed);   /* この端末で登録した名前 */
   var r = [];
   for (var i = 0; i < MEMBERS.length; i++){
     var n = MEMBERS[i];
     if (ADMINS.indexOf(n) >= 0) continue;
     if (EDITORS.indexOf(n) >= 0) continue;
-    if (!showTakenNames && TAKEN.indexOf(n) >= 0) continue;
-    r.push({ name: n, yomi: (MEMBER_YOMI[n] || '') });
+    var taken = (TAKEN.indexOf(n) >= 0);
+    /* この端末で登録した名前は、使用中でも出す（自分に戻れるように） */
+    if (taken && n === mine){
+      r.push({ name: n, yomi: (MEMBER_YOMI[n] || ''), mine: true });
+      continue;
+    }
+    if (!showTakenNames && taken) continue;
+    r.push({ name: n, yomi: (MEMBER_YOMI[n] || ''), mine: false });
   }
   return r;
 }
@@ -2198,8 +2207,9 @@ function renderNamePick(){
   for (var i = 0; i < list.length; i++){
     if (namePickRow && rowOfYomi(list[i].yomi) !== namePickRow) continue;
     var nm = list[i].name;
-    html += '<button type="button" class="namebtn" onclick="pickName(\'' +
-            esc(nm).replace(/'/g, '') + '\')">' + esc(nm) + '</button>';
+    html += '<button type="button" class="namebtn' + (list[i].mine ? ' mine' : '') +
+            '" onclick="pickName(\'' + esc(nm).replace(/'/g, '') + '\')">' + esc(nm) +
+            (list[i].mine ? '<span class="mtag">この端末で登録ずみ</span>' : '') + '</button>';
     shown++;
   }
   html += '</div>';
@@ -2331,10 +2341,18 @@ function init(){
      登録しておく。こうしておかないと、ほかの人が名前選択の画面で
      その方の名前を選べてしまうため。1つの端末につき1回だけ送る。 */
   try {
-    if (myName && !isStaff(myName) && lsGet(LSK.claimed) !== myName){
-      api('POST', { action: 'claimName', name: myName, deviceId: deviceId() },
+    var claimedMark = lsGet(LSK.claimed);
+    if (myName && !isStaff(myName) &&
+        claimedMark !== myName && claimedMark !== ('-' + myName)){
+      api('POST', { action: 'claimName', name: myName, deviceId: deviceId(), silent: 1 },
         function(err, data){
-          if (!err && data && data.ok) lsSet(LSK.claimed, myName);
+          if (!err && data && data.ok){
+            lsSet(LSK.claimed, myName);
+          } else {
+            /* 登録できなかった（すでに別の端末のものになっている等）。
+               毎回送り直さないよう、しばらく間を置く印を付けておく */
+            lsSet(LSK.claimed, '-' + myName);
+          }
         });
     }
   } catch(e){}
