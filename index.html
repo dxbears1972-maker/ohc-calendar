@@ -476,9 +476,20 @@
   <div class="card" id="cfgCard" style="display:none">
     <h2>設定</h2>
     <p class="note" id="cfgWho"></p>
-    <button type="button" class="subbtn" onclick="changeName()">お名前を変える</button>
-    <p class="note">スマホを買い替えたときや、ちがう方の名前で開いてしまったときに使います。
-      ふだんは触らなくて大丈夫です。</p>
+
+    <button type="button" class="subbtn" onclick="askSetCode()">
+      パソコンなど、べつの端末でも使う
+    </button>
+    <p class="note">いま使っているこの端末のほかに、パソコンや新しいスマホでも
+      同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>
+      1台だけで使う方は、押す必要はありません。</p>
+
+    <p style="margin-top:18px; text-align:center">
+      <a href="javascript:void(0)" onclick="changeName()" style="font-size:14px; color:#888">
+        ちがう方の名前になっている場合はこちら
+      </a>
+    </p>
+
     <button type="button" class="cancelbtn" onclick="closeCfg()">とじる</button>
   </div>
 
@@ -570,7 +581,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-26g';
+var APP_VER = '2026-07-26h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2329,9 +2340,59 @@ function askPickCode(name, first){
   pickName(name, c);
 }
 
-/* 「⚙ 設定」→「お名前を変える」から呼ばれる */
+/* ------------------------------------------------------------------
+   「パソコンなど、べつの端末でも使う」
+   4けたの数字をご本人に決めてもらい、名簿に保存する。
+   もう一方の端末では、お名前を選んだあとにこの数字を入れれば使えるようになる。
+   ------------------------------------------------------------------ */
+function askSetCode(){
+  if (!myName){
+    alert('先に、あなたのお名前を選んでください');
+    return;
+  }
+  var c1 = prompt(
+    'べつの端末でも使えるようにします。\n\n' +
+    '4けたの数字を決めてください。\n' +
+    'お誕生日の月日がおすすめです（4月12日なら 0412）。\n\n' +
+    '※この数字は、もう一方の端末で1回だけ入力します', '');
+  if (c1 === null) return;
+  c1 = String(c1).replace(/[\s　]/g, '');
+  if (!/^[0-9]{4}$/.test(c1)){
+    alert('4けたの数字を入れてください');
+    return;
+  }
+  var c2 = prompt('確認のため、もう一度おなじ4けたを入れてください', '');
+  if (c2 === null) return;
+  c2 = String(c2).replace(/[\s　]/g, '');
+  if (c1 !== c2){
+    alert('2回の数字がちがいます。もう一度お試しください');
+    return;
+  }
+
+  setStatus('登録しています…');
+  api('POST', { action: 'setCode', name: myName, deviceId: deviceId(), code: c1 },
+    function(err, data){
+      if (err || !data){
+        setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
+        return;
+      }
+      if (data.ok){
+        setStatus('');
+        alert('登録しました。\n\n' +
+              'パソコン（または新しいスマホ）でこのアプリを開き、\n' +
+              '「' + myName + '」を選んで、いま決めた4けたの数字を入れてください。\n\n' +
+              '※数字は忘れないようにしてください');
+        closeCfg();
+        return;
+      }
+      setStatus('');
+      alert(data.error || 'うまくいきませんでした。もう一度お試しください。');
+    });
+}
+
+/* 「ちがう方の名前になっている場合はこちら」から呼ばれる */
 function changeName(){
-  if (!confirm('お名前を選び直しますか？\n\nスマホを買い替えたときなどに使います。\nふだんは変える必要はありません。')) return;
+  if (!confirm('お名前を選び直しますか？\n\nちがう方の名前で開いてしまったときに使います。\nふだんは変える必要はありません。')) return;
   myName = '';
   lsSet(LSK.name, '');
   closeCfg();
