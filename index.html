@@ -279,8 +279,8 @@
     <div style="font-size:21px; font-weight:bold; color:#2e6b34; margin-bottom:12px;">
       LINEの中では正しく動きません
     </div>
-    <div style="font-size:17px; line-height:1.7; color:#333; text-align:left; margin-bottom:18px;">
-      OHCカレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>
+    <div id="lineWarnMsg" style="font-size:17px; line-height:1.7; color:#333; text-align:left; margin-bottom:18px;">
+      OHC カレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>
       下のボタンを押してください。
     </div>
     <button id="lineOpenBtn" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
@@ -314,7 +314,7 @@
 
 <header>
   <table><tr>
-    <td><h1>OHC カレンダー</h1></td>
+    <td><h1 id="appTitle">OHC カレンダー</h1></td>
     <td id="whoami"></td>
   </tr></table>
 </header>
@@ -325,7 +325,7 @@
   <!-- 名前が分からないときの案内 -->
   <div class="card" id="nameCard" style="display:none">
     <h2>あなた専用のURLで開いてください</h2>
-    <p class="note">LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
+    <p class="note" id="nameCardNote">LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。予定を見ることはこのままでもできます。URLが分からないときは只隈さんに連絡してください。</p>
   </div>
 
   <!-- カレンダー -->
@@ -443,56 +443,121 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-20e</p>
+  <p class="note" style="text-align:center">版 2026-07-26a</p>
 </main>
 
 <script>
-/* ============================================================
-   ここに GAS のウェブアプリURL を貼り付けてください
-   （https://script.google.com/macros/s/…/exec で終わるURL）
-   ============================================================ */
-var API_URL = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec';
+/* ==================================================================
+   ★★★ クラブごとの設定は、この CLUB の中だけを直してください ★★★
+   ここから下（「ここから下は共通」の行より下）は、
+   どのクラブでも 1 文字も変えません。
+   ------------------------------------------------------------------
+   新しいクラブに渡すときの手順
+     1. id を決める（半角英数字の小文字・3〜10文字。あとから変えない）
+     2. appTitle / homeTitle / contactLabel をそのクラブの言い方に変える
+     3. apiUrl にそのクラブ用の GAS のURL（…/exec）を貼る
+     4. members に名簿（名字だけ・50音順）を入れる
+     5. keys に個人コードを入れる（当面は従来どおり）
+   ================================================================== */
+var CLUB = {
 
-/* 管理者の名前（この人はどの予定でも削除でき、出欠の回答も取り消せます） */
-var ADMIN_NAME = '只隈';
+  /* クラブを見分けるID（半角小文字英数字） */
+  id: 'ohc',
 
-/* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
-   杉野さん・大原さんは、自分が登録した予定／自分がリーダーの予定だけ編集できる
-   扱いに変更したため、ここには入れていません（2026-07-20〜）。
-   例：var EDITORS = ['杉野', '大原'];
-   ※GASコード側の EDITORS にも同じ名前を入れること */
-var EDITORS = [];
+  /* 画面の上と、ブラウザのタブに出る名前 */
+  appTitle: 'OHC カレンダー',
+
+  /* ホーム画面のアイコンの下に出る名前（短く。全角6文字くらいまで） */
+  homeTitle: 'OHC予定',
+
+  /* LINEで送る文章の先頭に付く見出し（【　】の中身） */
+  shareTag: 'OHC予定',
+
+  /* 画面の色（ヘッダーの緑） */
+  themeColor: '#2e6b34',
+
+  /* 「分からないときは○○に連絡してください」の○○ */
+  contactLabel: '只隈さん',
+
+  /* GAS のウェブアプリURL（https://script.google.com/macros/s/…/exec） */
+  apiUrl: 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec',
+
+  /* マイカー精算アプリのURL */
+  carpoolUrl: 'https://dxbears1972-maker.github.io/ohc-carpool/',
+
+  /* 管理者の名前（どの予定でも削除でき、出欠の回答も取り消せる） */
+  adminName: '只隈',
+
+  /* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
+     杉野さん・大原さんは、自分が登録した予定／自分がリーダーの予定だけ編集できる
+     扱いに変更したため、ここには入れていません（2026-07-20〜）。
+     例： editors: ['杉野', '大原'],
+     ※GASコード側の EDITORS にも同じ名前を入れること */
+  editors: [],
+
+  /* メンバー一覧（増減したらここを直してGitHubに上げ直す）
+     ※50音順に並べておくこと。出欠の名前がこの順で表示される
+     ※将来はスプレッドシート管理に移す予定 */
+  members: ['荒木', '植松', '大原', '岡本', '奥村', '上口', '川村', '小柳', '後藤', '杉野', '竹田', '只隈', '永野', '蓮尾', '福永', '松田', '宮本', '山本', '若杉'],
+
+  /* 個人コード → 名前（URLの ?key=○○ で本人確認する） */
+  keys: {
+    'v50cbx': '荒木',
+    'nyzeaj': '植松',
+    'u7lr9x': '大原',
+    'tt89j5': '岡本',
+    'g751dl': '奥村',
+    'il9s3s': '上口',
+    'ndqvpe': '川村',
+    'xm6jfn': '小柳',
+    'al3b77': '後藤',
+    'twhy2g': '杉野',
+    'gexa0n': '竹田',
+    'tw8vg5': '只隈',
+    'cxtntt': '永野',
+    'uza40b': '蓮尾',
+    'xhf3aj': '福永',
+    'r7ceqh': '松田',
+    'xlt64o': '宮本',
+    'qn8ji3': '山本',
+    'dzgqoa': '若杉'
+  }
+};
+
+/* ============ ここから下は共通。クラブごとに変えないこと ============ */
+
+/* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
+function applyClubConfig(){
+  try {
+    document.title = CLUB.appTitle;
+    var h = $('appTitle');
+    if (h) h.innerHTML = esc(CLUB.appTitle);
+    var lw = $('lineWarnMsg');
+    if (lw) lw.innerHTML = esc(CLUB.appTitle) +
+      'は、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>下のボタンを押してください。';
+    var nc = $('nameCardNote');
+    if (nc) nc.innerHTML = 'LINEで届いた「自分専用のURL」をタップして開くと、自動であなたの名前で使えます。' +
+      '予定を見ることはこのままでもできます。URLが分からないときは' + esc(CLUB.contactLabel) + 'に連絡してください。';
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute('content', CLUB.themeColor);
+    var at = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (at) at.setAttribute('content', CLUB.homeTitle);
+  } catch(e){}
+}
+
+var API_URL = CLUB.apiUrl;
+
+/* 管理者・幹事の名前（設定は CLUB のほうを直すこと） */
+var ADMIN_NAME = CLUB.adminName;
+var EDITORS = CLUB.editors;
 
 function isStaff(name){
   return name === ADMIN_NAME || (name !== '' && EDITORS.indexOf(name) >= 0);
 }
 
-/* メンバー一覧（増減したらここを修正してGitHubに上げ直す）
-   ※50音順に並べておくこと。出欠の名前がこの順で表示される */
-var MEMBERS = ['荒木', '植松', '大原', '岡本', '奥村', '上口', '川村', '小柳', '後藤', '杉野', '竹田', '只隈', '永野', '蓮尾', '福永', '松田', '宮本', '山本', '若杉'];
-
-/* 個人コード → 名前（URLの ?key=○○ で本人確認する） */
-var KEYS = {
-  'v50cbx': '荒木',
-  'nyzeaj': '植松',
-  'u7lr9x': '大原',
-  'tt89j5': '岡本',
-  'g751dl': '奥村',
-  'il9s3s': '上口',
-  'ndqvpe': '川村',
-  'xm6jfn': '小柳',
-  'al3b77': '後藤',
-  'twhy2g': '杉野',
-  'gexa0n': '竹田',
-  'tw8vg5': '只隈',
-  'cxtntt': '永野',
-  'uza40b': '蓮尾',
-  'xhf3aj': '福永',
-  'r7ceqh': '松田',
-  'xlt64o': '宮本',
-  'qn8ji3': '山本',
-  'dzgqoa': '若杉'
-};
+/* メンバー一覧・個人コード（設定は CLUB のほうを直すこと） */
+var MEMBERS = CLUB.members;
+var KEYS = CLUB.keys;
 
 /* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
 function byMember_(a, b){
@@ -503,8 +568,8 @@ function byMember_(a, b){
   return a < b ? -1 : (a > b ? 1 : 0);
 }
 
-/* マイカー精算アプリのURL */
-var CARPOOL_URL = 'https://dxbears1972-maker.github.io/ohc-carpool/';
+/* マイカー精算アプリのURL（設定は CLUB のほうを直すこと） */
+var CARPOOL_URL = CLUB.carpoolUrl;
 
 /* 表題行の右端に置くアイコン（どの端末でも同じに出るようSVGで埋め込む・全て26px）
    ・CAR_ICON   ：マイカー精算（緑の車）
@@ -538,12 +603,12 @@ var LINE_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
 function lineShareUrl(ev){
   var p = ev.date.split('-');
   var dow = WEEK[new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getDay()];
-  var t = '【OHC予定】' + parseInt(p[1],10) + '月' + parseInt(p[2],10) + '日(' + dow + ') ' + (ev.title || '') + '\n';
+  var t = '【' + CLUB.shareTag + '】' + parseInt(p[1],10) + '月' + parseInt(p[2],10) + '日(' + dow + ') ' + (ev.title || '') + '\n';
   if (ev.time)  t += '時間：' + ev.time + '\n';
   if (ev.place) t += '場所：' + ev.place + '\n';
   if (ev.staff) t += '係：' + sortStaffStr(ev.staff) + '\n';
   if (ev.memo)  t += 'メモ：' + ev.memo + '\n';
-  t += '出欠の回答は、OHCカレンダー（ホーム画面のアイコン）から！';
+  t += '出欠の回答は、' + CLUB.appTitle + '（ホーム画面のアイコン）から！';
   return 'https://line.me/R/share?text=' + encodeURIComponent(t);
 }
 
@@ -1909,6 +1974,8 @@ function showNamePick(){
 
 /* ---------- 初期化 ---------- */
 function init(){
+  applyClubConfig();
+
   var now = new Date();
   state.year = now.getFullYear();
   state.month = now.getMonth() + 1;
