@@ -290,6 +290,18 @@
     font-size: 15px; color: #789a7c; background: transparent;
     border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
   }
+  /* 4けたの数字だけを入れる欄 */
+  input.pin {
+    width: 100%; font-size: 34px; font-weight: bold;
+    letter-spacing: 0.45em; text-align: center;
+    padding: 12px 0 12px 0.45em;
+    border: 3px solid #2e6b34; border-radius: 10px;
+    margin-top: 4px; background: #fff;
+    -moz-appearance: textfield;
+  }
+  input.pin::-webkit-outer-spin-button,
+  input.pin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pinbox { background: #f4f8f4; border-radius: 10px; padding: 14px; margin-top: 10px; }
   .namegrid .namebtn .mtag { display: block; font-size: 11px; font-weight: normal; color: #2e6b34; }
   #noev { text-align: center; color: #888; padding: 16px 0; }
 </style>
@@ -477,12 +489,26 @@
     <h2>設定</h2>
     <p class="note" id="cfgWho"></p>
 
-    <button type="button" class="subbtn" onclick="askSetCode()">
+    <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
       パソコンなど、べつの端末でも使う
     </button>
-    <p class="note">いま使っているこの端末のほかに、パソコンや新しいスマホでも
+    <p class="note" id="setCodeNote">いま使っているこの端末のほかに、パソコンや新しいスマホでも
       同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>
       1台だけで使う方は、押す必要はありません。</p>
+
+    <!-- 4けたの数字を決める欄 -->
+    <div class="pinbox" id="codeForm" style="display:none">
+      <p class="note" style="margin-top:0">4けたの数字を決めてください。<br>
+        お誕生日の月日がおすすめです（4月12日なら 0412）。</p>
+      <label>4けたの数字</label>
+      <input type="tel" class="pin" id="code1" inputmode="numeric" pattern="[0-9]*"
+             maxlength="4" autocomplete="off" placeholder="････">
+      <label style="margin-top:12px">確認のため、もう一度</label>
+      <input type="tel" class="pin" id="code2" inputmode="numeric" pattern="[0-9]*"
+             maxlength="4" autocomplete="off" placeholder="････">
+      <button type="button" class="subbtn" onclick="submitSetCode()">この番号で登録する</button>
+      <button type="button" class="cancelbtn" onclick="closeCodeForm()">やめる</button>
+    </div>
 
     <p style="margin-top:18px; text-align:center">
       <a href="javascript:void(0)" onclick="changeName()" style="font-size:14px; color:#888">
@@ -581,7 +607,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-26h';
+var APP_VER = '2026-07-26i';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2325,19 +2351,41 @@ function pickName(name, code){
     });
 }
 
-/* 確認番号を聞く */
+/* 確認番号を聞く（4けたの数字だけ入れられる欄を出す） */
 function askPickCode(name, first){
   var msg = first
-    ? '「' + name + '」さんの確認番号（4けた）を入れてください。\n' +
-      '分からないときは' + CLUB.contactLabel + 'にご連絡ください。'
-    : '「' + name + '」さんは、すでに別のスマホで使われています。\n\n' +
-      'ご本人であれば、確認番号（4けた）を入れてください。\n' +
-      '分からないときは' + CLUB.contactLabel + 'にご連絡ください。';
-  var c = prompt(msg, '');
-  if (c === null){ setStatus(''); return; }
-  c = String(c).replace(/[\s　]/g, '');
-  if (!c){ setStatus(''); return; }
+    ? '「' + name + '」さんの確認番号を入れてください。'
+    : '「' + name + '」さんは、すでに別の端末でお使いです。<br>' +
+      'ご本人であれば、確認番号を入れてください。';
+  var html =
+    '<div class="pinbox">' +
+      '<p class="note" style="margin-top:0">' + msg + '</p>' +
+      '<input type="tel" class="pin" id="pickCode" inputmode="numeric" pattern="[0-9]*" ' +
+        'maxlength="4" autocomplete="off" placeholder="････">' +
+      '<button type="button" class="subbtn" onclick="submitPickCode(\'' +
+        esc(name).replace(/'/g, '') + '\')">この番号で使う</button>' +
+      '<button type="button" class="cancelbtn" onclick="cancelPickCode()">やめる</button>' +
+      '<p class="note">分からないときは' + esc(CLUB.contactLabel) + 'にご連絡ください。</p>' +
+    '</div>';
+  $('namePickBody').innerHTML = html;
+  onlyDigits($('pickCode'));
+  try { $('pickCode').focus(); } catch(e){}
+  setStatus('');
+}
+
+function submitPickCode(name){
+  var c = $('pickCode').value.replace(/[^0-9]/g, '');
+  if (c.length !== 4){
+    alert('4けたの数字を入れてください');
+    try { $('pickCode').focus(); } catch(e){}
+    return;
+  }
   pickName(name, c);
+}
+
+function cancelPickCode(){
+  setStatus('');
+  renderNamePick();
 }
 
 /* ------------------------------------------------------------------
@@ -2345,27 +2393,47 @@ function askPickCode(name, first){
    4けたの数字をご本人に決めてもらい、名簿に保存する。
    もう一方の端末では、お名前を選んだあとにこの数字を入れれば使えるようになる。
    ------------------------------------------------------------------ */
+/* 数字以外を打てないようにする */
+function onlyDigits(el){
+  if (!el) return;
+  el.oninput = function(){
+    this.value = this.value.replace(/[^0-9]/g, '').substring(0, 4);
+  };
+}
+
 function askSetCode(){
   if (!myName){
     alert('先に、あなたのお名前を選んでください');
     return;
   }
-  var c1 = prompt(
-    'べつの端末でも使えるようにします。\n\n' +
-    '4けたの数字を決めてください。\n' +
-    'お誕生日の月日がおすすめです（4月12日なら 0412）。\n\n' +
-    '※この数字は、もう一方の端末で1回だけ入力します', '');
-  if (c1 === null) return;
-  c1 = String(c1).replace(/[\s　]/g, '');
-  if (!/^[0-9]{4}$/.test(c1)){
+  $('code1').value = '';
+  $('code2').value = '';
+  onlyDigits($('code1'));
+  onlyDigits($('code2'));
+  $('codeForm').style.display = 'block';
+  $('setCodeBtn').style.display = 'none';
+  $('setCodeNote').style.display = 'none';
+  try { $('code1').focus(); } catch(e){}
+}
+
+function closeCodeForm(){
+  $('codeForm').style.display = 'none';
+  $('setCodeBtn').style.display = 'block';
+  $('setCodeNote').style.display = 'block';
+}
+
+function submitSetCode(){
+  var c1 = $('code1').value.replace(/[^0-9]/g, '');
+  var c2 = $('code2').value.replace(/[^0-9]/g, '');
+  if (c1.length !== 4){
     alert('4けたの数字を入れてください');
+    try { $('code1').focus(); } catch(e){}
     return;
   }
-  var c2 = prompt('確認のため、もう一度おなじ4けたを入れてください', '');
-  if (c2 === null) return;
-  c2 = String(c2).replace(/[\s　]/g, '');
   if (c1 !== c2){
-    alert('2回の数字がちがいます。もう一度お試しください');
+    alert('2回の数字がちがいます。もう一度入れてください');
+    $('code2').value = '';
+    try { $('code2').focus(); } catch(e){}
     return;
   }
 
@@ -2382,6 +2450,7 @@ function askSetCode(){
               'パソコン（または新しいスマホ）でこのアプリを開き、\n' +
               '「' + myName + '」を選んで、いま決めた4けたの数字を入れてください。\n\n' +
               '※数字は忘れないようにしてください');
+        closeCodeForm();
         closeCfg();
         return;
       }
