@@ -465,7 +465,7 @@
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
-  <p class="note" style="text-align:center">版 2026-07-26d</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-26e</p>
 </main>
 
 <script>
@@ -547,6 +547,9 @@ var CLUB = {
 };
 
 /* ============ ここから下は共通。クラブごとに変えないこと ============ */
+
+/* このアプリ（index.html）の版。画面いちばん下に出ます */
+var APP_VER = '2026-07-26e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -770,6 +773,15 @@ function applyData(data){
     ADMIN_NAME = ADMINS[0];
 
     TAKEN = data.taken || [];
+
+    /* サーバー（GAS）の版も画面いちばん下に出す。
+       貼り替えとデプロイができているかを、目で確かめられるように。 */
+    try {
+      var vl = $('verLine');
+      if (vl && data.gasver){
+        vl.innerHTML = '版 ' + esc(APP_VER) + '（サーバー ' + esc(data.gasver) + '）';
+      }
+    } catch(e){}
 
     /* 読み方の対応表を作り直す */
     MEMBER_YOMI = {};
