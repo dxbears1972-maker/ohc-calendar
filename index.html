@@ -327,17 +327,48 @@
       LINEの中では正しく動きません
     </div>
     <div id="lineWarnMsg" style="font-size:17px; line-height:1.7; color:#333; text-align:left; margin-bottom:18px;">
-      OHC カレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>
-      下のボタンを押してください。
+      OHC カレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。
     </div>
-    <button id="lineOpenBtn" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
-      ブラウザで開く
-    </button>
-    <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#f4f7f4; border-radius:8px; padding:12px;">
-      ボタンで開けないときは、<br>
-      画面右上の <b>「⋮」または「≡」</b> を押して<br>
-      <b>「ブラウザで開く」</b>（iPhoneは「Safariで開く」）<br>
-      を選んでください。
+
+    <!-- Android用：ボタン1つで外部ブラウザへ -->
+    <div id="lineAndroid" style="display:none">
+      <button id="lineOpenBtn" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
+        ブラウザで開く
+      </button>
+      <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#f4f7f4; border-radius:8px; padding:12px;">
+        ボタンで開けないときは、画面右上の
+        <b>点が3つ縦に並んだ印</b>を押して<br>
+        <b>「ブラウザで開く」</b>を選んでください。
+      </div>
+    </div>
+
+    <!-- iPhone用：ボタンが効かないので、操作の場所を教える -->
+    <div id="lineIos" style="display:none">
+      <div style="font-size:17px; line-height:1.9; color:#333; text-align:left; background:#f4f7f4; border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:bold; color:#2e6b34; margin-bottom:8px; font-size:19px;">
+          画面のいちばん下を見てください
+        </div>
+        小さな印が横に並んでいます。<br>
+        そのうち、<b>コンパス（方位磁石）のような丸い印</b>を押すと、
+        Safariで開きます。<br><br>
+        見あたらないときは、いちばん下の
+        <b>「⋯」</b>を押して<b>「Safariで開く」</b>を選んでください。
+      </div>
+
+      <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#fff3e0; border:2px solid #e8a000; border-radius:10px; padding:12px;">
+        <b>それでも分からないときは</b><br>
+        下の枠を長く押して「コピー」を選び、<br>
+        Safariを開いて、アドレス欄に貼り付けてください。
+        <input type="text" id="lineUrlBox" readonly
+               style="width:100%; font-size:14px; padding:8px; margin-top:8px;
+                      border:2px solid #aaa; border-radius:6px; background:#fff;">
+        <button id="lineCopyBtn"
+                style="width:100%; font-size:17px; font-weight:bold; color:#fff;
+                       background:#e8a000; border:none; border-radius:8px;
+                       padding:12px; margin-top:8px;">
+          URLをコピーする
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -346,16 +377,44 @@
 (function(){
   var ua = navigator.userAgent || '';
   if (ua.indexOf('Line') === -1) return;
+
   var warn = document.getElementById('lineWarn');
   warn.style.display = 'block';
-  document.getElementById('lineOpenBtn').onclick = function(){
-    /* openExternalBrowser=1 を付けるとLINEが外部ブラウザで開く（主にAndroid） */
-    var url = location.href;
-    if (url.indexOf('openExternalBrowser=1') === -1) {
-      url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
-    }
-    location.href = url;
-  };
+
+  var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+              (/Macintosh/.test(ua) && 'ontouchend' in document);
+
+  if (isIOS) {
+    /* iPhoneでは openExternalBrowser=1 が効かない。
+       ボタンを出すと「押しても何も起きない」となって、そこで止まる。
+       代わりに、操作の場所を教える。 */
+    document.getElementById('lineIos').style.display = 'block';
+    var box = document.getElementById('lineUrlBox');
+    box.value = location.href;
+    box.onclick = function(){ this.select(); };
+    document.getElementById('lineCopyBtn').onclick = function(){
+      var ok = false;
+      try {
+        box.select();
+        box.setSelectionRange(0, 99999);
+        ok = document.execCommand('copy');
+      } catch(e){}
+      if (!ok && navigator.clipboard) {
+        try { navigator.clipboard.writeText(location.href); ok = true; } catch(e){}
+      }
+      this.innerHTML = ok ? 'コピーしました' : '枠を長く押してコピーしてください';
+    };
+  } else {
+    document.getElementById('lineAndroid').style.display = 'block';
+    document.getElementById('lineOpenBtn').onclick = function(){
+      /* openExternalBrowser=1 を付けるとLINEが外部ブラウザで開く（Android） */
+      var url = location.href;
+      if (url.indexOf('openExternalBrowser=1') === -1) {
+        url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
+      }
+      location.href = url;
+    };
+  }
 })();
 </script>
 
@@ -639,7 +698,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27b';
+var APP_VER = '2026-07-27c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -651,7 +710,7 @@ function applyClubConfig(){
     if (h) h.innerHTML = esc(CLUB.appTitle);
     var lw = $('lineWarnMsg');
     if (lw) lw.innerHTML = esc(CLUB.appTitle) +
-      'は、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。<br>下のボタンを押してください。';
+      'は、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。';
     var nc = $('nameCardNote');
     if (nc) nc.innerHTML = '一度選ぶと、この端末はずっとその方のものになります。' +
       '予定を見るだけなら選ばなくてもできます。';
