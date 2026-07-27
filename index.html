@@ -336,29 +336,33 @@
         ブラウザで開く
       </button>
       <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#f4f7f4; border-radius:8px; padding:12px;">
-        ボタンで開けないときは、画面右上の
+        ボタンで開けないときは、画面のはしにある
         <b>点が3つ縦に並んだ印</b>を押して<br>
         <b>「ブラウザで開く」</b>を選んでください。
       </div>
     </div>
 
-    <!-- iPhone用：ボタンが効かないので、操作の場所を教える -->
+    <!-- iPhone用：まずボタン。効かないときの逃げ道を下に用意する -->
     <div id="lineIos" style="display:none">
+      <button id="lineOpenBtnIos" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
+        ブラウザで開く
+      </button>
+
       <div style="font-size:17px; line-height:1.9; color:#333; text-align:left; background:#f4f7f4; border-radius:10px; padding:14px; margin-bottom:16px;">
         <div style="font-weight:bold; color:#2e6b34; margin-bottom:8px; font-size:19px;">
-          画面のいちばん下を見てください
+          押しても何も起きないときは
         </div>
-        小さな印が横に並んでいます。<br>
-        そのうち、<b>コンパス（方位磁石）のような丸い印</b>を押すと、
-        Safariで開きます。<br><br>
-        見あたらないときは、いちばん下の
-        <b>「⋯」</b>を押して<b>「Safariで開く」</b>を選んでください。
+        画面の<b>いちばん下、右のはし</b>に
+        <b>点が3つ縦に並んだ印</b>があります。<br>
+        それを押すと一覧が出るので、<br>
+        <b>「ブラウザで開く」</b>を押してください。
       </div>
 
       <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#fff3e0; border:2px solid #e8a000; border-radius:10px; padding:12px;">
         <b>それでも分からないときは</b><br>
-        下の枠を長く押して「コピー」を選び、<br>
-        Safariを開いて、アドレス欄に貼り付けてください。
+        同じ一覧の中の<b>「リンクをコピー」</b>を押し、<br>
+        Safariを開いてアドレス欄に貼り付けてください。<br>
+        下のボタンからでもコピーできます。
         <input type="text" id="lineUrlBox" readonly
                style="width:100%; font-size:14px; padding:8px; margin-top:8px;
                       border:2px solid #aaa; border-radius:6px; background:#fff;">
@@ -384,11 +388,20 @@
   var isIOS = /iPhone|iPad|iPod/.test(ua) ||
               (/Macintosh/.test(ua) && 'ontouchend' in document);
 
+  /* LINEの外のブラウザで開き直す。Androidは確実、iPhoneは端末により効かないことがある */
+  function openOutside(){
+    var url = location.href;
+    if (url.indexOf('openExternalBrowser=1') === -1) {
+      url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
+    }
+    location.href = url;
+  }
+
   if (isIOS) {
-    /* iPhoneでは openExternalBrowser=1 が効かない。
-       ボタンを出すと「押しても何も起きない」となって、そこで止まる。
-       代わりに、操作の場所を教える。 */
+    /* iPhoneでも、まずボタンを出す（効く端末が多い）。
+       効かなかった人のために、下に操作の場所とURLのコピーを用意しておく。 */
     document.getElementById('lineIos').style.display = 'block';
+    document.getElementById('lineOpenBtnIos').onclick = openOutside;
     var box = document.getElementById('lineUrlBox');
     box.value = location.href;
     box.onclick = function(){ this.select(); };
@@ -406,14 +419,7 @@
     };
   } else {
     document.getElementById('lineAndroid').style.display = 'block';
-    document.getElementById('lineOpenBtn').onclick = function(){
-      /* openExternalBrowser=1 を付けるとLINEが外部ブラウザで開く（Android） */
-      var url = location.href;
-      if (url.indexOf('openExternalBrowser=1') === -1) {
-        url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
-      }
-      location.href = url;
-    };
+    document.getElementById('lineOpenBtn').onclick = openOutside;
   }
 })();
 </script>
@@ -698,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27c';
+var APP_VER = '2026-07-27e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
