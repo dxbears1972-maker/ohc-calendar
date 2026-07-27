@@ -538,6 +538,10 @@
       <button type="button" class="cancelbtn" onclick="closeCodeForm()">やめる</button>
     </div>
 
+    <button type="button" class="cancelbtn" id="reInstallBtn" onclick="showInstallAgain()">
+      ホーム画面に置く方法をもう一度見る
+    </button>
+
     <p style="margin-top:18px; text-align:center">
       <a href="javascript:void(0)" onclick="changeName()" style="font-size:14px; color:#888">
         ちがう方の名前になっている場合はこちら
@@ -635,7 +639,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27a';
+var APP_VER = '2026-07-27b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2257,6 +2261,9 @@ function openCfg(){
   }
   $('setCodeNote').style.display = 'block';
 
+  var rb = $('reInstallBtn');
+  if (rb) rb.style.display = isStandalone() ? 'none' : 'block';
+
   $('cfgCard').style.display = 'block';
   $('cfgBtn').style.display = 'none';
   if ($('cfgCard').scrollIntoView) $('cfgCard').scrollIntoView(true);
@@ -2314,6 +2321,24 @@ window.addEventListener('appinstalled', function(){
 function hideInstallCard(){
   lsSet(LSK.instHide, 'yes');
   $('installCard').style.display = 'none';
+}
+
+/* 設定から「もう一度見る」を押したとき。
+   一度「あとでよい」を押した方が、やっぱり置きたくなったときに使います。 */
+function showInstallAgain(){
+  if (isStandalone()){
+    alert('すでにホーム画面から開いています。\nこのまま、そのアイコンをお使いください。');
+    return;
+  }
+  lsSet(LSK.instHide, '');
+  closeCfg();
+  renderInstallCard();
+  if ($('installCard').style.display === 'block'){
+    if ($('installCard').scrollIntoView) $('installCard').scrollIntoView(true);
+  } else {
+    alert('この端末では、この画面からは追加できません。\n' +
+          'ブラウザのメニューから「ホーム画面に追加」をお試しください。');
+  }
 }
 
 function doInstall(){
