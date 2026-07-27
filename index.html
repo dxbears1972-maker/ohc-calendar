@@ -286,6 +286,17 @@
   .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
   .namegrid .namebtn:active { background: #e8f4e9; }
   .namegrid .namebtn.mine { border-color: #2e6b34; background: #f2f8f2; }
+  .instep {
+    font-size: 17px; line-height: 1.8; margin-top: 10px;
+    background: #f4f8f4; border-radius: 8px; padding: 10px 12px 10px 46px;
+    position: relative;
+  }
+  .instep b:first-child {
+    position: absolute; left: 10px; top: 10px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #2e6b34; color: #fff; text-align: center; line-height: 28px;
+    font-size: 16px;
+  }
   .cfgbtn {
     font-size: 15px; color: #789a7c; background: transparent;
     border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
@@ -358,6 +369,12 @@
 <div id="status">読み込み中…</div>
 
 <main>
+  <!-- ホーム画面に置くご案内（端末に合わせて中身が変わります） -->
+  <div class="card" id="installCard" style="display:none">
+    <h2 id="installTitle">つぎから、すぐ開けるようにできます</h2>
+    <div id="installBody"></div>
+  </div>
+
   <!-- 名前が分からないときの案内 -->
   <div class="card" id="nameCard" style="display:none">
     <h2>あなたのお名前を選んでください</h2>
@@ -618,7 +635,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-26l';
+var APP_VER = '2026-07-27a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -654,7 +671,8 @@ var LSK = {
   gotoId:    'gotoId_'    + CLUB.id,   /* 精算アプリから戻ってきたときの行き先 */
   pickDir:   'pickDir_'   + CLUB.id,   /* ファイル参照で最後に開いたフォルダ */
   device:    'device_'    + CLUB.id,   /* この端末を見分けるための記号 */
-  claimed:   'claimed_'   + CLUB.id    /* この端末で登録済みの名前 */
+  claimed:   'claimed_'   + CLUB.id,   /* この端末で登録済みの名前 */
+  instHide:  'instHide_'  + CLUB.id    /* ホーム画面の案内を閉じたか */
 };
 
 /* この端末を見分けるための記号を作る（初回だけ）。
@@ -2250,6 +2268,112 @@ function closeCfg(){
 }
 
 /* ==================================================================
+   ホーム画面に置くご案内
+   ------------------------------------------------------------------
+   手順書を読んでもらうのではなく、その端末に合った案内だけを出す。
+   ・すでにホーム画面から開いている人には出さない
+   ・Androidは「追加」ボタン1つで終わる（ブラウザの仕組みを使う）
+   ・iPhoneは操作の順番を文字で出す（自動では追加できないため）
+   ・「あとで」で閉じられる。閉じたら二度と出さない
+   ・そもそも追加しなくても使えます。無理に勧めない
+   ================================================================== */
+
+var deferredPrompt = null;   /* Androidの「追加」を保留しておく入れ物 */
+
+function isStandalone(){
+  try {
+    if (window.navigator && window.navigator.standalone) return true;        /* iPhone */
+    if (window.matchMedia &&
+        window.matchMedia('(display-mode: standalone)').matches) return true; /* Android他 */
+  } catch(e){}
+  return false;
+}
+function isIOSDevice(){
+  var ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/.test(ua) ||
+         (/Macintosh/.test(ua) && 'ontouchend' in document);
+}
+function isLineBrowser(){
+  return (navigator.userAgent || '').indexOf('Line') >= 0;
+}
+
+/* Androidのブラウザが「追加できますよ」と教えてくれたら受け取っておく */
+window.addEventListener('beforeinstallprompt', function(e){
+  try { e.preventDefault(); } catch(err){}
+  deferredPrompt = e;
+  renderInstallCard();
+});
+
+/* 追加が済んだら、案内を消す */
+window.addEventListener('appinstalled', function(){
+  deferredPrompt = null;
+  lsSet(LSK.instHide, 'yes');
+  var c = $('installCard'); if (c) c.style.display = 'none';
+});
+
+function hideInstallCard(){
+  lsSet(LSK.instHide, 'yes');
+  $('installCard').style.display = 'none';
+}
+
+function doInstall(){
+  if (!deferredPrompt){ hideInstallCard(); return; }
+  try {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(r){
+      deferredPrompt = null;
+      if (r && r.outcome === 'accepted') hideInstallCard();
+    });
+  } catch(e){ hideInstallCard(); }
+}
+
+function renderInstallCard(){
+  var card = $('installCard');
+  if (!card) return;
+
+  /* 出さない場合 */
+  if (isStandalone() ||                       /* すでにホーム画面から開いている */
+      lsGet(LSK.instHide) === 'yes' ||        /* 前に閉じた */
+      isLineBrowser() ||                      /* LINEの中（先に別の案内が出る） */
+      !myName ||                              /* まだ名前を選んでいない */
+      $('nameCard').style.display === 'block' /* 名前を選ぶ画面が出ている */
+     ){
+    card.style.display = 'none';
+    return;
+  }
+
+  var html = '';
+  if (deferredPrompt){
+    /* Android：ボタン1つで終わる */
+    html =
+      '<p class="note">下のボタンを押すと、スマホの画面にこのアプリの絵が置かれます。' +
+      'つぎからは、それを押すだけで開けます。</p>' +
+      '<button type="button" class="subbtn" onclick="doInstall()">ホーム画面に置く</button>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else if (isIOSDevice()){
+    /* iPhone：自動ではできないので、順番を出す */
+    html =
+      '<p class="note">つぎの順で押すと、スマホの画面にこのアプリの絵が置かれます。</p>' +
+      '<div class="instep"><b>1</b> 画面のいちばん下にある、' +
+      '<b>四角から上に矢印が出た印</b>を押す</div>' +
+      '<div class="instep"><b>2</b> 出てきた一覧を下にたどって' +
+      '<b>「ホーム画面に追加」</b>を押す</div>' +
+      '<div class="instep"><b>3</b> 右上の<b>「追加」</b>を押す</div>' +
+      '<p class="note">やらなくても、このまま使えます。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else {
+    /* そのほか（らくらくホンの独自ブラウザなど） */
+    html =
+      '<p class="note">画面の右上か右下にある<b>メニューの印</b>（点が3つ並んだ印など）を押して、' +
+      '<b>「ホーム画面に追加」</b>を選ぶと、つぎからすぐ開けます。</p>' +
+      '<p class="note">見つからないときは、そのままお使いいただいて大丈夫です。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  }
+  $('installBody').innerHTML = html;
+  card.style.display = 'block';
+}
+
+/* ==================================================================
    名前を選ぶ画面
    ------------------------------------------------------------------
    ・LINEで届く「自分専用のURL（?key=…）」がある人は、これまでどおり
@@ -2319,6 +2443,7 @@ function rowOfYomi(y){
 
 function showNamePick(){
   renderNamePick();
+  $('installCard').style.display = 'none';
   $('nameCard').style.display = 'block';
   if ($('nameCard').scrollIntoView) $('nameCard').scrollIntoView(true);
 }
@@ -2410,6 +2535,7 @@ function pickName(name, code){
         $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
         setStatus(name + 'さんとして開いています');
         render();
+        renderInstallCard();
         return;
       }
       if (data.needCode){
@@ -2587,6 +2713,7 @@ function init(){
 
   updateWho();
   if (!myName) showNamePick();
+  renderInstallCard();
 
   /* 専用URL（?key=）で開いている方も、その名前をこの端末のものとして
      登録しておく。こうしておかないと、ほかの人が名前選択の画面で
