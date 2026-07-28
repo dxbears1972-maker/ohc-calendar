@@ -752,7 +752,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28g';
+var APP_VER = '2026-07-28h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1022,9 +1022,11 @@ function applyData(data){
      いまの一覧をそのまま使う。 */
   if (data.members && data.members.length) {
     MEMBERS = data.members;
-    ADMINS  = (data.admins && data.admins.length) ? data.admins : [CLUB.adminName];
+    /* 名簿が読めているのに管理者が1人もいないときは、管理者なしのまま。
+       ここでコードの名前を使うと、ほかのクラブでも只隈が管理者になってしまう。 */
+    ADMINS  = (data.admins && data.admins.length) ? data.admins : [];
     EDITORS = data.editors || [];
-    ADMIN_NAME = ADMINS[0];
+    ADMIN_NAME = ADMINS[0] || '';
 
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
@@ -1057,6 +1059,19 @@ function applyData(data){
     }
     /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
     if ($('nameCard').style.display === 'block') renderNamePick();
+
+    /* 管理者が1人もいないと、締め切り・削除・お知らせができません。
+       誰も気づけないと困るので、開いた人全員に知らせます（起動時に1回だけ）。 */
+    if (ADMINS.length === 0 && !adminWarned){
+      adminWarned = true;
+      setTimeout(function(){
+        alert('このクラブには、まだ「管理者」がいません。\n\n' +
+              '名簿シートの「役割」で、どなたか1名を\n' +
+              '「管理者」に決めてください。\n\n' +
+              '決まるまでは、予定の締め切り・削除や\n' +
+              'お知らせの投稿ができません。');
+      }, 600);
+    }
 
     /* 連絡窓口が決まっていないことを、管理者に知らせる（起動時に1回だけ） */
     if (isAdmin_(myName) && CONTACTS.length === 0 && !editorWarned){
@@ -2737,7 +2752,8 @@ function renderInstallCard(){
 
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
 var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
-var editorWarned = false;  /* 幹事が未設定であることを、管理者に知らせたか */
+var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
+var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
 
 var YOMI_ROWS = [
   { label: 'あ行', chars: 'あいうえおぁぃぅぇぉ' },
@@ -3085,9 +3101,9 @@ function init(){
     state.notices    = cd0.notices || [];
     if (cd0.members && cd0.members.length){
       MEMBERS  = cd0.members;
-      ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [CLUB.adminName];
+      ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [];
       EDITORS  = cd0.editors  || [];
-      ADMIN_NAME = ADMINS[0];
+      ADMIN_NAME = ADMINS[0] || '';
       TAKEN    = cd0.taken    || [];
       CONTACTS = cd0.contacts || [];
       MEMBER_YOMI = {}; MEMBER_ID = {}; ID_NAME = {};
