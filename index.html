@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28d';
+var APP_VER = '2026-07-28e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -932,6 +932,9 @@ function api(method, body, cb){
   var url = API_URL;
   if (method === 'GET'){
     url += (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + new Date().getTime();
+    /* この端末の記号もいっしょに送る。
+       サーバーが「この端末は誰のものか」を名簿から答えてくれます。 */
+    try { url += '&dev=' + encodeURIComponent(deviceId()); } catch(eD){}
     xhr.open('GET', url, true);
   } else {
     xhr.open('POST', url, true);
@@ -1009,6 +1012,30 @@ function applyData(data){
               '担当の方を決めてください。\n\n' +
               '（決まるまでは、' + contactName() + 'のお名前が出ます）');
       }, 800);
+    }
+
+    /* ------------------------------------------------------------------
+       サーバーが「この端末は◯◯さんのものです」と教えてくれた場合。
+       名簿の登録端末を見て答えているので、これがいちばん確かです。
+       端末の中の覚えが消えていても、ここで元に戻ります。
+       ------------------------------------------------------------------ */
+    if (data.me && data.me.name && MEMBERS.indexOf(data.me.name) >= 0){
+      if (data.me.id) lsSet(LSK.mid, String(data.me.id));
+      if (myName !== data.me.name){
+        var was = myName;
+        myName = data.me.name;
+        lsSet(LSK.name, myName);
+        lsSet(LSK.claimed, myName);
+        updateWho();
+        if ($('nameCard').style.display === 'block'){
+          $('nameCard').style.display = 'none';
+          namePickRow = '';
+        }
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+        setStatus(was ? ('お名前の表記が「' + myName + '」に変わりました')
+                      : (myName + 'さんとして開いています'));
+        renderInstallCard();
+      }
     }
 
     /* ------------------------------------------------------------------
