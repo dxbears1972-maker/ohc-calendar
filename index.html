@@ -296,6 +296,15 @@
     background: #fff; color: #2e6b34;
     border: 2px solid #9bbd9f; border-radius: 8px;
   }
+  .nagrow { margin-top: 6px; }
+  .nagrow b { display: inline-block; min-width: 4.5em; }
+  .notel { font-size: 13px; color: #999; margin-left: 6px; }
+  .telbtn {
+    display: inline-block; text-decoration: none;
+    background: #fff; color: #1a5c3d;
+    border: 2px solid #9bbd9f; border-radius: 8px;
+    padding: 3px 9px; margin: 3px 4px 0 0; font-size: 16px;
+  }
   .unreadlist {
     font-size: 15px; background: #f4f7f4; border-radius: 8px;
     padding: 8px 10px; margin-top: 8px; line-height: 1.7;
@@ -641,6 +650,14 @@
         <b>役割（権限）とは別です。</b>予定を削除できる権限を渡さなくても、窓口だけお願いできます。</p>
     </div>
 
+    <!-- 会員に電話をかける（幹事・管理者だけに出す） -->
+    <div id="telBook" style="display:none">
+      <h2 style="margin-top:4px">会員に電話をかける</h2>
+      <p class="note">名字を押すと、そのまま電話がかかります。<br>
+        番号は名簿シートの「電話」の欄から取っています。<b>幹事・管理者にしか出ません。</b></p>
+      <div id="telBookList" class="unreadlist"></div>
+    </div>
+
     <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
       パソコンなど、べつの端末でも使う
     </button>
@@ -763,7 +780,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28i';
+var APP_VER = '2026-07-28k';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -873,6 +890,13 @@ var MEMBER_YOMI = {};
    ------------------------------------------------------------------ */
 var MEMBER_ID = {};
 var ID_NAME   = {};
+/* 名字 → 電話番号。サーバーは幹事・管理者にしか送ってきません */
+var MEMBER_TEL = {};
+/* 電話をかけるリンク（数字だけにする。かけられないときは空） */
+function telLink(name){
+  var t = String(MEMBER_TEL[name] || '').replace(/[^0-9+]/g, '');
+  return t.length >= 10 ? t : '';
+}
 function idOf(name){ return MEMBER_ID[name] || ''; }
 /* その予定を登録したのは、この人か？
    会員IDが分かるときはIDで比べる（同じ名字の人がいても取り違えないため） */
@@ -1059,13 +1083,19 @@ function applyData(data){
       }
     }
     /* 名字 → 会員ID の対応表も作り直す */
-    MEMBER_ID = {}; ID_NAME = {};
+    MEMBER_ID = {}; ID_NAME = {}; MEMBER_TEL = {};
     if (data.ids){
       for (var ii = 0; ii < MEMBERS.length; ii++){
         if (data.ids[ii]){
           MEMBER_ID[MEMBERS[ii]] = String(data.ids[ii]);
           ID_NAME[String(data.ids[ii])] = MEMBERS[ii];
         }
+      }
+    }
+    /* 電話番号は幹事・管理者にしか届きません（届かなければ空のまま） */
+    if (data.tels){
+      for (var ti = 0; ti < MEMBERS.length; ti++){
+        if (data.tels[ti]) MEMBER_TEL[MEMBERS[ti]] = String(data.tels[ti]);
       }
     }
     /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
@@ -1172,6 +1202,7 @@ function applyData(data){
         return d;
       })(),
       admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS
+      /* 電話番号は控えに残しません。端末に置いたままにしないためです */
     }));
   } catch(e){}
   render();
@@ -1637,6 +1668,7 @@ function renderList(){
 
 function render(){
   renderNotices();
+  renderTelBook();
   renderCalendar();
   renderList();
 }
@@ -1647,6 +1679,28 @@ function render(){
    ここに書けば、アプリのいちばん上に出て、流れません。
    「読みました」を押してもらうので、**まだ読んでいない方**が分かります。
    ================================================================== */
+/* 会員に電話をかける一覧（幹事・管理者だけ） */
+function renderTelBook(){
+  var box = $('telBook');
+  if (!box) return;
+  var myn = getName();
+  var html = '', n = 0;
+  if (isStaff(myn)){
+    for (var i = 0; i < MEMBERS.length; i++){
+      var tl = telLink(MEMBERS[i]);
+      if (!tl) continue;
+      html += '<a class="telbtn" href="tel:' + tl + '">' + esc(MEMBERS[i]) + '&nbsp;📞</a> ';
+      n++;
+    }
+  }
+  if (n === 0){
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  $('telBookList').innerHTML = html;
+}
+
 function renderNotices(){
   var wrap = $('noticeWrap');
   if (!wrap) return;
@@ -1695,7 +1749,26 @@ function renderNotices(){
       }
       html += '<div class="unreadlist"><b>読んだ人 ' +
               (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人</b>';
-      if (yet.length) html += '<br>まだの方：' + esc(yet.join('、'));
+      if (yet.length){
+        html += '<br>まだの方に、こちらから知らせられます';
+        for (var u = 0; u < yet.length; u++){
+          var tl = telLink(yet[u]);
+          /* ------------------------------------------------------------
+             LINEの通話は、アプリからかけられません（LINEに仕組みがない）。
+             できるのは「送り先を選ぶ画面を開いて、文を送る」ところまでです。
+             こちらは無料で、何回送っても費用はかかりません。
+             ------------------------------------------------------------ */
+          var msg = yet[u] + 'さん\n【' + CLUB.shareTag + '】お知らせが出ています。\n' +
+                    n.text + '\n\nアプリを開いて「読みました」を押してください。\n' +
+                    location.href.split('?')[0];
+          html += '<div class="nagrow"><b>' + esc(yet[u]) + '</b>' +
+                  '<a class="telbtn" href="https://line.me/R/share?text=' +
+                    encodeURIComponent(msg) + '">LINEで送る</a>' +
+                  (tl ? '<a class="telbtn" href="tel:' + tl + '">電話をかける</a>'
+                      : '<span class="notel">電話番号なし</span>') +
+                  '</div>';
+        }
+      }
       html += '</div>';
       html += '<button class="minibtn" type="button" ' +
               'onclick="copyNotice(' + i + ')">もう一度LINEで知らせる</button>';
