@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28b';
+var APP_VER = '2026-07-28c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1028,6 +1028,12 @@ function applyData(data){
         lsSet(LSK.name, newNm);
         if (lsGet(LSK.claimed)) lsSet(LSK.claimed, newNm);
         updateWho();
+        /* 名前を選ぶ画面が出ていたら、引っ込める */
+        if ($('nameCard').style.display === 'block'){
+          $('nameCard').style.display = 'none';
+          namePickRow = '';
+        }
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
         setStatus('お名前の表記が「' + newNm + '」に変わりました');
       } else {
         /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
@@ -2870,6 +2876,14 @@ function init(){
   for (var ni = 0; ni < MEMBERS.length; ni++){
     if (MEMBERS[ni] === saved) myName = saved;
   }
+
+  /* ------------------------------------------------------------------
+     ここで見ている一覧は、まだサーバーから名簿が届く前の古いものです。
+     名簿で名字が直されていると、この時点では「知らない名前」に見えます。
+     会員IDを控えている端末は、名簿が届くまで名乗りをそのままにして、
+     届いてから正しい表記に直します（名前を聞き直さないため）。
+     ------------------------------------------------------------------ */
+  if (!myName && saved && lsGet(LSK.mid)) myName = saved;
 
   updateWho();
   if (!myName) showNamePick();
