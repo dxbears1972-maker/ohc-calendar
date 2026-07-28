@@ -296,6 +296,8 @@
     background: #fff; color: #2e6b34;
     border: 2px solid #9bbd9f; border-radius: 8px;
   }
+  .chkrow { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .chkrow input { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
   .nagrow { margin-top: 6px; }
   .nagrow b { display: inline-block; min-width: 4.5em; }
   .notel { font-size: 13px; color: #999; margin-left: 6px; }
@@ -511,6 +513,10 @@
     <textarea id="noticeText" rows="5" placeholder="例）8月2日の例会は、会場が公民館2階に変わりました。お間違えのないようお願いします。"></textarea>
     <label>いつまで出しておくか（空欄なら、消すまでずっと）</label>
     <input type="date" id="noticeUntil">
+    <p class="chkrow">
+      <label><input type="checkbox" id="noticeMail" checked>
+        メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
+    </p>
     <button class="subbtn" id="noticeSave" type="button">この内容で出す</button>
     <button class="cancelbtn" id="noticeCancel" type="button">やめる</button>
   </div>
@@ -590,6 +596,10 @@
       <div id="pickerList"></div>
       <button class="cancelbtn" id="pickerClose" type="button">選ぶのをやめる</button>
     </div>
+    <p class="chkrow" id="addMailRow">
+      <label><input type="checkbox" id="addMail" checked>
+        メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
+    </p>
     <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
     <button class="cancelbtn" id="addCancel" type="button">やめる</button>
   </div>
@@ -780,7 +790,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28k';
+var APP_VER = '2026-07-28l';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2079,6 +2089,11 @@ function parseStaff(s){
   renderStaffRows();
 }
 
+function setMailRow(isEdit){
+  var r = $('addMailRow');
+  if (r) r.style.display = isEdit ? 'none' : 'block';
+}
+
 function openAddForm(y, m, d){
   $('addCard').style.display = 'block';
   $('showAdd').style.display = 'none';
@@ -2104,6 +2119,7 @@ function closeAddForm(){
   $('repLenWrap').style.display = 'none';
   closePicker();
   editingId = '';
+  setMailRow(false);
   $('addTitleH').innerHTML = '予定を追加';
   $('addBtn').innerHTML = 'この内容で登録する';
   $('repRow').style.display = 'block';
@@ -2118,6 +2134,7 @@ function editEvent(evId){
   var p = ev.date.split('-');
   openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
   editingId = evId;
+  setMailRow(true);   /* 変更のときはメールを送らない（何度も届かないように） */
   $('addTitleH').innerHTML = '予定を変更';
   $('addBtn').innerHTML = '変更を保存する';
   $('repRow').style.display = 'none';
@@ -2263,6 +2280,7 @@ function submitAdd(){
     plan: plan,
     report: report,
     lineGroup: lineGroup,
+    mail: $('addMail').checked,
     owner: name
   }, '予定を登録しました（' + dates.length + '件）', function(){
     /* 登録できたら、そのままLINEに知らせられるようにする */
@@ -3330,6 +3348,7 @@ function init(){
     if (!t){ alert('お知らせの内容を書いてください'); return; }
     $('noticeCard').style.display = 'none';
     post({ action: 'addNotice', text: t, until: $('noticeUntil').value || '',
+           mail: $('noticeMail').checked,
            name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました', function(){
       offerShare('【' + CLUB.shareTag + '】お知らせ\n' + t +
                  '\n\nアプリを開いて「読みました」を押してください。\n' +
