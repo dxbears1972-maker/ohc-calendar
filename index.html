@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27h';
+var APP_VER = '2026-07-28a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -804,6 +804,15 @@ var KEYS       = CLUB.keys;
 /* 名字 → ひらがなの読み（名前選択の「あ行・か行…」に使う）
    サーバーから名簿を受け取ったときに入れ替わります */
 var MEMBER_YOMI = {};
+
+/* ------------------------------------------------------------------
+   名字 → 会員ID の対応表。
+   出欠は「名前」ではなく「会員ID」で記録しています。
+   ・同じ名字の方が、あとから増えても混ざりません
+   ・名簿の名字を直しても、過去の記録はその方についてきます
+   ------------------------------------------------------------------ */
+var MEMBER_ID = {};
+function idOf(name){ return MEMBER_ID[name] || ''; }
 
 /* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
 var TAKEN = [];
@@ -971,6 +980,13 @@ function applyData(data){
     if (data.yomis){
       for (var yi = 0; yi < MEMBERS.length; yi++){
         MEMBER_YOMI[MEMBERS[yi]] = data.yomis[yi] || '';
+      }
+    }
+    /* 名字 → 会員ID の対応表も作り直す */
+    MEMBER_ID = {};
+    if (data.ids){
+      for (var ii = 0; ii < MEMBERS.length; ii++){
+        if (data.ids[ii]) MEMBER_ID[MEMBERS[ii]] = String(data.ids[ii]);
       }
     }
     /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
@@ -1300,7 +1316,8 @@ function proxySet(evId, name, st){
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
   render();
   var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
-  post({ action: 'setAttendance', eventId: evId, name: name, status: st, by: getName() },
+  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+         status: st, by: getName() },
     name + 'さん：' + label + ' を記録しました');
 }
 
@@ -1495,7 +1512,8 @@ function answer(evId, st){
   }
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
   render();
-  post({ action: 'setAttendance', eventId: evId, name: name, status: st, by: getName() }, '回答を送りました');
+  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+         status: st, by: getName() }, '回答を送りました');
   /* チェックが入っている人だけ、新たに「参加」にしたときGoogleカレンダー追加を開く */
   if (st === 'yes' && prev !== 'yes' && lsGet(LSK.gcalPref) === 'yes'){
     var ev = null;
@@ -1522,7 +1540,8 @@ function toggleSettle(evId){
 function delAnswer(evId, name){
   var myn = getName();
   if (!confirm('「' + name + '」さんの回答を取り消します。よろしいですか？')) return;
-  post({ action: 'deleteAttendance', eventId: evId, name: name, requester: myn }, '回答を取り消しました');
+  post({ action: 'deleteAttendance', eventId: evId, name: name, memberId: idOf(name),
+         requester: myn }, '回答を取り消しました');
 }
 
 function setLock(evId, lock){
