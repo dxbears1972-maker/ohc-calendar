@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28a';
+var APP_VER = '2026-07-28b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -741,6 +741,7 @@ var LSK = {
   pickDir:   'pickDir_'   + CLUB.id,   /* ファイル参照で最後に開いたフォルダ */
   device:    'device_'    + CLUB.id,   /* この端末を見分けるための記号 */
   claimed:   'claimed_'   + CLUB.id,   /* この端末で登録済みの名前 */
+  mid:       'mid_'       + CLUB.id,   /* この端末の持ち主の会員ID（名字が変わっても追える） */
   instHide:  'instHide_'  + CLUB.id    /* ホーム画面の案内を閉じたか */
 };
 
@@ -812,7 +813,9 @@ var MEMBER_YOMI = {};
    ・名簿の名字を直しても、過去の記録はその方についてきます
    ------------------------------------------------------------------ */
 var MEMBER_ID = {};
+var ID_NAME   = {};
 function idOf(name){ return MEMBER_ID[name] || ''; }
+function nameOfId(id){ return ID_NAME[id] || ''; }
 
 /* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
 var TAKEN = [];
@@ -983,10 +986,13 @@ function applyData(data){
       }
     }
     /* 名字 → 会員ID の対応表も作り直す */
-    MEMBER_ID = {};
+    MEMBER_ID = {}; ID_NAME = {};
     if (data.ids){
       for (var ii = 0; ii < MEMBERS.length; ii++){
-        if (data.ids[ii]) MEMBER_ID[MEMBERS[ii]] = String(data.ids[ii]);
+        if (data.ids[ii]){
+          MEMBER_ID[MEMBERS[ii]] = String(data.ids[ii]);
+          ID_NAME[String(data.ids[ii])] = MEMBERS[ii];
+        }
       }
     }
     /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
@@ -1005,12 +1011,31 @@ function applyData(data){
       }, 800);
     }
 
-    /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
-       （退会された方の端末など） */
-    if (myName && MEMBERS.indexOf(myName) < 0) {
-      myName = '';
-      updateWho();
-      showNamePick();
+    /* ------------------------------------------------------------------
+       名簿で名字が直されたときの追従。
+       この端末は「会員ID」でも持ち主を覚えています。
+       「只隈」→「只隈（吉）」のように直されても、
+       名前を聞き直さず、そのまま新しい表記に切り替わります。
+       ------------------------------------------------------------------ */
+    if (myName && MEMBERS.indexOf(myName) >= 0){
+      /* ふだんは、いまの名前の会員IDを控えておく */
+      if (idOf(myName)) lsSet(LSK.mid, idOf(myName));
+    } else if (myName) {
+      var keepId = lsGet(LSK.mid);
+      var newNm  = keepId ? nameOfId(keepId) : '';
+      if (newNm){
+        myName = newNm;
+        lsSet(LSK.name, newNm);
+        if (lsGet(LSK.claimed)) lsSet(LSK.claimed, newNm);
+        updateWho();
+        setStatus('お名前の表記が「' + newNm + '」に変わりました');
+      } else {
+        /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
+           （退会された方の端末など） */
+        myName = '';
+        updateWho();
+        showNamePick();
+      }
     }
     /* 役割が変わっているかもしれないので、管理者向けボタンを出し直す */
     $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
@@ -2656,6 +2681,7 @@ function pickName(name, code, retry){
         myName = name;
         lsSet(LSK.name, name);
         lsSet(LSK.claimed, name);
+        if (idOf(name)) lsSet(LSK.mid, idOf(name));
         namePickRow = '';
         $('nameCard').style.display = 'none';
         updateWho();
@@ -2795,6 +2821,7 @@ function changeName(){
   if (!confirm('お名前を選び直しますか？\n\nちがう方の名前で開いてしまったときに使います。\nふだんは変える必要はありません。')) return;
   myName = '';
   lsSet(LSK.name, '');
+  lsSet(LSK.mid, '');
   closeCfg();
   updateWho();
   showNamePick();
