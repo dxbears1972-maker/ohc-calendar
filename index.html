@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28e';
+var APP_VER = '2026-07-28f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -815,6 +815,13 @@ var MEMBER_YOMI = {};
 var MEMBER_ID = {};
 var ID_NAME   = {};
 function idOf(name){ return MEMBER_ID[name] || ''; }
+/* その予定を登録したのは、この人か？
+   会員IDが分かるときはIDで比べる（同じ名字の人がいても取り違えないため） */
+function isOwnerOf(ev, name){
+  if (!ev || !ev.owner) return false;
+  if (ev.ownerId && idOf(name)) return ev.ownerId === idOf(name);
+  return name === ev.owner;
+}
 function nameOfId(id){ return ID_NAME[id] || ''; }
 
 /* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
@@ -1135,6 +1142,9 @@ function tryGoto(){
 
 function post(body, doneMsg){
   setStatus('送信中…');
+  /* この端末の記号を必ず添える。サーバーは名簿の登録端末を見て、
+     送ってきたのが誰かを確かめます（名前まかせにしないため）。 */
+  try { if (body && !body.deviceId) body.deviceId = deviceId(); } catch(eP){}
   api('POST', body, function(err, data){
     if (err){ setStatus('送信に失敗しました。もう一度お試しください。', true); return; }
     if (data && data.error){ setStatus(data.error, true); return; }
@@ -1487,7 +1497,7 @@ function renderList(){
     var ev = list[j];
     var att = attOf(ev.id);
     var mine = myStatus(ev.id);
-    var canDel = !ev.owner || (myn !== '' && (myn === ev.owner || isStaff(myn) || staffCanEdit(ev, myn)));
+    var canDel = !ev.owner || (myn !== '' && (isOwnerOf(ev, myn) || isStaff(myn) || staffCanEdit(ev, myn)));
     var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
     var parts = [];
     if (ev.time)  parts.push('🕒 ' + esc(ev.time));
@@ -1529,7 +1539,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>'
       ) +
-      (myn !== '' && (isStaff(myn) || myn === ev.owner || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
+      (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
