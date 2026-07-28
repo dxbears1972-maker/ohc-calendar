@@ -480,6 +480,17 @@
     <div id="namePickBody"></div>
   </div>
 
+  <!-- 登録・お知らせのあとに出る「LINEで知らせる」 -->
+  <div class="card" id="shareCard" style="display:none">
+    <h2>LINEのグループに知らせますか？</h2>
+    <p class="note">押すとLINEが開きます。<b>送り先のグループを選んで</b>送信してください。<br>
+      いくら送っても費用はかかりません。あとから知らせることもできます。</p>
+    <div id="sharePrev" class="unreadlist"></div>
+    <a class="bigbtn" id="shareGo" href="#">LINEで知らせる</a>
+    <button class="minibtn" type="button" id="shareCopy">文だけコピーする</button>
+    <button class="minibtn" type="button" id="shareClose">いまはしない</button>
+  </div>
+
   <!-- お知らせ（クラブからの連絡） -->
   <div id="noticeWrap"></div>
   <button class="bigbtn" id="showNotice" type="button" style="display:none">お知らせを書く</button>
@@ -752,7 +763,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28h';
+var APP_VER = '2026-07-28i';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1205,7 +1216,7 @@ function tryGoto(){
   if (el && el.scrollIntoView) el.scrollIntoView(true);
 }
 
-function post(body, doneMsg){
+function post(body, doneMsg, after){
   setStatus('送信中…');
   /* この端末の記号を必ず添える。サーバーは名簿の登録端末を見て、
      送ってきたのが誰かを確かめます（名前まかせにしないため）。 */
@@ -1215,6 +1226,7 @@ function post(body, doneMsg){
     if (data && data.error){ setStatus(data.error, true); return; }
     setStatus(doneMsg || '');
     applyData(data);
+    if (after) { try { after(data); } catch(eA){} }
   });
 }
 
@@ -1612,6 +1624,7 @@ function renderList(){
       '</div>' +
       (canDel ?
         '<div class="evdel">' +
+          '<a href="javascript:void(0)" class="lock" onclick="shareEvent(\'' + ev.id + '\')">LINEで知らせる</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
             (locked ? '締め切りを解除' : '出欠を締め切る') + '</a>' +
@@ -1685,13 +1698,76 @@ function renderNotices(){
       if (yet.length) html += '<br>まだの方：' + esc(yet.join('、'));
       html += '</div>';
       html += '<button class="minibtn" type="button" ' +
-              'onclick="copyNotice(' + i + ')">LINEに貼る文をコピー</button>';
+              'onclick="copyNotice(' + i + ')">もう一度LINEで知らせる</button>';
       html += '<button class="minibtn" type="button" ' +
               'onclick="removeNotice(\'' + esc(n.id) + '\')">このお知らせを消す</button>';
     }
     html += '</div>';
   }
   wrap.innerHTML = html;
+}
+
+/* ==================================================================
+   LINEのグループに知らせる
+   LINE公式アカウントの自動配信は使いません（無料枠が月200通しかなく、
+   クラブごとに難しい設定が要るため）。
+   代わりに、**人がLINEに貼る**形にしています。
+   こちらは通数の制限も、クラブごとの設定もありません。
+   ================================================================== */
+var shareText = '';
+
+function offerShare(text){
+  shareText = text;
+  $('sharePrev').innerHTML = esc(text);
+  $('shareGo').href = 'https://line.me/R/share?text=' + encodeURIComponent(text);
+  $('shareCard').style.display = 'block';
+  if ($('shareCard').scrollIntoView) $('shareCard').scrollIntoView(true);
+}
+
+function closeShare(){
+  $('shareCard').style.display = 'none';
+  shareText = '';
+}
+
+/* 文字を、そのまま貼れる形でコピーする */
+function copyText(t){
+  var ok = false;
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e){}
+  if (!ok && navigator.clipboard){
+    try { navigator.clipboard.writeText(t); ok = true; } catch(e){}
+  }
+  setStatus(ok ? 'コピーしました。LINEに貼りつけてください' : 'コピーできませんでした', !ok);
+}
+
+/* 予定1件を、LINEに貼れる文にする */
+function eventShareText(ev){
+  var d = ev.date.split('-');
+  var wd = ['日','月','火','水','木','金','土'];
+  var dt = new Date(+d[0], +d[1] - 1, +d[2]);
+  var t = '【' + CLUB.shareTag + '】\n' +
+          (+d[1]) + '月' + (+d[2]) + '日（' + wd[dt.getDay()] + '）' + ev.title + '\n';
+  if (ev.time)  t += '時間：' + ev.time + '\n';
+  if (ev.place) t += '場所：' + ev.place + '\n';
+  if (ev.staff) t += '係：' + ev.staff + '\n';
+  if (ev.memo)  t += ev.memo + '\n';
+  t += '\n出欠の回答はこちら\n' + location.href.split('?')[0];
+  return t;
+}
+
+function shareEvent(evId){
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId){ offerShare(eventShareText(state.events[i])); return; }
+  }
 }
 
 function readNotice(id){
@@ -1710,24 +1786,9 @@ function removeNotice(id){
 function copyNotice(i){
   var n = (state.notices || [])[i];
   if (!n) return;
-  var t = '【' + CLUB.shareTag + '】お知らせ\n' + n.text +
-          '\n\n読んだら「読みました」を押してください。\n' + location.href;
-  var ok = false;
-  try {
-    var ta = document.createElement('textarea');
-    ta.value = t;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    ta.setSelectionRange(0, 99999);
-    ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-  } catch(e){}
-  if (!ok && navigator.clipboard){
-    try { navigator.clipboard.writeText(t); ok = true; } catch(e){}
-  }
-  setStatus(ok ? 'コピーしました。LINEに貼りつけてください' : 'コピーできませんでした', !ok);
+  offerShare('【' + CLUB.shareTag + '】お知らせ\n' + n.text +
+             '\n\nアプリを開いて「読みました」を押してください。\n' +
+             location.href.split('?')[0]);
 }
 
 /* ---------- 操作 ---------- */
@@ -2130,7 +2191,15 @@ function submitAdd(){
     report: report,
     lineGroup: lineGroup,
     owner: name
-  }, '予定を登録しました（' + dates.length + '件）');
+  }, '予定を登録しました（' + dates.length + '件）', function(){
+    /* 登録できたら、そのままLINEに知らせられるようにする */
+    var newest = null;
+    for (var si = 0; si < state.events.length; si++){
+      var e2 = state.events[si];
+      if (e2.date === dates[0] && e2.title === title) newest = e2;
+    }
+    if (newest) offerShare(eventShareText(newest));
+  });
   /* 追加した月を表示 */
   state.year = y;
   state.month = m;
@@ -3168,6 +3237,10 @@ function init(){
 
   /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
   if (isStaff(myName)) $('showImport').style.display = 'block';
+  $('shareCopy').onclick = function(){ copyText(shareText); };
+  $('shareClose').onclick = closeShare;
+  $('shareGo').onclick = function(){ setTimeout(closeShare, 1200); };
+
   $('showNotice').onclick = function(){
     $('noticeCard').style.display = 'block';
     $('showNotice').style.display = 'none';
@@ -3184,7 +3257,11 @@ function init(){
     if (!t){ alert('お知らせの内容を書いてください'); return; }
     $('noticeCard').style.display = 'none';
     post({ action: 'addNotice', text: t, until: $('noticeUntil').value || '',
-           name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました');
+           name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました', function(){
+      offerShare('【' + CLUB.shareTag + '】お知らせ\n' + t +
+                 '\n\nアプリを開いて「読みました」を押してください。\n' +
+                 location.href.split('?')[0]);
+    });
   };
 
   $('showImport').onclick = function(){
