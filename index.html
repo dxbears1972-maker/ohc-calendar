@@ -268,6 +268,39 @@
   }
   .note { font-size: 14px; color: #777; margin-top: 6px; }
 
+  /* お知らせ（クラブからの連絡。LINEのように流れない） */
+  .ntc {
+    background: #fff; border-radius: 12px; padding: 12px 12px 10px;
+    margin-top: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    border-left: 8px solid #c9d8c9;
+  }
+  .ntc.unread { border-left-color: #d2691e; background: #fffaf2; }
+  .ntc .nhead { font-size: 14px; color: #777; }
+  .ntc .nnew {
+    display: inline-block; background: #d2691e; color: #fff;
+    font-size: 13px; font-weight: bold; border-radius: 4px;
+    padding: 1px 7px; margin-right: 6px;
+  }
+  .ntc .nbody {
+    font-size: 18px; margin-top: 6px; white-space: pre-wrap; word-break: break-all;
+  }
+  .ntc .ndone { font-size: 14px; color: #4a7a4a; margin-top: 8px; }
+  .readbtn {
+    width: 100%; font-size: 19px; font-weight: bold;
+    padding: 11px 0; margin-top: 10px;
+    background: #d2691e; color: #fff;
+    border: none; border-radius: 10px;
+  }
+  .minibtn {
+    font-size: 14px; padding: 6px 10px; margin-top: 8px; margin-right: 6px;
+    background: #fff; color: #2e6b34;
+    border: 2px solid #9bbd9f; border-radius: 8px;
+  }
+  .unreadlist {
+    font-size: 15px; background: #f4f7f4; border-radius: 8px;
+    padding: 8px 10px; margin-top: 8px; line-height: 1.7;
+  }
+
   /* 名前を選ぶ画面 */
   .rowfilter { margin: 8px 0 4px; }
   .rowfilter .rowbtn {
@@ -445,6 +478,21 @@
     <h2>あなたのお名前を選んでください</h2>
     <p class="note" id="nameCardNote">一度選ぶと、この端末はずっとその方のものになります。予定を見るだけなら選ばなくてもできます。</p>
     <div id="namePickBody"></div>
+  </div>
+
+  <!-- お知らせ（クラブからの連絡） -->
+  <div id="noticeWrap"></div>
+  <button class="bigbtn" id="showNotice" type="button" style="display:none">お知らせを書く</button>
+  <div class="card" id="noticeCard" style="display:none">
+    <h2>お知らせを書く</h2>
+    <p class="note">会員のアプリのいちばん上に出ます。LINEのように下へ流れていきません。<br>
+      「読みました」を押してもらうので、まだ読んでいない方が分かります。</p>
+    <label>お知らせの内容</label>
+    <textarea id="noticeText" rows="5" placeholder="例）8月2日の例会は、会場が公民館2階に変わりました。お間違えのないようお願いします。"></textarea>
+    <label>いつまで出しておくか（空欄なら、消すまでずっと）</label>
+    <input type="date" id="noticeUntil">
+    <button class="subbtn" id="noticeSave" type="button">この内容で出す</button>
+    <button class="cancelbtn" id="noticeCancel" type="button">やめる</button>
   </div>
 
   <!-- カレンダー -->
@@ -704,7 +752,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28f';
+var APP_VER = '2026-07-28g';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -911,6 +959,7 @@ function getName(){ return myName; }
 var state = {
   events: [],
   attendance: [],
+  notices: [],   /* クラブからのお知らせ */
   year: 0,
   month: 0   /* 1〜12 */
 };
@@ -965,6 +1014,7 @@ function api(method, body, cb){
 function applyData(data){
   state.events = data.events || [];
   state.attendance = data.attendance || [];
+  if (data.notices) state.notices = data.notices;
 
   /* 名簿シートの内容を受け取ったら、こちらの一覧を入れ替える。
      （幹事さんがシートに1行足せば、次に開いたときから反映されます）
@@ -1084,7 +1134,7 @@ function applyData(data){
   /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
   try {
     lsSet(LSK.cache, JSON.stringify({
-      events: state.events, attendance: state.attendance,
+      events: state.events, attendance: state.attendance, notices: state.notices,
       /* 名簿も控えておく。圏外のときに、コードに書いてある古い一覧ではなく、
          最後に受け取った本物の名簿を使えるようにするため。 */
       members: MEMBERS, yomis: (function(){
@@ -1558,8 +1608,111 @@ function renderList(){
 }
 
 function render(){
+  renderNotices();
   renderCalendar();
   renderList();
+}
+
+/* ==================================================================
+   お知らせ
+   LINEの群では大事な連絡が流れて見落とされます。
+   ここに書けば、アプリのいちばん上に出て、流れません。
+   「読みました」を押してもらうので、**まだ読んでいない方**が分かります。
+   ================================================================== */
+function renderNotices(){
+  var wrap = $('noticeWrap');
+  if (!wrap) return;
+  var myn = getName(), myid = idOf(myn);
+  var list = state.notices || [];
+
+  /* 幹事・管理者にだけ「お知らせを書く」ボタンを出す */
+  if ($('noticeCard').style.display !== 'block'){
+    $('showNotice').style.display = isStaff(myn) ? 'block' : 'none';
+  }
+
+  var html = '';
+  for (var i = 0; i < list.length; i++){
+    var n = list[i];
+    var readMe = false;
+    for (var r = 0; r < n.read.length; r++){
+      if ((myid && n.read[r] === myid) || (myn && n.read[r] === myn)) readMe = true;
+    }
+
+    var unread = (myn !== '' && !readMe);
+    html += '<div class="ntc' + (unread ? ' unread' : '') + '">';
+    html += '<div class="nhead">' +
+            (unread ? '<span class="nnew">新しい</span>' : '') +
+            esc(n.at) + '　' + esc(n.by) + 'さん' +
+            (n.until ? '（' + esc(n.until) + 'まで）' : '') + '</div>';
+    html += '<div class="nbody">' + esc(n.text) + '</div>';
+
+    if (myn === ''){
+      html += '<p class="note">お名前を選ぶと「読みました」を押せます。</p>';
+    } else if (unread){
+      html += '<button class="readbtn" type="button" ' +
+              'onclick="readNotice(\'' + esc(n.id) + '\')">読みました</button>';
+    } else {
+      html += '<div class="ndone">✓ 読みました</div>';
+    }
+
+    /* 幹事・管理者には、まだ読んでいない人を出す */
+    if (isStaff(myn)){
+      var yet = [];
+      for (var m = 0; m < MEMBERS.length; m++){
+        var mid = idOf(MEMBERS[m]), done = false;
+        for (var k = 0; k < n.read.length; k++){
+          if ((mid && n.read[k] === mid) || n.read[k] === MEMBERS[m]) done = true;
+        }
+        if (!done) yet.push(MEMBERS[m]);
+      }
+      html += '<div class="unreadlist"><b>読んだ人 ' +
+              (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人</b>';
+      if (yet.length) html += '<br>まだの方：' + esc(yet.join('、'));
+      html += '</div>';
+      html += '<button class="minibtn" type="button" ' +
+              'onclick="copyNotice(' + i + ')">LINEに貼る文をコピー</button>';
+      html += '<button class="minibtn" type="button" ' +
+              'onclick="removeNotice(\'' + esc(n.id) + '\')">このお知らせを消す</button>';
+    }
+    html += '</div>';
+  }
+  wrap.innerHTML = html;
+}
+
+function readNotice(id){
+  var myn = getName();
+  if (!myn){ showNamePick(); return; }
+  post({ action: 'readNotice', id: id, name: myn, memberId: idOf(myn) }, '読みましたを送りました');
+}
+
+function removeNotice(id){
+  if (!confirm('このお知らせを消します。よろしいですか？')) return;
+  post({ action: 'deleteNotice', id: id, name: getName() }, 'お知らせを消しました');
+}
+
+/* LINEの群に貼るための文を作って、コピーする。
+   人が貼るぶんには、通数の制限も、クラブごとの設定も要りません。 */
+function copyNotice(i){
+  var n = (state.notices || [])[i];
+  if (!n) return;
+  var t = '【' + CLUB.shareTag + '】お知らせ\n' + n.text +
+          '\n\n読んだら「読みました」を押してください。\n' + location.href;
+  var ok = false;
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e){}
+  if (!ok && navigator.clipboard){
+    try { navigator.clipboard.writeText(t); ok = true; } catch(e){}
+  }
+  setStatus(ok ? 'コピーしました。LINEに貼りつけてください' : 'コピーできませんでした', !ok);
 }
 
 /* ---------- 操作 ---------- */
@@ -2929,6 +3082,7 @@ function init(){
     var cd0 = JSON.parse(lsGet(LSK.cache) || '{}');
     state.events     = cd0.events || [];
     state.attendance = cd0.attendance || [];
+    state.notices    = cd0.notices || [];
     if (cd0.members && cd0.members.length){
       MEMBERS  = cd0.members;
       ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [CLUB.adminName];
@@ -2998,6 +3152,25 @@ function init(){
 
   /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
   if (isStaff(myName)) $('showImport').style.display = 'block';
+  $('showNotice').onclick = function(){
+    $('noticeCard').style.display = 'block';
+    $('showNotice').style.display = 'none';
+    $('noticeText').value = '';
+    $('noticeUntil').value = '';
+    $('noticeText').focus();
+  };
+  $('noticeCancel').onclick = function(){
+    $('noticeCard').style.display = 'none';
+    $('showNotice').style.display = isStaff(getName()) ? 'block' : 'none';
+  };
+  $('noticeSave').onclick = function(){
+    var t = $('noticeText').value.replace(/^[\s　]+|[\s　]+$/g, '');
+    if (!t){ alert('お知らせの内容を書いてください'); return; }
+    $('noticeCard').style.display = 'none';
+    post({ action: 'addNotice', text: t, until: $('noticeUntil').value || '',
+           name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました');
+  };
+
   $('showImport').onclick = function(){
     $('importCard').style.display = 'block';
     $('showImport').style.display = 'none';
