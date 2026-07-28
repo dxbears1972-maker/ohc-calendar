@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27f';
+var APP_VER = '2026-07-27h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -746,6 +746,15 @@ var LSK = {
 
 /* この端末を見分けるための記号を作る（初回だけ）。
    個人を特定するものではなく、「同じスマホかどうか」が分かればよい。 */
+/* この端末が何かを、日本語で返す（名簿に読める形で残すため） */
+function deviceName(){
+  var ua = navigator.userAgent || '';
+  if (/iPhone|iPod/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)) return 'iPad';
+  if (/Android/.test(ua)) return 'Android';
+  return 'パソコン';
+}
+
 function deviceId(){
   var d = lsGet(LSK.device);
   if (!d){
@@ -2606,14 +2615,21 @@ function setNameRow(r){
 /* 名前を選んだとき。サーバーに「この端末で使います」と登録しに行く。
    ・まだ誰も使っていない名前 → そのまま通る
    ・別のスマホで使われている名前 → 確認番号を聞く */
-function pickName(name, code){
+function pickName(name, code, retry){
   if (MEMBERS.indexOf(name) < 0) return;
-  if (!code && !confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
+  if (!code && !retry && !confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
 
-  setStatus('確認しています…');
-  api('POST', { action: 'claimName', name: name, deviceId: deviceId(), code: code || '' },
+  setStatus(retry ? 'もう一度確認しています…' : '確認しています…');
+  api('POST', { action: 'claimName', name: name, deviceId: deviceId(),
+                devName: deviceName(), code: code || '' },
     function(err, data){
       if (err || !data){
+        /* 書き込みは通っているのに返事だけ届かないことがある。
+           同じ端末からの2回目は「登録ずみ」としてすぐ返るので、一度だけやり直す。 */
+        if (!retry){
+          setTimeout(function(){ pickName(name, code, true); }, 1500);
+          return;
+        }
         setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
         return;
       }
@@ -2633,6 +2649,11 @@ function pickName(name, code){
       if (data.needCode){
         if (data.error) alert(data.error);
         askPickCode(name, data.first);
+        return;
+      }
+      if (data.needAdmin){
+        setStatus('');
+        alert(data.error || 'この端末では登録できません');
         return;
       }
       setStatus('', false);
@@ -2815,7 +2836,7 @@ function init(){
     var claimedMark = lsGet(LSK.claimed);
     if (myName && claimedMark !== myName && claimedMark !== ('-' + myName)){
       api('POST', { action: 'claimName', name: myName, deviceId: deviceId(),
-                    silent: 1, viaKey: (cameFromKey ? 1 : 0) },
+                    devName: deviceName(), silent: 1, viaKey: (cameFromKey ? 1 : 0) },
         function(err, data){
           if (!err && data && data.ok){
             lsSet(LSK.claimed, myName);
