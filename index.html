@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28c';
+var APP_VER = '2026-07-28d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1049,7 +1049,20 @@ function applyData(data){
 
   /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
   try {
-    lsSet(LSK.cache, JSON.stringify({ events: state.events, attendance: state.attendance }));
+    lsSet(LSK.cache, JSON.stringify({
+      events: state.events, attendance: state.attendance,
+      /* 名簿も控えておく。圏外のときに、コードに書いてある古い一覧ではなく、
+         最後に受け取った本物の名簿を使えるようにするため。 */
+      members: MEMBERS, yomis: (function(){
+        var y = []; for (var q2 = 0; q2 < MEMBERS.length; q2++) y.push(MEMBER_YOMI[MEMBERS[q2]] || '');
+        return y;
+      })(),
+      ids: (function(){
+        var d = []; for (var q3 = 0; q3 < MEMBERS.length; q3++) d.push(MEMBER_ID[MEMBERS[q3]] || '');
+        return d;
+      })(),
+      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS
+    }));
   } catch(e){}
   render();
 }
@@ -2870,6 +2883,31 @@ function init(){
     }
   } catch(e){}
 
+  /* ------------------------------------------------------------------
+     前回の内容（予定・名簿）を先に読み込む。
+     圏外のときも、コードに書いてある古い一覧ではなく、
+     最後に受け取った本物の名簿で判断できるようにするため。
+     ------------------------------------------------------------------ */
+  try {
+    var cd0 = JSON.parse(lsGet(LSK.cache) || '{}');
+    state.events     = cd0.events || [];
+    state.attendance = cd0.attendance || [];
+    if (cd0.members && cd0.members.length){
+      MEMBERS  = cd0.members;
+      ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [CLUB.adminName];
+      EDITORS  = cd0.editors  || [];
+      ADMIN_NAME = ADMINS[0];
+      TAKEN    = cd0.taken    || [];
+      CONTACTS = cd0.contacts || [];
+      MEMBER_YOMI = {}; MEMBER_ID = {}; ID_NAME = {};
+      for (var ci = 0; ci < MEMBERS.length; ci++){
+        MEMBER_YOMI[MEMBERS[ci]] = (cd0.yomis && cd0.yomis[ci]) || '';
+        var cid = (cd0.ids && cd0.ids[ci]) || '';
+        if (cid){ MEMBER_ID[MEMBERS[ci]] = cid; ID_NAME[cid] = MEMBERS[ci]; }
+      }
+    }
+  } catch(e){}
+
   /* 保存されている名前を読み込む（メンバー一覧にある名前だけ有効） */
   var saved = lsGet(LSK.name);
   myName = '';
@@ -2883,7 +2921,19 @@ function init(){
      会員IDを控えている端末は、名簿が届くまで名乗りをそのままにして、
      届いてから正しい表記に直します（名前を聞き直さないため）。
      ------------------------------------------------------------------ */
-  if (!myName && saved && lsGet(LSK.mid)) myName = saved;
+  if (!myName && saved){
+    var bootId = lsGet(LSK.mid);
+    var bootNm = bootId ? nameOfId(bootId) : '';
+    if (bootNm){
+      /* 控えの名簿に、その会員IDの新しい名字があった */
+      myName = bootNm;
+      lsSet(LSK.name, bootNm);
+      if (lsGet(LSK.claimed)) lsSet(LSK.claimed, bootNm);
+    } else if (bootId){
+      /* まだ名簿が届いていない。名乗りはそのままにして、届いてから直す */
+      myName = saved;
+    }
+  }
 
   updateWho();
   if (!myName) showNamePick();
@@ -2962,15 +3012,7 @@ function init(){
     lsSet(LSK.gcalPref, this.checked ? 'yes' : 'no');
   };
 
-  /* 前回の内容をまず表示し、そのあと裏で最新を取りに行く（起動を速く見せる） */
-  try {
-    var cache = lsGet(LSK.cache);
-    if (cache){
-      var cd = JSON.parse(cache);
-      state.events = cd.events || [];
-      state.attendance = cd.attendance || [];
-    }
-  } catch(e){}
+  /* 前回の内容は、この関数のはじめで読み込みずみ */
 
   render();
   load();
