@@ -704,7 +704,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-27e';
+var APP_VER = '2026-07-27f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2474,6 +2474,7 @@ function renderInstallCard(){
    ================================================================== */
 
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
+var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
 var editorWarned = false;  /* 幹事が未設定であることを、管理者に知らせたか */
 
 var YOMI_ROWS = [
@@ -2501,8 +2502,9 @@ function selectableMembers(){
   var r = [];
   for (var i = 0; i < MEMBERS.length; i++){
     var n = MEMBERS[i];
-    if (ADMINS.indexOf(n) >= 0) continue;
-    if (EDITORS.indexOf(n) >= 0) continue;
+    /* 管理者・幹事も一覧に出します。
+       ただしサーバー側で確認番号が必ず求められるので、
+       番号を知らない人は名乗れません。 */
     var taken = (TAKEN.indexOf(n) >= 0);
     /* この端末で登録した名前は、使用中でも出す（自分に戻れるように） */
     if (taken && n === mine){
@@ -2782,6 +2784,7 @@ function init(){
     var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
     if (mk && KEYS[mk[1]]){
       lsSet(LSK.name, KEYS[mk[1]]);
+      cameFromKey = true;
     } else {
       /* 旧形式 ?name=○○ にも当面対応 */
       var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
@@ -2810,9 +2813,9 @@ function init(){
      その方の名前を選べてしまうため。1つの端末につき1回だけ送る。 */
   try {
     var claimedMark = lsGet(LSK.claimed);
-    if (myName && !isStaff(myName) &&
-        claimedMark !== myName && claimedMark !== ('-' + myName)){
-      api('POST', { action: 'claimName', name: myName, deviceId: deviceId(), silent: 1 },
+    if (myName && claimedMark !== myName && claimedMark !== ('-' + myName)){
+      api('POST', { action: 'claimName', name: myName, deviceId: deviceId(),
+                    silent: 1, viaKey: (cameFromKey ? 1 : 0) },
         function(err, data){
           if (!err && data && data.ok){
             lsSet(LSK.claimed, myName);
