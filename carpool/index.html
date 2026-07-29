@@ -346,7 +346,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29p</p>
+  <p class="note" style="text-align:center">版 2026-07-29q</p>
 
 </main>
 
@@ -913,13 +913,26 @@ function rememberFee(btn) {
   if (card.querySelector(".car-etctype").value === "round") fee = Math.round(fee / 2);
   var isEtc = card.querySelector(".car-etcuse").value === "etc";
 
-  /* 名前は、地図で分かったICから作る。分からなければ行き先の名前を使う */
-  var nm = "";
+  /* ------------------------------------------------------------------
+     ルート名は「どこからどこまで高速に乗ったか」です。
+     地図でIC名が分かっていればそれを使い、分からなければ聞きます。
+     行き先の名前で代用すると、あとで見たときに
+     どの区間の料金か分からなくなるためです。
+     ------------------------------------------------------------------ */
   var a = lastTollIn.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
   var b = lastTollOut.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+  var nm = "";
   if (a && b) nm = a + "⇔" + b;
-  else if (b) nm = b + "方面";
-  else nm = dest;
+  else {
+    var hint = (a || b) ? (a || b) + "⇔" : "";
+    nm = prompt(
+      "どのインターからどのインターまでの料金ですか？\n" +
+      "（例）南関⇔杷木\n\n" +
+      "分からなければ、空欄のままOKを押してください。", hint);
+    if (nm === null) return;                 /* やめた */
+    nm = nm.replace(/^[\s　]+|[\s　]+$/g, "");
+    if (!nm) nm = dest;                      /* それでも分からなければ行き先で */
+  }
 
   /* すでに同じ行き先の行があれば、そこへ入れる */
   var target = null;
@@ -933,7 +946,9 @@ function rememberFee(btn) {
     target = all[all.length - 1];
   }
   target.querySelector(isEtc ? ".etc-fee" : ".etc-normal").value = fee;
-  if (!target.querySelector(".etc-name").value) target.querySelector(".etc-name").value = nm;
+  if (!target.querySelector(".etc-name").value.trim()) {
+    target.querySelector(".etc-name").value = nm;
+  }
   target.querySelector(".etc-dest").value = dest;
   saveEtc();
 
