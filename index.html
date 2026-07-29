@@ -252,6 +252,19 @@
     white-space: nowrap;
   }
   .evdel a.lock { color: #2e6b34; font-weight: bold; }
+  /* 中止になった予定 */
+  .ev.cancelled .evtitle { text-decoration: line-through; color: #999; }
+  .ev.cancelled .evdate  { color: #999; }
+  .cancelbadge {
+    display: inline-block; background: #c0392b; color: #fff;
+    font-size: 14px; font-weight: bold; border-radius: 5px;
+    padding: 2px 9px; margin-right: 7px;
+  }
+  .cancelnote {
+    margin-top: 8px; background: #fdecea; border: 2px solid #e8b4ae;
+    border-radius: 8px; padding: 9px 11px;
+    font-size: 16px; color: #8a2b20; white-space: pre-wrap;
+  }
   .lockedmsg {
     margin-top: 10px;
     background: #fff3e0;
@@ -828,7 +841,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29h';
+var APP_VER = '2026-07-29j';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1689,16 +1702,21 @@ function renderList(){
     }
     if (ev.lineGroup) icons += '<a href="' + esc(ev.lineGroup) + '" target="_blank" title="山行グループLINE">' + LINE_ICON + '</a>';
 
-    html += '<div class="ev" id="ev-' + ev.id + '">' +
+    var isCancel = !!ev.cancelled;
+    html += '<div class="ev' + (isCancel ? ' cancelled' : '') + '" id="ev-' + ev.id + '">' +
       '<table class="evhead"><tr>' +
-        '<td><span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + esc(ev.title) + '</span></td>' +
+        '<td>' + (isCancel ? '<span class="cancelbadge">中止</span>' : '') +
+          '<span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + esc(ev.title) + '</span></td>' +
         '<td class="evicons">' + icons + '</td>' +
       '</tr></table>' +
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
+      (isCancel && ev.cancelNote ? '<div class="cancelnote">' + esc(ev.cancelNote) + '</div>' : '') +
       (files ? '<div class="filelinks">' + files + '</div>' : '') +
       (ev.settle ? '<pre class="settle" id="settle-' + ev.id + '" style="display:none">' + esc(ev.settle) + '</pre>' : '') +
       (locked ?
-        '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>'
+        (isCancel
+          ? '<div class="lockedmsg">この山行は中止になりました</div>'
+          : '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>')
       :
         '<div class="attbtns">' +
           '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
@@ -1714,10 +1732,14 @@ function renderList(){
       '</div>' +
       (canDel ?
         '<div class="evdel">' +
+          '<a href="javascript:void(0)" class="lock" onclick="askCancel(\'' + ev.id + '\',' +
+            (isCancel ? 'false' : 'true') + ')">' + (isCancel ? '中止をやめる' : '中止にする') + '</a>' +
+          (isCancel ? '<a href="javascript:void(0)" class="lock" onclick="makeAlt(\'' + ev.id + '\')">代案で予定を作る</a>' : '') +
           '<a href="javascript:void(0)" class="lock" onclick="shareEvent(\'' + ev.id + '\')">LINEで知らせる</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
-          '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
-            (locked ? '締切を解除' : '出欠を締切る') + '</a>' +
+          (isCancel ? '' :
+            '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
+              (locked ? '締切を解除' : '出欠を締切る') + '</a>') +
           '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">削除</a>' +
         '</div>' : '') +
     '</div>';
@@ -1897,6 +1919,65 @@ function eventShareText(ev){
   if (ev.memo)  t += ev.memo + '\n';
   t += '\n出欠の回答はこちら\n' + location.href.split('?')[0];
   return t;
+}
+
+/* ==================================================================
+   山行の中止・代案
+
+   予定は消しません。**誰が行く予定だったかの記録を残す**ためです。
+   中止のあいだは出欠の回答を締め切ります。
+   ================================================================== */
+function askCancel(evId, on){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+
+  var note = '';
+  if (on){
+    note = prompt(
+      '「' + ev.title + '」を中止にします。\n\n' +
+      '理由や、代わりの案があれば書いてください。\n' +
+      '（例）雨天のため中止します。\n' +
+      '　　　代わりに三池山へ行きます。集合は同じです。\n\n' +
+      '空欄のままでもかまいません。', '雨天のため中止します。');
+    if (note === null) return;
+  } else {
+    if (!confirm('「' + ev.title + '」の中止を取り消します。\n' +
+                 'ふたたび出欠を受け付けます。よろしいですか？')) return;
+  }
+
+  var tell = confirm(
+    (on ? '中止を' : '中止の取り消しを') + '、みなさんに知らせますか？\n\n' +
+    'OK … メールとLINEで自動的に知らせます\n' +
+    'キャンセル … 知らせずに、印だけ付けます');
+
+  post({ action: 'setCancel', id: evId, on: on, note: note,
+         tell: tell, mail: tell, name: getName() },
+       on ? '中止にしました' : '中止を取り消しました');
+}
+
+/* 中止になった予定の内容を引き継いで、新しい予定を作る */
+function makeAlt(evId){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+  var p = ev.date.split('-');
+  openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
+  $('addTitle').value = ev.title + '（代わりの山行）';
+  $('addPlace').value = ev.place || '';
+  $('addMemo').value  = ev.cancelNote || '';
+  if (ev.time){
+    var tm = ev.time.match(/(\d{1,2}):(\d{2})/);
+    if (tm){
+      $('addHour').value = String(parseInt(tm[1], 10));
+      $('addMin').value = tm[2];
+    }
+  }
+  setStatus('中止になった予定の内容を写しました。日付と山名を直して登録してください。');
 }
 
 function shareEvent(evId){
@@ -2303,9 +2384,25 @@ function submitAdd(){
 
   /* 編集モードなら既存の予定を書き換える */
   if (editingId){
+    /* 日付が変わったときは、知らせるかどうかを聞く */
+    var tellMove = false;
+    var oldEv = null;
+    for (var oi = 0; oi < state.events.length; oi++){
+      if (state.events[oi].id === editingId) oldEv = state.events[oi];
+    }
+    if (oldEv && oldEv.date !== dkey(y, m, d)){
+      tellMove = confirm(
+        '日程が ' + oldEv.date + ' から ' + dkey(y, m, d) + ' に変わります。\n\n' +
+        'みなさんに知らせますか？\n\n' +
+        'OK … メールとLINEで自動的に知らせます\n' +
+        'キャンセル … 知らせずに直します\n\n' +
+        '※出欠の回答はそのまま残ります');
+    }
     post({
       action: 'updateEvent',
       id: editingId,
+      tell: tellMove,
+      mail: tellMove,
       date: dkey(y, m, d),
       title: title,
       time: time,
