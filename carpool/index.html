@@ -223,7 +223,7 @@
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
-            onclick="saveRouteMap()">🗺 この道順の地図を残す</button>
+            onclick="saveRouteMap()">🗺 この道順の地図をPDFで残す</button>
     <p class="note" id="mapSaveMsg" style="display:none;"></p>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
       各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-29u</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30a</p>
 
 </main>
 
@@ -533,6 +533,41 @@ function routePointsHtml(points) {
    ================================================================== */
 var routeMapUrl = "";
 
+/* ------------------------------------------------------------------
+   いま画面が分かっているインター名を返します。
+   Googleの案内文は「高速の入口」に名前を付けないことが多く、
+   地図だけでは「？」になってしまいます。
+   けれど精算アプリは、もっと確かな名前を持っています。
+     ①「地図で走行距離を調べる」で読み取れた名前
+     ②料金表のルート名（例「南関⇔杷木」）── 幹事さんが入れた名前
+   これをサーバーに渡して、足りないほうを埋めてもらいます。
+   ------------------------------------------------------------------ */
+function icNamesNow_() {
+  var a = lastTollIn || "", b = lastTollOut || "";
+  if (!a || !b) {
+    /* どれか1台でも料金表のルートを選んでいれば、その名前を借りる */
+    var nm = "";
+    var rows = etcRowsInOrder();
+    document.querySelectorAll("#cars .car-route").forEach(function (sel) {
+      if (nm || sel.value === "") return;
+      var r = rows[parseInt(sel.value, 10)];
+      if (!r) return;
+      var el = r.querySelector(".etc-name");
+      if (el) nm = (el.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
+    });
+    /* 「南関⇔杷木」「南関～杷木」「南関-杷木」を、入口と出口に分ける。
+       ※長音の「ー」では切らないこと（例「ハーブ」が割れてしまう） */
+    if (nm) {
+      var p = nm.split(/[⇔↔〜～~\-–—]/);
+      if (p.length >= 2) {
+        if (!a) a = p[0].replace(/^[\s　]+|[\s　]+$/g, "");
+        if (!b) b = p[1].replace(/^[\s　]+|[\s　]+$/g, "");
+      }
+    }
+  }
+  return { a: a, b: b };
+}
+
 function saveRouteMap() {
   var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
@@ -547,7 +582,9 @@ function saveRouteMap() {
     "できあがると、ここにリンクが出ます。";
   var title = (document.getElementById("hikeDate").value || "") + "_" +
               (document.getElementById("hikeName").value || "山行");
-  apiPost({ action: "saveRouteMap", from: from, to: to, title: title }, function (err, data) {
+  var icNow = icNamesNow_();
+  apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
+            icIn: icNow.a, icOut: icNow.b }, function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
@@ -562,8 +599,10 @@ function saveRouteMap() {
       '<br><a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
       'style="display:inline-block;margin-top:6px;padding:8px 12px;background:#2e6b34;' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">🗺 保存した地図を見る</a>' +
-      '<br>地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる' +
-      '<br>インター名は<b>ファイル名</b>に入っています（地図の画像には文字を入れられないため）。' +
+      (data.pdf === false
+        ? '<br>地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる'
+        : '<br><b>A4・1枚のPDF</b>です。地図の下に、日付・行き先・インター名・' +
+          '距離の説明が付いています。そのまま印刷できます。') +
       '<br>この山行の記録として残ります。履歴にもリンクが付きます。';
   });
 }
@@ -737,7 +776,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-29u（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30a（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
