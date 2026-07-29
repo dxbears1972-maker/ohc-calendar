@@ -60,6 +60,7 @@
     display: inline-flex; align-items: center; gap: 4px;
   }
   header .hdrbtn svg { display: block; }
+  header a.hdrbtn { text-decoration: none; }
   header #appTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   header #whoami { font-size: 15px; font-weight: bold; text-align: right; white-space: nowrap; }
   main { max-width: 640px; margin: 0 auto; padding: 0 10px 12px; }
@@ -486,6 +487,18 @@
 <header>
   <table><tr>
     <td><h1 id="appTitle">OHC カレンダー</h1></td>
+    <!-- クラブのLINEグループを開く（「設定」シートにURLがあるときだけ出ます） -->
+    <td id="lineCell" style="width:1%; white-space:nowrap; display:none">
+      <a id="lineGo" class="hdrbtn" href="#" target="_blank">
+        <svg viewBox="0 0 48 48" width="19" height="19" aria-hidden="true">
+          <ellipse cx="24" cy="21" rx="16" ry="12" fill="#fff"/>
+          <path fill="#fff" d="M15 31l-2.5 7L24 33z"/>
+          <text x="24" y="25" font-size="11" font-weight="bold" fill="#2e6b34"
+                text-anchor="middle" font-family="Arial,sans-serif">LINE</text>
+        </svg><span>グループ</span>
+      </a>
+    </td>
+
     <!-- お知らせを書く（幹事・リーダー等にだけ出ます） -->
     <td id="noticeCell" style="width:1%; white-space:nowrap; display:none">
       <button type="button" id="showNotice" class="hdrbtn" title="お知らせを書く">
@@ -533,7 +546,7 @@
   <div class="card" id="noticeCard" style="display:none">
     <h2>お知らせを書く</h2>
     <p class="note">会員のアプリのいちばん上に出ます。LINEのように下へ流れていきません。<br>
-      「読みました」を押してもらうので、まだ読んでいない方が分かります。</p>
+      開いた方は自動で記録されるので、まだ見ていない方が分かります。</p>
     <label>お知らせの内容</label>
     <textarea id="noticeText" rows="5" placeholder="例）8月2日の例会は、会場が公民館2階に変わりました。お間違えのないようお願いします。"></textarea>
     <label>いつまで出しておくか（空欄なら、消すまでずっと）</label>
@@ -815,7 +828,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29d';
+var APP_VER = '2026-07-29f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1129,6 +1142,14 @@ function applyData(data){
     }
     /* 電話番号は幹事・管理者にしか届きません（届かなければ空のまま） */
     canWriteNotice = !!data.canNotice;
+    /* クラブのLINEグループへのボタン。URLが決まっているときだけ出す */
+    lineGroupUrl = data.lineGroupUrl || '';
+    if (lineGroupUrl){
+      $('lineGo').href = lineGroupUrl;
+      $('lineCell').style.display = 'table-cell';
+    } else {
+      $('lineCell').style.display = 'none';
+    }
     if (data.tels){
       for (var ti = 0; ti < MEMBERS.length; ti++){
         if (data.tels[ti]) MEMBER_TEL[MEMBERS[ti]] = String(data.tels[ti]);
@@ -1713,7 +1734,7 @@ function render(){
    お知らせ
    LINEの群では大事な連絡が流れて見落とされます。
    ここに書けば、アプリのいちばん上に出て、流れません。
-   「読みました」を押してもらうので、**まだ読んでいない方**が分かります。
+   開いた方は自動で記録されるので、**まだ見ていない方**が分かります。
    ================================================================== */
 /* 会員に電話をかける一覧（幹事・管理者だけ） */
 function renderTelBook(){
@@ -1901,7 +1922,7 @@ function copyNotice(i){
   var n = (state.notices || [])[i];
   if (!n) return;
   offerShare('【' + CLUB.shareTag + '】お知らせ\n' + n.text +
-             '\n\nアプリを開いて「読みました」を押してください。\n' +
+             '\n\nアプリを開くと、いちばん上に出ています。\n' +
              location.href.split('?')[0]);
 }
 
@@ -2944,6 +2965,7 @@ function renderInstallCard(){
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
 var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
 var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが判定） */
+var lineGroupUrl = '';       /* クラブのLINEグループを開くURL（「設定」シート） */
 var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
 var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
 var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
@@ -3384,7 +3406,7 @@ function init(){
            mail: $('noticeMail').checked,
            name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました', function(){
       offerShare('【' + CLUB.shareTag + '】お知らせ\n' + t +
-                 '\n\nアプリを開いて「読みました」を押してください。\n' +
+                 '\n\nアプリを開くと、いちばん上に出ています。\n' +
                  location.href.split('?')[0]);
     });
   };
