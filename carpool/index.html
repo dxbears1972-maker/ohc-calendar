@@ -216,6 +216,13 @@
     </div>
     <p id="joinedNote" style="display:none; font-size:14px; color:#5a6b5c;
        background:#f2f7f2; border-radius:8px; padding:8px 10px; margin-top:10px;"></p>
+
+    <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
+    <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場" oninput="saveForm()">
+    <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
+            onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
+    <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
+      各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
   </div>
 
   <!-- 車にかかる費用 -->
@@ -332,7 +339,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29d</p>
+  <p class="note" style="text-align:center">版 2026-07-29e</p>
 
 </main>
 
@@ -482,6 +489,41 @@ function applyJoined(autoCount) {
     setCarName(c, val);
   });
   renumberCars();
+}
+
+/* ==================================================================
+   地図から走行距離を調べる
+   GASに入っているGoogleマップの機能を使います（追加の契約は不要）。
+   戻ってくるのは**片道**の距離です。往復にするかは各車の欄で選びます。
+   ================================================================== */
+function lookupDistance() {
+  var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var msg  = document.getElementById("distMsg");
+  var btn  = document.getElementById("distBtn");
+  if (!from || !to) {
+    msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>";
+    return;
+  }
+  btn.disabled = true;
+  msg.innerHTML = "地図で調べています…";
+  apiPost({ action: "getDistance", from: from, to: to }, function (err, data) {
+    btn.disabled = false;
+    if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+    if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+
+    var filled = 0;
+    document.querySelectorAll("#cars .car-km").forEach(function (el) {
+      if (el.value === "") { el.value = data.km; filled++; }
+    });
+    document.querySelectorAll("#cars .car-kmtype").forEach(function (el) {
+      if (el.value !== "one") el.value = "round";
+    });
+    saveForm();
+    msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）。" +
+      (filled ? "空いていた " + filled + " 台に入れました。" : "すでに入っている欄はそのままにしています。") +
+      "<br><b>実際に走った距離と違うときは、手で直してください。</b>";
+  });
 }
 
 /* ---------- 参加人数 ---------- */
@@ -1005,6 +1047,7 @@ function formDetailText(f) {
   if (!f) return "";
   var t = "\n――― 入れた内容 ―――\n";
   if (f.place || f.time) t += "集合：" + (f.time || "") + " " + (f.place || "") + "\n";
+  if (f.dest) t += "行き先：" + f.dest + "\n";
   t += "参加 " + (f.n || "") + "名\n";
   (f.cars || []).forEach(function (c, i) {
     t += "\n■車" + (i + 1) + "　" + (c.name || "（名前なし）") + "さん\n";
@@ -1100,6 +1143,7 @@ function getFormData() {
     date: document.getElementById("hikeDate").value,
     hikeName: document.getElementById("hikeName").value,
     place: document.getElementById("meetPlace").value,
+    dest: document.getElementById("destPlace").value,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -1122,6 +1166,7 @@ function applyForm(f) {
   if (f.date) document.getElementById("hikeDate").value = f.date;
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
+  document.getElementById("destPlace").value = f.dest || "";
   document.getElementById("meetTime").value = f.time || "";
   if (f.n) { nPeople = f.n; document.getElementById("nDisp").textContent = nPeople; }
   if (f.ferryPerson != null) document.getElementById("ferryPerson").value = f.ferryPerson;
