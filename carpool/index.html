@@ -218,7 +218,8 @@
        background:#f2f7f2; border-radius:8px; padding:8px 10px; margin-top:10px;"></p>
 
     <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
-    <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場" oninput="saveForm()">
+    <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
+           oninput="saveForm()" onchange="autoPickRoute()">
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
@@ -339,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29f</p>
+  <p class="note" style="text-align:center">版 2026-07-29g</p>
 
 </main>
 
@@ -532,6 +533,7 @@ function lookupDistance() {
       (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
               : "すでに入っている欄はそのままにしています。") +
       "<br><b>実際に走った距離と違うときは、手で直してください。</b>";
+    autoPickRoute();
   });
 }
 
@@ -555,7 +557,8 @@ function getEtcRoutes() {
       routes.push({
         name: name,
         etc: isNaN(etc) ? null : etc,
-        normal: isNaN(normal) ? null : normal
+        normal: isNaN(normal) ? null : normal,
+        dest: (tr.querySelector(".etc-dest") ? tr.querySelector(".etc-dest").value.trim() : "")
       });
     }
   });
@@ -578,7 +581,7 @@ function saveEtc() {
     });
   }, 1000);
 }
-function addEtcRow(name, etcFee, normalFee) {
+function addEtcRow(name, etcFee, normalFee, dest) {
   var box = document.getElementById("etcRows");
   var div = document.createElement("div");
   div.className = "etc-row";
@@ -588,17 +591,20 @@ function addEtcRow(name, etcFee, normalFee) {
     '<div><span class="fee-label">ETC往復(円)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
     '<div><span class="fee-label">通常往復(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
     '<button type="button" class="btn-small" onclick="this.closest(\'.etc-row\').remove(); saveEtc();">削除</button>' +
-    '</div>';
+    '</div>' +
+    '<input type="text" class="etc-dest" placeholder="この料金を使う行き先（自動で覚えます）" ' +
+      'onchange="saveEtc()" style="margin-top:6px;font-size:14px;">';
   div.querySelector(".etc-name").value = name || "";
   if (etcFee != null) div.querySelector(".etc-fee").value = etcFee;
   if (normalFee != null) div.querySelector(".etc-normal").value = normalFee;
+  div.querySelector(".etc-dest").value = dest || "";
   box.appendChild(div);
 }
 function rebuildEtcRows(routes) {
   var box = document.getElementById("etcRows");
   box.innerHTML = "";
   if (routes && routes.length) {
-    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal); });
+    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal, r.dest); });
   } else {
     addEtcRow();
   }
@@ -609,9 +615,9 @@ function loadEtc() {
     saved.forEach(function (r) {
       /* 旧形式（fee）からの移行：feeはETC料金として扱う */
       if (r.fee != null && r.etc == null) {
-        addEtcRow(r.name, r.fee, null);
+        addEtcRow(r.name, r.fee, null, r.dest);
       } else {
-        addEtcRow(r.name, r.etc, r.normal);
+        addEtcRow(r.name, r.etc, r.normal, r.dest);
       }
     });
   } else {
@@ -758,6 +764,57 @@ function refreshAllDropdowns() {
     sel.value = current;
   });
 }
+/* 行き先の名前をそろえる（空白と全角半角のゆれを吸収） */
+function normDest(t) {
+  return String(t || "").replace(/[\s　]/g, "").toLowerCase();
+}
+
+/* 行き先に合う料金表を探す */
+function findRouteByDest(dest) {
+  var d = normDest(dest);
+  if (!d) return -1;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var rd = normDest(routes[i].dest);
+    if (!rd) continue;
+    /* どちらかがどちらかを含んでいれば同じ行き先とみなす */
+    if (rd === d || rd.indexOf(d) >= 0 || d.indexOf(rd) >= 0) return i;
+  }
+  return -1;
+}
+
+/* ==================================================================
+   行き先から、高速ルートと料金を自動で入れる
+
+   初回だけ人がルートを選びます。そのとき「行き先」を覚えるので、
+   **次に同じ場所へ行くときは、行き先を入れるだけで料金まで入ります。**
+   ================================================================== */
+function autoPickRoute(quiet) {
+  var dest = document.getElementById("destPlace").value;
+  var idx = findRouteByDest(dest);
+  var msg = document.getElementById("distMsg");
+  if (idx < 0) return false;
+
+  var routes = getEtcRoutes();
+  var filled = 0;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var sel = c.querySelector(".car-route");
+    if (!sel || sel.value !== "") return;             /* すでに選ばれていれば触らない */
+    var fee = c.querySelector(".car-etc");
+    if (fee && fee.value !== "") return;              /* 料金が入っていれば触らない */
+    var chk = c.querySelector(".chk-etc");
+    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    sel.value = String(idx);
+    routeSelected(sel);
+    filled++;
+  });
+  if (filled && !quiet && msg) {
+    msg.innerHTML += "<br>高速ルート「" + escapeHtml(routes[idx].name) +
+                     "」の料金も入れました。";
+  }
+  return filled > 0;
+}
+
 function routeSelected(el) {
   var card = el.closest(".car-card");
   var idx = card.querySelector(".car-route").value;
@@ -774,6 +831,20 @@ function routeSelected(el) {
   }
   card.querySelector(".car-etc").value = fee;
   saveForm();
+
+  /* このルートに行き先が未登録なら、いまの行き先を覚える。
+     次から、行き先を入れるだけで料金が入るようになります。 */
+  try {
+    var dNow = document.getElementById("destPlace").value.trim();
+    if (dNow) {
+      var rows = document.querySelectorAll("#etcRows .etc-row");
+      var row = rows[parseInt(idx, 10)];
+      if (row) {
+        var de = row.querySelector(".etc-dest");
+        if (de && de.value.trim() === "") { de.value = dNow; saveEtc(); }
+      }
+    }
+  } catch (e) {}
 }
 /* 立替者ドロップダウン（人にかかる費用） */
 function refreshPayerDropdown() {
