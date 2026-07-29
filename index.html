@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29n';
+var APP_VER = '2026-07-29o';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1350,14 +1350,22 @@ function scrollToEv(id){
   }
 }
 
-function post(body, doneMsg, after){
+function post(body, doneMsg, after, onFail){
   setStatus('送信中…');
   /* この端末の記号を必ず添える。サーバーは名簿の登録端末を見て、
      送ってきたのが誰かを確かめます（名前まかせにしないため）。 */
   try { if (body && !body.deviceId) body.deviceId = deviceId(); } catch(eP){}
   api('POST', body, function(err, data){
-    if (err){ setStatus('送信に失敗しました。もう一度お試しください。', true); return; }
-    if (data && data.error){ setStatus(data.error, true); return; }
+    if (err){
+      setStatus('送信に失敗しました。もう一度お試しください。', true);
+      if (onFail) { try { onFail(); } catch(eF){} }
+      return;
+    }
+    if (data && data.error){
+      setStatus(data.error, true);
+      if (onFail) { try { onFail(); } catch(eF2){} }
+      return;
+    }
     setStatus(doneMsg || '');
     applyData(data);
     if (after) { try { after(data); } catch(eA){} }
@@ -2142,7 +2150,16 @@ function setLock(evId, lock){
 function delEvent(evId, title){
   var name = getName();
   if (!confirm('「' + title + '」を削除します。よろしいですか？')) return;
-  post({ action: 'deleteEvent', id: evId, name: name }, '削除しました');
+  /* 押した瞬間に消して、送信は裏で行う。失敗したら戻す */
+  var backup = null, pos = -1;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId){ backup = state.events[i]; pos = i; }
+  }
+  if (pos >= 0) state.events.splice(pos, 1);
+  render();
+  post({ action: 'deleteEvent', id: evId, name: name }, '削除しました', null, function(){
+    if (backup) { state.events.splice(pos, 0, backup); render(); }
+  });
 }
 
 /* ---------- 係・担当の入力（種別ごとのプルダウン） ----------
@@ -2455,6 +2472,27 @@ function submitAdd(){
         'キャンセル … 知らせずに直します\n\n' +
         '※出欠の回答はそのまま残ります');
     }
+    /* ------------------------------------------------------------------
+       押した瞬間に画面の内容を入れ替えて、送信は裏で行います。
+       失敗したときは、控えておいた元の内容に戻します。
+       ------------------------------------------------------------------ */
+    var editId = editingId, before = null;
+    for (var ui2 = 0; ui2 < state.events.length; ui2++){
+      var ue = state.events[ui2];
+      if (ue.id !== editId) continue;
+      before = {};
+      for (var kk in ue) { if (ue.hasOwnProperty(kk)) before[kk] = ue[kk]; }
+      ue.date  = dkey(y, m, d);
+      ue.title = title;
+      ue.time  = time;
+      ue.place = $('addPlace').value;
+      ue.memo  = $('addMemo').value;
+      ue.staff = serializeStaff();
+      ue.plan  = plan;
+      ue.report = report;
+      ue.lineGroup = lineGroup;
+    }
+
     post({
       action: 'updateEvent',
       id: editingId,
@@ -2470,11 +2508,39 @@ function submitAdd(){
       report: report,
       lineGroup: lineGroup,
       name: name
-    }, '予定を変更しました');
+    }, '予定を変更しました', null, function(){
+      /* 送れなかったときは、元の内容に戻す */
+      if (before){
+        for (var bi = 0; bi < state.events.length; bi++){
+          if (state.events[bi].id === editId) state.events[bi] = before;
+        }
+        render();
+      }
+    });
     state.year = y;
     state.month = m;
     closeAddForm();
+    render();
     return;
+  }
+
+  /* ------------------------------------------------------------------
+     押した瞬間に一覧へ出して、送信は裏で行います（出欠と同じやり方）。
+     サーバーはメールとLINEも送るため、返事まで数秒かかります。
+     本物が届いたら、この仮の分は自動的に置き換わります。
+     ------------------------------------------------------------------ */
+  var tmpBase = 'tmp' + new Date().getTime() + '_';
+  var tmpIds = [];
+  for (var ti = 0; ti < dates.length; ti++){
+    var tid = tmpBase + ti;
+    tmpIds.push(tid);
+    state.events.push({
+      id: tid, date: dates[ti], title: title, time: time,
+      place: $('addPlace').value, memo: $('addMemo').value,
+      staff: serializeStaff(), owner: name, ownerId: idOf(name),
+      plan: plan, report: report, lineGroup: lineGroup,
+      locked: '', settle: '', cancelled: '', cancelNote: ''
+    });
   }
 
   post({
@@ -2498,11 +2564,16 @@ function submitAdd(){
       if (e2.date === dates[0] && e2.title === title) newest = e2;
     }
     if (newest) offerShare(eventShareText(newest));
+  }, function(){
+    /* 送れなかったときは、仮に出していた分を取り消す */
+    state.events = state.events.filter(function(e3){ return tmpIds.indexOf(e3.id) < 0; });
+    render();
   });
   /* 追加した月を表示 */
   state.year = y;
   state.month = m;
   closeAddForm();
+  render();
 }
 
 /* ---------- まとめて登録（管理者用） ----------
