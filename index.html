@@ -47,6 +47,20 @@
   }
   header table { width: 100%; border-collapse: collapse; }
   header h1 { font-size: 20px; text-align: left; }
+  header .hdrbtn {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: 8px;
+    padding: 5px 9px;
+    margin-right: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  header .hdrbtn svg { display: block; }
+  header #appTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   header #whoami { font-size: 15px; font-weight: bold; text-align: right; white-space: nowrap; }
   main { max-width: 640px; margin: 0 auto; padding: 0 10px 12px; }
   .card {
@@ -270,47 +284,39 @@
 
   /* お知らせ（クラブからの連絡。LINEのように流れない） */
   .ntc {
-    background: #fff; border-radius: 12px; padding: 12px 12px 10px;
-    margin-top: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.12);
-    border-left: 8px solid #c9d8c9;
+    background: #fff; border-radius: 10px; padding: 9px 11px;
+    margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.10);
+    border-left: 6px solid #c9d8c9;
   }
   .ntc.unread { border-left-color: #d2691e; background: #fffaf2; }
-  .ntc .nhead { font-size: 14px; color: #777; }
-  .ntc .nnew {
-    display: inline-block; background: #d2691e; color: #fff;
-    font-size: 13px; font-weight: bold; border-radius: 4px;
-    padding: 1px 7px; margin-right: 6px;
-  }
+  .ntc .nhead { font-size: 13px; color: #888; }
   .ntc .nbody {
-    font-size: 18px; margin-top: 6px; white-space: pre-wrap; word-break: break-all;
-  }
-  .ntc .ndone { font-size: 14px; color: #4a7a4a; margin-top: 8px; }
-  .readbtn {
-    width: 100%; font-size: 19px; font-weight: bold;
-    padding: 11px 0; margin-top: 10px;
-    background: #d2691e; color: #fff;
-    border: none; border-radius: 10px;
+    font-size: 17px; margin-top: 3px; white-space: pre-wrap; word-break: break-all;
   }
   .minibtn {
     font-size: 14px; padding: 6px 10px; margin-top: 8px; margin-right: 6px;
     background: #fff; color: #2e6b34;
     border: 2px solid #9bbd9f; border-radius: 8px;
   }
-  .chkrow { margin-top: 12px; font-size: 16px; line-height: 1.5; }
-  .chkrow input { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
-  .nagrow { margin-top: 6px; }
-  .nagrow b { display: inline-block; min-width: 4.5em; }
-  .notel { font-size: 13px; color: #999; margin-left: 6px; }
+  .seen {
+    font-size: 13px; color: #6a8a6a; margin-top: 6px; cursor: pointer;
+    display: inline-block; border-bottom: 1px dotted #9bbd9f;
+  }
   .telbtn {
     display: inline-block; text-decoration: none;
     background: #fff; color: #1a5c3d;
-    border: 2px solid #9bbd9f; border-radius: 8px;
-    padding: 3px 9px; margin: 3px 4px 0 0; font-size: 16px;
+    border: 1px solid #9bbd9f; border-radius: 6px;
+    padding: 2px 8px; margin: 2px 3px 0 0; font-size: 14px;
   }
+  .nagrow { margin-top: 5px; font-size: 15px; }
+  .nagrow b { display: inline-block; min-width: 4.5em; }
+  .notel { font-size: 12px; color: #aaa; margin-left: 4px; }
   .unreadlist {
-    font-size: 15px; background: #f4f7f4; border-radius: 8px;
-    padding: 8px 10px; margin-top: 8px; line-height: 1.7;
+    font-size: 14px; background: #f4f7f4; border-radius: 8px;
+    padding: 7px 9px; margin-top: 6px; line-height: 1.6;
   }
+  .chkrow { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .chkrow input { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
 
   /* 名前を選ぶ画面 */
   .rowfilter { margin: 8px 0 4px; }
@@ -471,6 +477,17 @@
 <header>
   <table><tr>
     <td><h1 id="appTitle">OHC カレンダー</h1></td>
+    <!-- お知らせを書く（幹事・リーダー等にだけ出ます） -->
+    <td id="noticeCell" style="width:1%; white-space:nowrap; display:none">
+      <button type="button" id="showNotice" class="hdrbtn" title="お知らせを書く">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/>
+          <path d="M16 9a4 4 0 0 1 0 6"/>
+          <path d="M19 6.5a8 8 0 0 1 0 11"/>
+        </svg><span>お知らせ</span>
+      </button>
+    </td>
     <td id="whoami"></td>
   </tr></table>
 </header>
@@ -504,7 +521,6 @@
 
   <!-- お知らせ（クラブからの連絡） -->
   <div id="noticeWrap"></div>
-  <button class="bigbtn" id="showNotice" type="button" style="display:none">お知らせを書く</button>
   <div class="card" id="noticeCard" style="display:none">
     <h2>お知らせを書く</h2>
     <p class="note">会員のアプリのいちばん上に出ます。LINEのように下へ流れていきません。<br>
@@ -790,7 +806,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-28l';
+var APP_VER = '2026-07-29b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1103,6 +1119,7 @@ function applyData(data){
       }
     }
     /* 電話番号は幹事・管理者にしか届きません（届かなければ空のまま） */
+    canWriteNotice = !!data.canNotice;
     if (data.tels){
       for (var ti = 0; ti < MEMBERS.length; ti++){
         if (data.tels[ti]) MEMBER_TEL[MEMBERS[ti]] = String(data.tels[ti]);
@@ -1717,38 +1734,27 @@ function renderNotices(){
   var myn = getName(), myid = idOf(myn);
   var list = state.notices || [];
 
-  /* 幹事・管理者にだけ「お知らせを書く」ボタンを出す */
-  if ($('noticeCard').style.display !== 'block'){
-    $('showNotice').style.display = isStaff(myn) ? 'block' : 'none';
-  }
+  /* 書けるのは、幹事・管理者と、これからの予定でリーダー・司会・幹事になっている人 */
+  $('noticeCell').style.display =
+    (canWriteNotice && $('noticeCard').style.display !== 'block') ? 'table-cell' : 'none';
 
-  var html = '';
+  var html = '', toMark = [];
   for (var i = 0; i < list.length; i++){
     var n = list[i];
-    var readMe = false;
+    var seenMe = false;
     for (var r = 0; r < n.read.length; r++){
-      if ((myid && n.read[r] === myid) || (myn && n.read[r] === myn)) readMe = true;
+      if ((myid && n.read[r] === myid) || (myn && n.read[r] === myn)) seenMe = true;
     }
+    var unread = (myn !== '' && !seenMe);
+    if (unread) toMark.push(n.id);   /* 開いた時点で「見た」にする。押させない */
 
-    var unread = (myn !== '' && !readMe);
     html += '<div class="ntc' + (unread ? ' unread' : '') + '">';
-    html += '<div class="nhead">' +
-            (unread ? '<span class="nnew">新しい</span>' : '') +
-            esc(n.at) + '　' + esc(n.by) + 'さん' +
+    html += '<div class="nhead">' + esc(n.at) + '　' + esc(n.by) + 'さん' +
             (n.until ? '（' + esc(n.until) + 'まで）' : '') + '</div>';
     html += '<div class="nbody">' + esc(n.text) + '</div>';
 
-    if (myn === ''){
-      html += '<p class="note">お名前を選ぶと「読みました」を押せます。</p>';
-    } else if (unread){
-      html += '<button class="readbtn" type="button" ' +
-              'onclick="readNotice(\'' + esc(n.id) + '\')">読みました</button>';
-    } else {
-      html += '<div class="ndone">✓ 読みました</div>';
-    }
-
-    /* 幹事・管理者には、まだ読んでいない人を出す */
-    if (isStaff(myn)){
+    /* 幹事だけに、見た人数を1行で。押したときだけ中身が出る */
+    if (canWriteNotice){
       var yet = [];
       for (var m = 0; m < MEMBERS.length; m++){
         var mid = idOf(MEMBERS[m]), done = false;
@@ -1757,102 +1763,57 @@ function renderNotices(){
         }
         if (!done) yet.push(MEMBERS[m]);
       }
-      html += '<div class="unreadlist"><b>読んだ人 ' +
-              (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人</b>';
+      html += '<div class="seen" onclick="toggleSeen(' + i + ')">' +
+              (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人が見ました' +
+              (yet.length ? '　▸ まだの方' : '') + '</div>';
+      html += '<div id="seen' + i + '" style="display:none">';
       if (yet.length){
-        html += '<br>まだの方に、こちらから知らせられます';
+        html += '<div class="unreadlist">';
         for (var u = 0; u < yet.length; u++){
           var tl = telLink(yet[u]);
-          /* ------------------------------------------------------------
-             LINEの通話は、アプリからかけられません（LINEに仕組みがない）。
-             できるのは「送り先を選ぶ画面を開いて、文を送る」ところまでです。
-             こちらは無料で、何回送っても費用はかかりません。
-             ------------------------------------------------------------ */
           var msg = yet[u] + 'さん\n【' + CLUB.shareTag + '】お知らせが出ています。\n' +
-                    n.text + '\n\nアプリを開いて「読みました」を押してください。\n' +
-                    location.href.split('?')[0];
+                    n.text + '\n\n' + location.href.split('?')[0];
           html += '<div class="nagrow"><b>' + esc(yet[u]) + '</b>' +
                   '<a class="telbtn" href="https://line.me/R/share?text=' +
-                    encodeURIComponent(msg) + '">LINEで送る</a>' +
-                  (tl ? '<a class="telbtn" href="tel:' + tl + '">電話をかける</a>'
-                      : '<span class="notel">電話番号なし</span>') +
+                    encodeURIComponent(msg) + '">LINE</a>' +
+                  (tl ? '<a class="telbtn" href="tel:' + tl + '">電話</a>'
+                      : '<span class="notel">番号なし</span>') +
                   '</div>';
         }
+        html += '</div>';
       }
+      html += '<button class="minibtn" type="button" onclick="copyNotice(' + i + ')">LINEで知らせる</button>' +
+              '<button class="minibtn" type="button" onclick="removeNotice(\'' + esc(n.id) + '\')">消す</button>';
       html += '</div>';
-      html += '<button class="minibtn" type="button" ' +
-              'onclick="copyNotice(' + i + ')">もう一度LINEで知らせる</button>';
-      html += '<button class="minibtn" type="button" ' +
-              'onclick="removeNotice(\'' + esc(n.id) + '\')">このお知らせを消す</button>';
     }
     html += '</div>';
   }
   wrap.innerHTML = html;
-}
 
-/* ==================================================================
-   LINEのグループに知らせる
-   LINE公式アカウントの自動配信は使いません（無料枠が月200通しかなく、
-   クラブごとに難しい設定が要るため）。
-   代わりに、**人がLINEに貼る**形にしています。
-   こちらは通数の制限も、クラブごとの設定もありません。
-   ================================================================== */
-var shareText = '';
-
-function offerShare(text){
-  shareText = text;
-  $('sharePrev').innerHTML = esc(text);
-  $('shareGo').href = 'https://line.me/R/share?text=' + encodeURIComponent(text);
-  $('shareCard').style.display = 'block';
-  if ($('shareCard').scrollIntoView) $('shareCard').scrollIntoView(true);
-}
-
-function closeShare(){
-  $('shareCard').style.display = 'none';
-  shareText = '';
-}
-
-/* 文字を、そのまま貼れる形でコピーする */
-function copyText(t){
-  var ok = false;
-  try {
-    var ta = document.createElement('textarea');
-    ta.value = t;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    ta.setSelectionRange(0, 99999);
-    ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-  } catch(e){}
-  if (!ok && navigator.clipboard){
-    try { navigator.clipboard.writeText(t); ok = true; } catch(e){}
-  }
-  setStatus(ok ? 'コピーしました。LINEに貼りつけてください' : 'コピーできませんでした', !ok);
-}
-
-/* 予定1件を、LINEに貼れる文にする */
-function eventShareText(ev){
-  var d = ev.date.split('-');
-  var wd = ['日','月','火','水','木','金','土'];
-  var dt = new Date(+d[0], +d[1] - 1, +d[2]);
-  var t = '【' + CLUB.shareTag + '】\n' +
-          (+d[1]) + '月' + (+d[2]) + '日（' + wd[dt.getDay()] + '）' + ev.title + '\n';
-  if (ev.time)  t += '時間：' + ev.time + '\n';
-  if (ev.place) t += '場所：' + ev.place + '\n';
-  if (ev.staff) t += '係：' + ev.staff + '\n';
-  if (ev.memo)  t += ev.memo + '\n';
-  t += '\n出欠の回答はこちら\n' + location.href.split('?')[0];
-  return t;
-}
-
-function shareEvent(evId){
-  for (var i = 0; i < state.events.length; i++){
-    if (state.events[i].id === evId){ offerShare(eventShareText(state.events[i])); return; }
+  /* 見たことを、あとからそっと記録する（ボタンは押させない） */
+  if (toMark.length && myn){
+    var send = [];
+    for (var t = 0; t < toMark.length; t++){
+      if (!markedSeen[toMark[t]]){ markedSeen[toMark[t]] = true; send.push(toMark[t]); }
+    }
+    if (send.length){
+      setTimeout(function(){
+        api('POST', { action: 'readNotice', ids: send, name: myn,
+                      memberId: myid, deviceId: deviceId() },
+          function(err, data){ if (!err && data && !data.error) applyData(data); });
+      }, 2500);
+    }
   }
 }
 
+/* 「○／○人が見ました」を押したときだけ、中身を出す */
+function toggleSeen(i){
+  var b = $('seen' + i);
+  if (b) b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+}
+
+/* いまは使っていません（開いた時点で自動的に「見た」になります）。
+   手で押す形に戻したくなったときのために残しています。 */
 function readNotice(id){
   var myn = getName();
   if (!myn){ showNamePick(); return; }
@@ -2912,6 +2873,8 @@ function renderInstallCard(){
 
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
 var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
+var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが判定） */
+var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
 var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
 var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
 
@@ -3334,14 +3297,14 @@ function init(){
 
   $('showNotice').onclick = function(){
     $('noticeCard').style.display = 'block';
-    $('showNotice').style.display = 'none';
+    $('noticeCell').style.display = 'none';
     $('noticeText').value = '';
     $('noticeUntil').value = '';
     $('noticeText').focus();
   };
   $('noticeCancel').onclick = function(){
     $('noticeCard').style.display = 'none';
-    $('showNotice').style.display = isStaff(getName()) ? 'block' : 'none';
+    $('noticeCell').style.display = canWriteNotice ? 'table-cell' : 'none';
   };
   $('noticeSave').onclick = function(){
     var t = $('noticeText').value.replace(/^[\s　]+|[\s　]+$/g, '');
