@@ -239,9 +239,18 @@
   table.evhead td { vertical-align: top; }
   table.evhead td.evicons { text-align: right; white-space: nowrap; width: 1%; }
   td.evicons a { display: inline-block; margin-left: 10px; text-decoration: none; line-height: 1; }
-  .evdel { text-align: right; margin-top: 4px; }
-  .evdel a { font-size: 14px; color: #b00020; }
-  .evdel a.lock { color: #2e6b34; font-weight: bold; margin-right: 16px; }
+  /* 予定の下にならぶ操作。1つの言葉が途中で折り返さないようにする */
+  .evdel {
+    margin-top: 6px;
+    display: flex; flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 14px;
+  }
+  .evdel a {
+    font-size: 14px; color: #b00020;
+    white-space: nowrap;
+  }
+  .evdel a.lock { color: #2e6b34; font-weight: bold; }
   .lockedmsg {
     margin-top: 10px;
     background: #fff3e0;
@@ -806,7 +815,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29c';
+var APP_VER = '2026-07-29d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1685,8 +1694,8 @@ function renderList(){
           '<a href="javascript:void(0)" class="lock" onclick="shareEvent(\'' + ev.id + '\')">LINEで知らせる</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
           '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
-            (locked ? '締め切りを解除' : '出欠を締め切る') + '</a>' +
-          '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">この予定を削除</a>' +
+            (locked ? '締切を解除' : '出欠を締切る') + '</a>' +
+          '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">削除</a>' +
         '</div>' : '') +
     '</div>';
   }
