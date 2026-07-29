@@ -340,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29i</p>
+  <p class="note" style="text-align:center">版 2026-07-29j</p>
 
 </main>
 
@@ -529,10 +529,17 @@ function lookupDistance() {
       filled++;
     });
     saveForm();
-    msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）。" +
+    msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
+      (data.summary ? "／おもに <b>" + escapeHtml(data.summary) + "</b> を通る道順" : "") + "。" +
       (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
               : "すでに入っている欄はそのままにしています。") +
-      "<br><b>実際に走った距離と違うときは、手で直してください。</b>";
+      (data.mapUrl
+        ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener">' +
+          '🗺 この道順を地図で見る</a>'
+        : "") +
+      "<br><b>実際に走った距離と違うときは、手で直してください。</b>" +
+      "<br>出発地：" + escapeHtml(data.from || "") +
+      "<br>到着地：" + escapeHtml(data.to || "");
     autoPickRoute();
   });
 }
