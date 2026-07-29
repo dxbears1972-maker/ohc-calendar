@@ -222,6 +222,9 @@
            oninput="saveForm()" onchange="autoPickRoute()">
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
+    <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
+            onclick="saveRouteMap()">🗺 この道順の地図を残す</button>
+    <p class="note" id="mapSaveMsg" style="display:none;"></p>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
       各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
   </div>
@@ -341,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29r</p>
+  <p class="note" style="text-align:center">版 2026-07-29s</p>
 
 </main>
 
@@ -521,6 +524,39 @@ function routePointsHtml(points) {
   }
   h += '</div></details>';
   return h;
+}
+
+/* ==================================================================
+   道順の地図を画像にして、ドライブに残す。
+   文字の説明だけでなく、**線の引かれた地図**であとから確かめられます。
+   保存先は「（クラブ名）　精算の地図」フォルダ。全員が見られます。
+   ================================================================== */
+var routeMapUrl = "";
+
+function saveRouteMap() {
+  var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var msg  = document.getElementById("mapSaveMsg");
+  var btn  = document.getElementById("mapSaveBtn");
+  msg.style.display = "block";
+  if (!from || !to) { msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>"; return; }
+
+  btn.disabled = true;
+  msg.innerHTML = "地図を作っています…";
+  var title = (document.getElementById("hikeDate").value || "") + "_" +
+              (document.getElementById("hikeName").value || "山行");
+  apiPost({ action: "saveRouteMap", from: from, to: to, title: title }, function (err, data) {
+    btn.disabled = false;
+    if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+    if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+    routeMapUrl = data.url;
+    saveForm();
+    msg.innerHTML = '地図を残しました。<br>' +
+      '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin-top:6px;padding:8px 12px;background:#2e6b34;' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">🗺 保存した地図を見る</a>' +
+      '<br>この山行の記録として残ります。履歴にもリンクが付きます。';
+  });
 }
 
 function lookupDistance() {
@@ -1276,6 +1312,7 @@ function formDetailText(f) {
   var t = "\n――― 入れた内容 ―――\n";
   if (f.place || f.time) t += "集合：" + (f.time || "") + " " + (f.place || "") + "\n";
   if (f.dest) t += "行き先：" + f.dest + "\n";
+  if (f.mapUrl) t += "道順の地図：" + f.mapUrl + "\n";
   t += "参加 " + (f.n || "") + "名\n";
   (f.cars || []).forEach(function (c, i) {
     t += "\n■車" + (i + 1) + "　" + (c.name || "（名前なし）") + "さん\n";
@@ -1372,6 +1409,7 @@ function getFormData() {
     hikeName: document.getElementById("hikeName").value,
     place: document.getElementById("meetPlace").value,
     dest: document.getElementById("destPlace").value,
+    mapUrl: routeMapUrl,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -1395,6 +1433,15 @@ function applyForm(f) {
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
+  routeMapUrl = f.mapUrl || "";
+  if (routeMapUrl) {
+    var mm = document.getElementById("mapSaveMsg");
+    if (mm) {
+      mm.style.display = "block";
+      mm.innerHTML = '<a href="' + escapeHtml(routeMapUrl) + '" target="_blank" rel="noopener">' +
+                     '🗺 この山行で残した地図を見る</a>';
+    }
+  }
   document.getElementById("meetTime").value = f.time || "";
   if (f.n) { nPeople = f.n; document.getElementById("nDisp").textContent = nPeople; }
   if (f.ferryPerson != null) document.getElementById("ferryPerson").value = f.ferryPerson;
