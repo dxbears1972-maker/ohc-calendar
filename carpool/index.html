@@ -340,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29j</p>
+  <p class="note" style="text-align:center">版 2026-07-29k</p>
 
 </main>
 
@@ -497,6 +497,22 @@ function applyJoined(autoCount) {
    GASに入っているGoogleマップの機能を使います（追加の契約は不要）。
    戻ってくるのは**片道**の距離です。往復にするかは各車の欄で選びます。
    ================================================================== */
+/* 道順の要点（どのICで乗り降りするか、フェリー乗り場はどこか）を出す。
+   ふだんは畳んでおいて、押したときだけ開きます。 */
+function routePointsHtml(points) {
+  if (!points || !points.length) return "";
+  var h = '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#2e6b34;">' +
+          'どこで乗り降りするか（' + points.length + '件）</summary>' +
+          '<div style="margin-top:6px;line-height:1.7;">';
+  for (var i = 0; i < points.length; i++) {
+    h += '・' + escapeHtml(points[i].text) +
+         (points[i].km ? '　<span style="color:#888;">' + points[i].km + 'km</span>' : '') +
+         '<br>';
+  }
+  h += '</div></details>';
+  return h;
+}
+
 function lookupDistance() {
   var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
@@ -539,7 +555,8 @@ function lookupDistance() {
         : "") +
       "<br><b>実際に走った距離と違うときは、手で直してください。</b>" +
       "<br>出発地：" + escapeHtml(data.from || "") +
-      "<br>到着地：" + escapeHtml(data.to || "");
+      "<br>到着地：" + escapeHtml(data.to || "") +
+      routePointsHtml(data.points);
     autoPickRoute();
   });
 }
