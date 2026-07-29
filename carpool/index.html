@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29s</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-29t</p>
 
 </main>
 
@@ -723,7 +723,14 @@ function loadEtc() {
 /* サーバーからみんなの料金表を取り込む（起動時） */
 function fetchRoutes() {
   apiPost({ action: "listRoutes" }, function (err, data) {
-    if (err || !data || !data.routes) return;
+    if (err || !data) return;
+    /* サーバー（GAS）の版も画面いちばん下に出す。
+       貼り替えとデプロイができているかを、目で確かめられるように。 */
+    try {
+      var vl = document.getElementById("verLine");
+      if (vl && data.gasver) vl.textContent = "版 2026-07-29t（サーバー " + data.gasver + "）";
+    } catch (eV) {}
+    if (!data.routes) return;
     var local = getEtcRoutes();
     /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
     if (!data.routes.length && local.length) {
