@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30a</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30b</p>
 
 </main>
 
@@ -543,7 +543,10 @@ var routeMapUrl = "";
    これをサーバーに渡して、足りないほうを埋めてもらいます。
    ------------------------------------------------------------------ */
 function icNamesNow_() {
-  var a = lastTollIn || "", b = lastTollOut || "";
+  /* 行き先が変わっていたら、前に調べた名前は使いません（別の山の名前になるため） */
+  var nowTo = document.getElementById("destPlace").value.replace(/^[\s\u3000]+|[\s\u3000]+$/g, "");
+  var fresh = (lastTollFor && lastTollFor === nowTo);
+  var a = fresh ? (lastTollIn || "") : "", b = fresh ? (lastTollOut || "") : "";
   if (!a || !b) {
     /* どれか1台でも料金表のルートを選んでいれば、その名前を借りる */
     var nm = "";
@@ -565,6 +568,8 @@ function icNamesNow_() {
       }
     }
   }
+  /* 入口と出口が同じ名前になったら読み違いです。確かなほう（出口）だけ残します。 */
+  if (a && a === b) a = "";
   return { a: a, b: b };
 }
 
@@ -660,6 +665,9 @@ function lookupDistance() {
       routePointsHtml(data.points);
     lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
     lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
+    /* どの行き先について調べた名前かを覚えておきます。
+       行き先を変えたあとも古い名前を使ってしまうのを防ぐためです。 */
+    lastTollFor = to;
     autoPickRoute();
     document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
   });
@@ -776,7 +784,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30a（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30b（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -972,7 +980,7 @@ function autoPickRoute(quiet) {
 }
 
 /* 地図で調べたときのIC名を覚えておく（料金表の名前づけに使う） */
-var lastTollIn = "", lastTollOut = "";
+var lastTollIn = "", lastTollOut = "", lastTollFor = "";
 
 /* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
 function feeChanged(el) {
