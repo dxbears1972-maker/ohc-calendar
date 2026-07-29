@@ -287,7 +287,13 @@
   <details>
     <summary>高速料金表の登録・編集</summary>
     <div class="card">
-      <p class="note">よく使うルートを登録しておくと、車の入力でドロップダウンから選べます。金額はどちらも<b>往復</b>で、ETC料金と通常料金（現金）を入れてください。<b>この料金表はメンバー全員で共有</b>されます。誰かが登録・修正すると、みんなの画面にも反映されます。</p>
+      <p class="note">よく使うルートを登録しておくと、車の入力でドロップダウンから選べます。金額はどちらも<b>片道</b>で、ETC料金と通常料金（現金）を入れてください。
+      往復ぶんは計算のときに自動で2倍します。<b>この料金表はメンバー全員で共有</b>されます。誰かが登録・修正すると、みんなの画面にも反映されます。</p>
+      <p class="note" style="background:#fff6e8;border:2px solid #e8a000;border-radius:8px;
+         padding:9px 11px;color:#8a5a00;">
+        <b>2026年7月29日に「往復」から「片道」に変えました。</b><br>
+        それより前に登録した金額は往復ぶんです。<b>2で割って直してください。</b>
+        （例：2740 → 1370）</p>
       <div id="etcRows"></div>
       <button type="button" class="btn btn-sub" onclick="addEtcRow()">＋ ルートを追加</button>
       <div class="copied" id="etcSyncMsg"></div>
@@ -340,7 +346,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29m</p>
+  <p class="note" style="text-align:center">版 2026-07-29p</p>
 
 </main>
 
@@ -573,7 +579,10 @@ function lookupDistance() {
       tollHtml(data.tollIn,  "高速に乗るところ") +
       tollHtml(data.tollOut, "高速を降りるところ") +
       routePointsHtml(data.points);
+    lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
+    lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
     autoPickRoute();
+    document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
   });
 }
 
@@ -604,6 +613,22 @@ function getEtcRoutes() {
   });
   return routes;
 }
+/* ------------------------------------------------------------------
+   プルダウンに並ぶのは「名前と金額が入っている行」だけです。
+   画面上の行番号とはずれるので、同じ条件で数え直した一覧を使います。
+   （2026/7/29：ここを取り違えて、別のルートを指していました）
+   ------------------------------------------------------------------ */
+function etcRowsInOrder() {
+  var out = [];
+  document.querySelectorAll("#etcRows .etc-row").forEach(function (tr) {
+    var name = tr.querySelector(".etc-name").value.trim();
+    var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
+    var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
+    if (name && (!isNaN(etc) || !isNaN(normal))) out.push(tr);
+  });
+  return out;
+}
+
 var etcSaveTimer = null;
 function saveEtc() {
   var routes = getEtcRoutes();
@@ -628,8 +653,8 @@ function addEtcRow(name, etcFee, normalFee, dest) {
   div.innerHTML =
     '<input type="text" class="etc-name" placeholder="ルート名　例：南関⇔鳥栖" onchange="saveEtc()">' +
     '<div class="etc-fees">' +
-    '<div><span class="fee-label">ETC往復(円)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
-    '<div><span class="fee-label">通常往復(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">ETC片道(円)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">通常片道(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
     '<button type="button" class="btn-small" onclick="this.closest(\'.etc-row\').remove(); saveEtc();">削除</button>' +
     '</div>' +
     '<input type="text" class="etc-dest" placeholder="この料金を使う行き先（自動で覚えます）" ' +
@@ -716,8 +741,13 @@ function addCar(data) {
       '<option value="normal">ETCなし（通常料金）</option></select>' +
       '<label>高速料金（円）</label>' +
       '<div style="display:flex;gap:8px;">' +
-        '<input type="number" class="car-etc" placeholder="0" min="0" style="flex:2;min-width:0;">' +
-        '<select class="car-etctype" style="flex:1;min-width:0;"><option value="round">往復</option><option value="one">片道</option></select>' +
+        '<input type="number" class="car-etc" placeholder="0" min="0" style="flex:2;min-width:0;" onchange="feeChanged(this)">' +
+        '<select class="car-etctype" style="flex:1;min-width:0;" onchange="feeChanged(this)"><option value="round">往復</option><option value="one">片道</option></select>' +
+      '</div>' +
+      '<div class="fee-remember" style="display:none;margin-top:8px;">' +
+        '<button type="button" class="btn btn-sub" onclick="rememberFee(this)">' +
+        '⭐ この料金を覚える（次から自動で入ります）</button>' +
+        '<p class="note" style="margin-top:4px;">この行き先で、次に精算するときに自動で入ります。</p>' +
       '</div>' +
     '</div>' +
     '<div class="opt-blk blk-ferry"><label>フェリー（車分）</label>' +
@@ -855,6 +885,72 @@ function autoPickRoute(quiet) {
   return filled > 0;
 }
 
+/* 地図で調べたときのIC名を覚えておく（料金表の名前づけに使う） */
+var lastTollIn = "", lastTollOut = "";
+
+/* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
+function feeChanged(el) {
+  saveForm();
+  var card = el.closest(".car-card");
+  if (!card) return;
+  var box = card.querySelector(".fee-remember");
+  if (!box) return;
+  var fee  = card.querySelector(".car-etc").value;
+  var used = card.querySelector(".car-route").value;
+  var dest = document.getElementById("destPlace").value.trim();
+  /* 料金表から選んだのでなく、手で入れていて、行き先が分かっているときだけ */
+  box.style.display = (fee !== "" && used === "" && dest !== "") ? "block" : "none";
+}
+
+/* 手で入れた高速料金を、料金表に覚えさせる */
+function rememberFee(btn) {
+  var card = btn.closest(".car-card");
+  var dest = document.getElementById("destPlace").value.trim();
+  var fee  = parseInt(card.querySelector(".car-etc").value, 10);
+  if (!dest || isNaN(fee)) return;
+
+  /* 料金表は「片道」の金額。往復で入れていたら半分にして入れる */
+  if (card.querySelector(".car-etctype").value === "round") fee = Math.round(fee / 2);
+  var isEtc = card.querySelector(".car-etcuse").value === "etc";
+
+  /* 名前は、地図で分かったICから作る。分からなければ行き先の名前を使う */
+  var nm = "";
+  var a = lastTollIn.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+  var b = lastTollOut.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+  if (a && b) nm = a + "⇔" + b;
+  else if (b) nm = b + "方面";
+  else nm = dest;
+
+  /* すでに同じ行き先の行があれば、そこへ入れる */
+  var target = null;
+  document.querySelectorAll("#etcRows .etc-row").forEach(function (r) {
+    var d = r.querySelector(".etc-dest");
+    if (!target && d && normDest(d.value) && normDest(d.value) === normDest(dest)) target = r;
+  });
+  if (!target) {
+    addEtcRow(nm, null, null, dest);
+    var all = document.querySelectorAll("#etcRows .etc-row");
+    target = all[all.length - 1];
+  }
+  target.querySelector(isEtc ? ".etc-fee" : ".etc-normal").value = fee;
+  if (!target.querySelector(".etc-name").value) target.querySelector(".etc-name").value = nm;
+  target.querySelector(".etc-dest").value = dest;
+  saveEtc();
+
+  /* この車を、その料金表のルートに結びつけておく */
+  refreshAllDropdowns();
+  var idx = etcRowsInOrder().indexOf(target);
+  if (idx >= 0) {
+    card.querySelector(".car-route").value = String(idx);
+    card.querySelector(".car-etctype").value = "one";
+    card.querySelector(".car-etc").value = fee;
+  }
+  card.querySelector(".fee-remember").innerHTML =
+    '<p class="note" style="color:#2e6b34;"><b>「' + escapeHtml(nm) + '」として覚えました。</b><br>' +
+    '行き先「' + escapeHtml(dest) + '」で、次から自動で入ります。</p>';
+  saveForm();
+}
+
 function routeSelected(el) {
   var card = el.closest(".car-card");
   var idx = card.querySelector(".car-route").value;
@@ -870,6 +966,9 @@ function routeSelected(el) {
     return;
   }
   card.querySelector(".car-etc").value = fee;
+  /* 料金表は「片道」の金額。計算のときに自動で2倍される */
+  var tp0 = card.querySelector(".car-etctype");
+  if (tp0) tp0.value = "one";
   saveForm();
 
   /* このルートに行き先が未登録なら、いまの行き先を覚える。
@@ -877,8 +976,7 @@ function routeSelected(el) {
   try {
     var dNow = document.getElementById("destPlace").value.trim();
     if (dNow) {
-      var rows = document.querySelectorAll("#etcRows .etc-row");
-      var row = rows[parseInt(idx, 10)];
+      var row = etcRowsInOrder()[parseInt(idx, 10)];
       if (row) {
         var de = row.querySelector(".etc-dest");
         if (de && de.value.trim() === "") { de.value = dNow; saveEtc(); }
