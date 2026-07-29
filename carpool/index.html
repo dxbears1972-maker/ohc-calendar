@@ -340,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29l</p>
+  <p class="note" style="text-align:center">版 2026-07-29m</p>
 
 </main>
 
@@ -559,8 +559,13 @@ function lookupDistance() {
       (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
               : "すでに入っている欄はそのままにしています。") +
       (data.mapUrl
-        ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener">' +
-          '🗺 この道順を地図で見る</a>'
+        ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
+          'style="display:inline-block;margin:8px 0;padding:8px 12px;background:#2e6b34;' +
+          'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+          '🗺 地図で道順と高速料金を見る</a>' +
+          '<br><span style="color:#8a5a00;">地図に <b>「有料道路あり・¥○○○」</b> と出ます。' +
+          'その金額を下の「高速料金」に入れてください。<br>' +
+          '一度入れて高速ルートを選べば、<b>次から自動で入ります。</b></span>'
         : "") +
       "<br><b>実際に走った距離と違うときは、手で直してください。</b>" +
       "<br>出発地：" + escapeHtml(data.from || "") +
