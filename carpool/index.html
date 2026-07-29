@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30d</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30e</p>
 
 </main>
 
@@ -595,10 +595,27 @@ function saveRouteMap() {
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
     routeMapUrl = data.url;
     saveForm();
+    /* ------------------------------------------------------------------
+       Googleは高速の「入口」に名前を付けないことがあります（2026/7/30に確認）。
+       そのときは「分かりませんでした」で終わらせず、
+       次から自動で入るようにする手順を、その場で出します。
+       ------------------------------------------------------------------ */
     var ic = "";
-    if (data.icIn || data.icOut) {
-      ic = '<br>高速：<b>' + escapeHtml(data.icIn || "？") + '</b> で乗り、<b>' +
-           escapeHtml(data.icOut || "？") + '</b> で降りる道順です。';
+    if (data.icIn && data.icOut) {
+      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗り、<b>' +
+           escapeHtml(data.icOut) + '</b> で降りる道順です。';
+    } else if (data.icOut) {
+      var shortOut = String(data.icOut).replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+      var guess = data.signHint ? String(data.signHint) : "";
+      ic = '<br>高速：<b>' + escapeHtml(data.icOut) + '</b> で降りる道順です。' +
+           '<br><span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
+           (guess ? '案内には「<b>' + escapeHtml(guess) + '</b>」の標識が出ています（' +
+                    escapeHtml(guess) + 'ICかもしれません）。' : "") +
+           '<br>下の<b>高速料金表</b>のルート名を <b>「' +
+           escapeHtml(guess || "南関") + "⇔" + escapeHtml(shortOut) +
+           '」</b>のように直しておくと、<b>次からは自動で入ります。</b></span>';
+    } else if (data.icIn) {
+      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗る道順です。';
     }
     msg.innerHTML = '地図を残しました。' + ic +
       '<br><a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
@@ -784,7 +801,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30d（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30e（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
