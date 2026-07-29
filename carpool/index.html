@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-29t</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-29u</p>
 
 </main>
 
@@ -542,7 +542,9 @@ function saveRouteMap() {
   if (!from || !to) { msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>"; return; }
 
   btn.disabled = true;
-  msg.innerHTML = "地図を作っています…";
+  msg.innerHTML = "地図を作っています…<br>" +
+    "<b>10秒ほどかかります。</b>そのまま下の入力を続けてかまいません。<br>" +
+    "できあがると、ここにリンクが出ます。";
   var title = (document.getElementById("hikeDate").value || "") + "_" +
               (document.getElementById("hikeName").value || "山行");
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title }, function (err, data) {
@@ -551,10 +553,17 @@ function saveRouteMap() {
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
     routeMapUrl = data.url;
     saveForm();
-    msg.innerHTML = '地図を残しました。<br>' +
-      '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
+    var ic = "";
+    if (data.icIn || data.icOut) {
+      ic = '<br>高速：<b>' + escapeHtml(data.icIn || "？") + '</b> で乗り、<b>' +
+           escapeHtml(data.icOut || "？") + '</b> で降りる道順です。';
+    }
+    msg.innerHTML = '地図を残しました。' + ic +
+      '<br><a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
       'style="display:inline-block;margin-top:6px;padding:8px 12px;background:#2e6b34;' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">🗺 保存した地図を見る</a>' +
+      '<br>地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる' +
+      '<br>インター名は<b>ファイル名</b>に入っています（地図の画像には文字を入れられないため）。' +
       '<br>この山行の記録として残ります。履歴にもリンクが付きます。';
   });
 }
@@ -728,7 +737,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-29t（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-29u（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
