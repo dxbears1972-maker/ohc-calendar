@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29l';
+var APP_VER = '2026-07-29m';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1054,6 +1054,7 @@ var WEEK = ['日','月','火','水','木','金','土'];
 var myName = '';
 var editingId = '';
 var gotoId = '';
+var gotoStick = '';   /* 画面を作り直したあと、合わせ直す先 */
 function getName(){ return myName; }
 var state = {
   events: [],
@@ -1294,6 +1295,12 @@ function load(){
     setStatus('');
     applyData(data);
     tryGoto();
+    /* 作り直しで位置がずれるので、合わせ直す */
+    if (gotoStick){
+      var sid = gotoStick;
+      scrollToEv(sid);
+      setTimeout(function(){ scrollToEv(sid); gotoStick = ''; }, 350);
+    }
   });
 }
 
@@ -1319,7 +1326,28 @@ function tryGoto(){
     renderList();
     el = $('ev-' + ev.id);
   }
-  if (el && el.scrollIntoView) el.scrollIntoView(true);
+  scrollToEv(ev.id);
+  /* ------------------------------------------------------------------
+     この予定を「行き先」として少しの間だけ覚えておきます。
+     サーバーの返事が届くと画面を作り直すため、行の高さが変わり、
+     先に合わせた位置がずれてしまうためです。
+     作り直したあと、もう一度きちんと合わせ直します。
+     ------------------------------------------------------------------ */
+  gotoStick = ev.id;
+  setTimeout(function(){ if (gotoStick === ev.id) gotoStick = ''; }, 8000);
+}
+
+/* その予定の場所へ、画面をきちんと合わせる。
+   上に少し余白を残して、見出しが隠れないようにする。 */
+function scrollToEv(id){
+  var el = $('ev-' + id);
+  if (!el) return;
+  try {
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 12;
+    window.scrollTo(0, y < 0 ? 0 : y);
+  } catch(e){
+    if (el.scrollIntoView) el.scrollIntoView(true);
+  }
 }
 
 function post(body, doneMsg, after){
