@@ -340,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29h</p>
+  <p class="note" style="text-align:center">版 2026-07-29i</p>
 
 </main>
 
@@ -1274,6 +1274,31 @@ function loadForm() {
    カレンダーが端末に残した控えを、そのまま読めます。
    サーバーに聞き直さないので、**待ち時間がありません。**
    ================================================================== */
+/* カレンダーの控えから、その山行に「参加」と答えている方を取り出す。
+   サーバーに聞かないので、開いた瞬間に名前が並びます。 */
+function calCachedJoined(eventId) {
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf("cache_") !== 0) continue;
+      var c = JSON.parse(localStorage.getItem(k) || "{}");
+      var att = c.attendance || [], mem = c.members || [];
+      if (!att.length) continue;
+      var yes = {};
+      for (var a = 0; a < att.length; a++) {
+        if (att[a].eventId === eventId && att[a].status === "yes" && att[a].name) {
+          yes[att[a].name] = true;
+        }
+      }
+      var out = [];
+      for (var m = 0; m < mem.length; m++) { if (yes[mem[m]]) out.push(mem[m]); }
+      for (var y in yes) { if (yes.hasOwnProperty(y) && out.indexOf(y) < 0) out.push(y); }
+      if (out.length) return out;
+    }
+  } catch (e) {}
+  return [];
+}
+
 function calCachedForm(eventId) {
   try {
     for (var i = 0; i < localStorage.length; i++) {
@@ -1380,6 +1405,10 @@ function setToday() {
   loadSettings();
   loadEtc();
   renderHist();
+  /* 先に参加者を用意しておく。こうすると、車の欄が最初から
+     「選ぶ形」で作られ、待ち時間がありません。 */
+  if (EVENT_ID) JOINED = calCachedJoined(EVENT_ID);
+
   var hadLocal = loadForm();
   /* 下書きはあるが、走行距離が1つも入っていない＝実質から
      の状態なら、前回カレンダーに記録した精算内容を読み込む。
@@ -1430,6 +1459,9 @@ function setToday() {
     /* 下書きがある場合も、参加者だけは取りに行く（人数は上書きしない） */
     fetchPrevSettle(true);
   }
+  /* 控えから取れた参加者を、画面に反映する */
+  if (JOINED.length) applyJoined(!hadLocal);
+
   /* 前回の計算結果があれば表示したままにする */
   var savedResult = lsGet(LS_FORM + "_result");
   if (savedResult && savedResult.html) {
