@@ -340,7 +340,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29g</p>
+  <p class="note" style="text-align:center">版 2026-07-29h</p>
 
 </main>
 
@@ -1267,6 +1267,28 @@ function applyForm(f) {
 function loadForm() {
   return applyForm(lsGet(LS_FORM));
 }
+/* ==================================================================
+   カレンダーが持っている控えから、前回の精算内容をすぐ取り出す。
+
+   精算アプリはカレンダーと同じ場所にあるので、
+   カレンダーが端末に残した控えを、そのまま読めます。
+   サーバーに聞き直さないので、**待ち時間がありません。**
+   ================================================================== */
+function calCachedForm(eventId) {
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (!k || k.indexOf("cache_") !== 0) continue;
+      var c = JSON.parse(localStorage.getItem(k) || "{}");
+      var evs = c.events || [];
+      for (var j = 0; j < evs.length; j++) {
+        if (evs[j].id === eventId && evs[j].settleForm) return evs[j].settleForm;
+      }
+    }
+  } catch (e) {}
+  return "";
+}
+
 /* この予定で前に誰かが精算していれば、その内容を初期値として取り込む */
 function fetchPrevSettle(skipForm) {
   apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
@@ -1367,6 +1389,27 @@ function setToday() {
     if (el.value !== "") draftEmpty = false;
   });
   if (hadLocal && draftEmpty && EVENT_ID) hadLocal = false;
+
+  /* 下書きが無いときは、まずカレンダーの控えから前回の内容を出す（待たない） */
+  if (!hadLocal && EVENT_ID) {
+    var cachedF = calCachedForm(EVENT_ID);
+    if (cachedF) {
+      try {
+        var cf = JSON.parse(cachedF);
+        document.getElementById("cars").innerHTML = "";
+        carCount = 0;
+        if (applyForm(cf)) {
+          hadLocal = true;
+          saveForm();
+          calc(true);
+          var lm = document.getElementById("loadMsg");
+          lm.textContent = "前回の精算内容を読み込みました。修正したら「計算する」を押してください。";
+          lm.style.display = "block";
+          window.scrollTo(0, 0);
+        }
+      } catch (eC) {}
+    }
+  }
 
   if (!hadLocal) {
     document.getElementById("cars").innerHTML = "";
