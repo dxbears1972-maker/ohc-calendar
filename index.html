@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29k';
+var APP_VER = '2026-07-29l';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1925,7 +1925,7 @@ function eventShareText(ev){
   if (ev.place) t += '場所：' + ev.place + '\n';
   if (ev.staff) t += '係：' + ev.staff + '\n';
   if (ev.memo)  t += ev.memo + '\n';
-  t += '\n出欠の回答はこちら\n' + location.href.split('?')[0];
+  t += '\n出欠の回答はこちら\n' + location.href.split('?')[0] + '?goto=' + ev.id;
   return t;
 }
 
