@@ -214,8 +214,6 @@
       <div class="num" id="nDisp">4</div>
       <button type="button" onclick="changeN(1)">＋</button>
     </div>
-    <p id="joinedNote" style="display:none; font-size:14px; color:#5a6b5c;
-       background:#f2f7f2; border-radius:8px; padding:8px 10px; margin-top:10px;"></p>
   </div>
 
   <!-- 車にかかる費用 -->
@@ -332,7 +330,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29a</p>
+  <p class="note" style="text-align:center">版 2026-07-19h</p>
 
 </main>
 
@@ -403,85 +401,6 @@ function apiPost(body, cb) {
     } else { cb(true, null); }
   };
   try { xhr.send(JSON.stringify(body)); } catch (e) { cb(true, null); }
-}
-
-/* ==================================================================
-   出欠の「参加」から、この山行の参加者を受け取る。
-   人数の数え間違いと、名前の打ち間違いを無くすためのしくみです。
-   予定から開いていないときは、これまでどおり手で入力する形に戻ります。
-   ================================================================== */
-var JOINED = [];
-
-function carNameFieldHtml() {
-  if (!JOINED.length) {
-    return '<input type="text" class="car-name" placeholder="例：只隈" oninput="renumberCars()">';
-  }
-  var o = '<option value="">（選んでください）</option>';
-  for (var i = 0; i < JOINED.length; i++) {
-    o += '<option value="' + escapeHtml(JOINED[i]) + '">' + escapeHtml(JOINED[i]) + '</option>';
-  }
-  o += '<option value="__other">その他（手で入力）</option>';
-  return '<select class="car-name" onchange="onNamePick(this)">' + o + '</select>';
-}
-
-/* 選ぶ形の欄を、手で入力する欄に差し替える */
-function toNameInput(el, val) {
-  var inp = document.createElement("input");
-  inp.type = "text";
-  inp.className = "car-name";
-  inp.placeholder = "例：只隈";
-  inp.value = val || "";
-  inp.setAttribute("oninput", "renumberCars()");
-  el.parentNode.replaceChild(inp, el);
-  return inp;
-}
-
-function onNamePick(sel) {
-  if (sel.value === "__other") toNameInput(sel, "").focus();
-  renumberCars();
-  saveForm();
-}
-
-/* 名前を入れる。一覧に無い名前（退会された方など）は、手入力の欄に切り替えて残す */
-function setCarName(div, val) {
-  var f = div.querySelector(".car-name");
-  if (!f) return;
-  if (f.tagName === "SELECT") {
-    f.value = val;
-    if (f.value !== val) toNameInput(f, val);
-  } else {
-    f.value = val;
-  }
-}
-
-/* 参加者を受け取ったあとに、画面を整える */
-function applyJoined(autoCount) {
-  var note = document.getElementById("joinedNote");
-  if (!JOINED.length) { if (note) note.style.display = "none"; return; }
-
-  if (note) {
-    note.innerHTML = "この山行に「参加」と答えている方（" + JOINED.length + "名）<br>" +
-                     escapeHtml(JOINED.join("、")) +
-                     "<br>人数は自動で入れています。違うときは上の＋−で直してください。";
-    note.style.display = "block";
-  }
-  if (autoCount) {
-    nPeople = JOINED.length;
-    document.getElementById("nDisp").textContent = nPeople;
-    saveForm();
-  }
-  /* すでに出ている車の「ドライバー名」を、選ぶ形に差し替える（入力ずみの名前は残す） */
-  document.querySelectorAll("#cars .car-card").forEach(function (c) {
-    var f = c.querySelector(".car-name");
-    if (!f || f.tagName === "SELECT") return;
-    var val = f.value;
-    var box = document.createElement("div");
-    box.innerHTML = carNameFieldHtml();
-    var sel = box.firstChild;
-    f.parentNode.replaceChild(sel, f);
-    setCarName(c, val);
-  });
-  renumberCars();
 }
 
 /* ---------- 参加人数 ---------- */
@@ -595,7 +514,8 @@ function addCar(data) {
   div.innerHTML =
     '<div class="car-head"><span class="car-title">車 ' + carCount + '</span>' +
     '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
-    '<label>ドライバー名</label>' + carNameFieldHtml() +
+    '<label>ドライバー名</label>' +
+    '<input type="text" class="car-name" placeholder="例：只隈" oninput="renumberCars()">' +
     '<label>走行距離（km）</label>' +
     '<div style="display:flex;gap:8px;">' +
     '<input type="number" class="car-km" placeholder="例：90" min="0" step="0.1" style="flex:2;min-width:0;">' +
@@ -633,7 +553,7 @@ function addCar(data) {
     '<div class="opt-blk blk-ent"><label>入場料（車分）</label>' +
       '<input type="number" class="car-ent" placeholder="0" min="0"></div>';
   if (data) {
-    setCarName(div, data.name || "");
+    div.querySelector(".car-name").value = data.name || "";
     setIf(div, ".car-km", data.km);
     if (data.kmType) div.querySelector(".car-kmtype").value = data.kmType;
     setIf(div, ".car-etc", data.etc);
@@ -1093,14 +1013,9 @@ function loadForm() {
   return applyForm(lsGet(LS_FORM));
 }
 /* この予定で前に誰かが精算していれば、その内容を初期値として取り込む */
-function fetchPrevSettle(skipForm) {
+function fetchPrevSettle() {
   apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
     if (err || !data) return;
-    /* この山行に「参加」と答えている方を受け取る。
-       下書きが無いときだけ、人数も自動で入れる。 */
-    JOINED = data.joined || [];
-    applyJoined(!skipForm && !data.form);
-    if (skipForm) return;
     if (data.form) {
       try {
         var f = JSON.parse(data.form);
@@ -1196,10 +1111,7 @@ function setToday() {
       if (tmm) document.getElementById("meetTime").value = ("0" + tmm[1]).slice(-2) + ":" + tmm[2];
     }
     /* 前に誰かがこの予定の精算を記録していれば、それを初期値にする */
-    if (EVENT_ID) fetchPrevSettle(false);
-  } else if (EVENT_ID) {
-    /* 下書きがある場合も、参加者だけは取りに行く（人数は上書きしない） */
-    fetchPrevSettle(true);
+    if (EVENT_ID) fetchPrevSettle();
   }
   /* 前回の計算結果があれば表示したままにする */
   var savedResult = lsGet(LS_FORM + "_result");
