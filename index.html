@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29m';
+var APP_VER = '2026-07-29n';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1989,9 +1989,25 @@ function askCancel(evId, on){
     'OK … メールとLINEで自動的に知らせます\n' +
     'キャンセル … 知らせずに、印だけ付けます');
 
+  /* ------------------------------------------------------------------
+     押した瞬間に画面を変えて、送信は裏で行います（出欠と同じやり方）。
+     知らせるときはサーバーがメールとLINEも送るため、
+     返事が返るまで数秒かかります。待たせないためです。
+     ------------------------------------------------------------------ */
+  for (var k = 0; k < state.events.length; k++){
+    var e2 = state.events[k];
+    if (e2.id !== evId) continue;
+    e2.cancelled  = on ? '中止' : '';
+    e2.cancelNote = on ? note : '';
+    if (on) e2.locked = '中止';
+    else if (e2.locked === '中止') e2.locked = '';
+  }
+  render();
+
   post({ action: 'setCancel', id: evId, on: on, note: note,
          tell: tell, mail: tell, name: getName() },
-       on ? '中止にしました' : '中止を取り消しました');
+       on ? (tell ? '中止にしました（お知らせを送っています）' : '中止にしました')
+          : '中止を取り消しました');
 }
 
 /* 中止になった予定の内容を引き継いで、新しい予定を作る */
@@ -2114,6 +2130,11 @@ function setLock(evId, lock){
     ? '出欠を締め切ります。メンバーは参加・不参加を変更できなくなります。よろしいですか？'
     : '締め切りを解除して、出欠を変更できるようにします。よろしいですか？';
   if (!confirm(msg)) return;
+  /* 押した瞬間に画面を変える（出欠と同じやり方） */
+  for (var k2 = 0; k2 < state.events.length; k2++){
+    if (state.events[k2].id === evId) state.events[k2].locked = lock ? '1' : '';
+  }
+  render();
   post({ action: 'setLocked', id: evId, locked: lock ? '1' : '', name: name },
     lock ? '出欠を締め切りました' : '締め切りを解除しました');
 }
