@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30b</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30c</p>
 
 </main>
 
@@ -784,7 +784,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30b（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30c（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -867,6 +867,13 @@ function addCar(data) {
     setChk(div, ".chk-ferry", "blk-ferry", data.useFerry != null ? data.useFerry : has(data.ferry));
     setChk(div, ".chk-park", "blk-park", data.usePark != null ? data.usePark : has(data.park));
     setChk(div, ".chk-ent", "blk-ent", data.useEnt != null ? data.useEnt : has(data.ent));
+    /* 高速ルートの選択を戻します。実際に選び直すのは、このあとの
+       refreshAllDropdowns（選択肢を作ったあと）です。 */
+    var selR = div.querySelector(".car-route");
+    if (selR) {
+      selR.dataset.routeName = data.routeName || "";
+      selR.dataset.routeIdx  = (data.route != null) ? String(data.route) : "";
+    }
   }
   document.getElementById("cars").appendChild(div);
   refreshAllDropdowns();
@@ -915,7 +922,17 @@ function renumberCars() {
 function refreshAllDropdowns() {
   var routes = getEtcRoutes();
   document.querySelectorAll(".car-route").forEach(function (sel) {
-    var current = sel.value;
+    /* ------------------------------------------------------------------
+       選んでいた高速ルートを「名前」で覚えておき、作り直したあとに
+       同じ名前の行を選び直します。（2026/7/30）
+
+       これまでは番号（何行目か）だけで覚えていました。
+       料金表はみんなで共有していて、行が増えたり並びが変わったりするため、
+       開き直すと選択が消えて、金額だけが残っていました。
+       名前で覚えれば、並びが変わっても元に戻せます。
+       ------------------------------------------------------------------ */
+    var wantName = sel.dataset.routeName || "";
+    var wantIdx  = (sel.value !== "") ? sel.value : (sel.dataset.routeIdx || "");
     sel.innerHTML = '<option value="">使わない／下に直接入力</option>';
     routes.forEach(function (r, i) {
       var op = document.createElement("option");
@@ -925,8 +942,28 @@ function refreshAllDropdowns() {
         "／通常 " + (r.normal != null ? yen(r.normal) : "未登録") + "）";
       sel.appendChild(op);
     });
-    sel.value = current;
+    var idx = -1;
+    if (wantName) {
+      for (var i = 0; i < routes.length; i++) {
+        if (String(routes[i].name || "") === wantName) { idx = i; break; }
+      }
+      /* 名前で覚えていたのに見つからない＝その行が消された、ということ。
+         別の行を勝手に選ぶと料金を間違えるので、選ばないままにします。 */
+    } else if (wantIdx !== "" && routes[parseInt(wantIdx, 10)]) {
+      idx = parseInt(wantIdx, 10);
+    }
+    sel.value = (idx >= 0) ? String(idx) : "";
+    rememberRouteName_(sel);
   });
+}
+
+/* いま選んでいるルートの名前を、選択欄そのものに覚えさせます */
+function rememberRouteName_(sel) {
+  if (!sel) return;
+  sel.dataset.routeIdx = sel.value;
+  if (sel.value === "") { sel.dataset.routeName = ""; return; }
+  var r = getEtcRoutes()[parseInt(sel.value, 10)];
+  sel.dataset.routeName = r ? String(r.name || "") : "";
 }
 /* 行き先の名前をそろえる（空白と全角半角のゆれを吸収） */
 function normDest(t) {
@@ -1051,6 +1088,7 @@ function rememberFee(btn) {
   var idx = etcRowsInOrder().indexOf(target);
   if (idx >= 0) {
     card.querySelector(".car-route").value = String(idx);
+    rememberRouteName_(card.querySelector(".car-route"));
     card.querySelector(".car-etctype").value = "one";
     card.querySelector(".car-etc").value = fee;
   }
@@ -1062,8 +1100,10 @@ function rememberFee(btn) {
 
 function routeSelected(el) {
   var card = el.closest(".car-card");
-  var idx = card.querySelector(".car-route").value;
-  if (idx === "") return;
+  var selRoute = card.querySelector(".car-route");
+  var idx = selRoute.value;
+  rememberRouteName_(selRoute);
+  if (idx === "") { saveForm(); return; }
   var routes = getEtcRoutes();
   var r = routes[parseInt(idx, 10)];
   if (!r) return;
@@ -1464,7 +1504,11 @@ function getFormData() {
       useEtc: c.querySelector(".chk-etc").checked,
       useFerry: c.querySelector(".chk-ferry").checked,
       usePark: c.querySelector(".chk-park").checked,
-      useEnt: c.querySelector(".chk-ent").checked
+      useEnt: c.querySelector(".chk-ent").checked,
+      /* 高速ルートは「番号」と「名前」の両方を残します。
+         名前があれば、料金表の並びが変わっても元に戻せます。 */
+      route: c.querySelector(".car-route").value,
+      routeName: c.querySelector(".car-route").dataset.routeName || ""
     });
   });
   return {
