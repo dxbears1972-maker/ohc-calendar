@@ -145,6 +145,9 @@
   table.cal td .marks { font-size: 13px; color: #2e6b34; line-height: 1.2; word-break: break-all; }
   table.cal td.hasev { background: #e8f4e9; }
   table.cal td.hasev.today { background: #fff8d6; }
+  /* その日の予定がすべて中止のときは、緑を薄くして目立たせない */
+  table.cal td.hasev.allcancel { background: #f4f4f4; }
+  table.cal td .marks s { color: #999; }
 
   /* 予定カード */
   .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 10px; margin-top: 10px; background: #fff; }
@@ -841,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29j';
+var APP_VER = '2026-07-29k';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1375,12 +1378,17 @@ function renderCalendar(){
         if (c === 6) classes.push('sat');
         if (evs.length > 0) classes.push('hasev');
         if (key === todayKey) classes.push('today');
-        var marks = '';
+        var marks = '', allCancel = evs.length > 0;
         for (var e = 0; e < evs.length && e < 2; e++){
           var t = evs[e].title;
           if (t.length > 5) t = t.substring(0, 5) + '…';
-          marks += t + '<br>';
+          /* 中止になった山行は、カレンダーでも取り消し線で出す */
+          marks += (evs[e].cancelled ? '<s>' + esc(t) + '</s>' : esc(t)) + '<br>';
         }
+        for (var e2 = 0; e2 < evs.length; e2++){
+          if (!evs[e2].cancelled) allCancel = false;
+        }
+        if (allCancel) classes.push('allcancel');
         if (evs.length > 2) marks += '他' + (evs.length - 2) + '件';
         html += '<td class="' + classes.join(' ') + '" onclick="tapDay(' + d + ')">' +
                 '<div class="dnum">' + d + '</div>' +
