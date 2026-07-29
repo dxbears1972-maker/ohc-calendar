@@ -339,7 +339,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center">版 2026-07-29e</p>
+  <p class="note" style="text-align:center">版 2026-07-29f</p>
 
 </main>
 
@@ -512,16 +512,25 @@ function lookupDistance() {
     if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
 
+    /* ------------------------------------------------------------------
+       取ってくるのは**片道**の距離です。
+       入れた車だけ、プルダウンも「片道」にします
+       （計算のときに自動で2倍されて、往復になります）。
+       すでに距離が入っている車には、いっさい触りません。
+       ------------------------------------------------------------------ */
     var filled = 0;
-    document.querySelectorAll("#cars .car-km").forEach(function (el) {
-      if (el.value === "") { el.value = data.km; filled++; }
-    });
-    document.querySelectorAll("#cars .car-kmtype").forEach(function (el) {
-      if (el.value !== "one") el.value = "round";
+    document.querySelectorAll("#cars .car-card").forEach(function (c) {
+      var km = c.querySelector(".car-km");
+      if (!km || km.value !== "") return;
+      km.value = data.km;
+      var tp = c.querySelector(".car-kmtype");
+      if (tp) tp.value = "one";
+      filled++;
     });
     saveForm();
     msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）。" +
-      (filled ? "空いていた " + filled + " 台に入れました。" : "すでに入っている欄はそのままにしています。") +
+      (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
+              : "すでに入っている欄はそのままにしています。") +
       "<br><b>実際に走った距離と違うときは、手で直してください。</b>";
   });
 }
