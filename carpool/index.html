@@ -344,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30e</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30f</p>
 
 </main>
 
@@ -547,30 +547,39 @@ function icNamesNow_() {
   var nowTo = document.getElementById("destPlace").value.replace(/^[\s\u3000]+|[\s\u3000]+$/g, "");
   var fresh = (lastTollFor && lastTollFor === nowTo);
   var a = fresh ? (lastTollIn || "") : "", b = fresh ? (lastTollOut || "") : "";
-  if (!a || !b) {
-    /* どれか1台でも料金表のルートを選んでいれば、その名前を借りる */
-    var nm = "";
-    var rows = etcRowsInOrder();
-    document.querySelectorAll("#cars .car-route").forEach(function (sel) {
-      if (nm || sel.value === "") return;
-      var r = rows[parseInt(sel.value, 10)];
-      if (!r) return;
-      var el = r.querySelector(".etc-name");
-      if (el) nm = (el.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
-    });
-    /* 「南関⇔杷木」「南関～杷木」「南関-杷木」を、入口と出口に分ける。
-       ※長音の「ー」では切らないこと（例「ハーブ」が割れてしまう） */
-    if (nm) {
-      var p = nm.split(/[⇔↔〜～~\-–—]/);
-      if (p.length >= 2) {
-        if (!a) a = p[0].replace(/^[\s　]+|[\s　]+$/g, "");
-        if (!b) b = p[1].replace(/^[\s　]+|[\s　]+$/g, "");
-      }
+
+  /* ------------------------------------------------------------------
+     料金表のルート名を探します。
+     ①どれか1台が選んでいるルート
+     ②選んでいなくても、行き先が同じ行があればそれ
+     ②を入れたのは、只隈さんが以前ちゃんと入れていた名前が、
+     「車がまだ選んでいない」というだけで使われなかったためです。（2026/7/30）
+     ------------------------------------------------------------------ */
+  var nm = "";
+  var rows = etcRowsInOrder();
+  document.querySelectorAll("#cars .car-route").forEach(function (sel) {
+    if (nm || sel.value === "") return;
+    var r = rows[parseInt(sel.value, 10)];
+    if (!r) return;
+    var el = r.querySelector(".etc-name");
+    if (el) nm = (el.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
+  });
+  if (!nm) {
+    var di = findRouteByDest(nowTo);
+    if (di >= 0 && rows[di]) {
+      var el2 = rows[di].querySelector(".etc-name");
+      if (el2) nm = (el2.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
     }
   }
+
   /* 入口と出口が同じ名前になったら読み違いです。確かなほう（出口）だけ残します。 */
   if (a && a === b) a = "";
-  return { a: a, b: b };
+
+  /* ★ルート名は、そのままサーバーに渡します。
+     「杷木⇔南関」の⇔は区間を表すだけで、どちらが入口かは分かりません。
+     Googleから確かに分かっているほうと照らして、
+     残ったほうを当てはめる——それはサーバー側でやります。 */
+  return { a: a, b: b, routeName: nm };
 }
 
 function saveRouteMap() {
@@ -589,7 +598,8 @@ function saveRouteMap() {
               (document.getElementById("hikeName").value || "山行");
   var icNow = icNamesNow_();
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
-            icIn: icNow.a, icOut: icNow.b }, function (err, data) {
+            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName },
+          function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
@@ -801,7 +811,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30e（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30f（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
