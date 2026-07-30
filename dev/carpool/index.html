@@ -363,7 +363,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30f（開発版・分離テスト01）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-07-30f（開発版）</p>
 
 </main>
 
@@ -830,7 +830,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30f（開発版・分離テスト01）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-07-30f（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
