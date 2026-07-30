@@ -1,0 +1,3722 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2e6b34">
+<script>
+/* iPhone(iOS)では manifest があると「ホーム画面に追加」時に
+   start_url が使われ、URLの ?key=○○ が消えてしまう。
+   HTMLには manifest を書かず、iPhone以外のときだけJSで追加する。
+   （iPhoneは manifest 無し＝開いているURLのまま登録される。
+   　Androidは従来どおり manifest あり） */
+(function(){
+  try {
+    var ua = navigator.userAgent || '';
+    var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+      (/Macintosh/.test(ua) && 'ontouchend' in document);
+    if (isIOS) return;
+    var l = document.createElement('link');
+    l.rel = 'manifest';
+    l.href = 'manifest.json';
+    var head = document.head || document.getElementsByTagName('head')[0];
+    head.appendChild(l);
+  } catch(e){}
+})();
+</script>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="OHC予定">
+<title>OHC カレンダー</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 18px;
+    background: #eef3ee;
+    color: #222;
+    line-height: 1.6;
+    padding-bottom: 30px;
+  }
+  header {
+    background: #2e6b34;
+    color: #fff;
+    padding: 6px 12px;
+  }
+  header table { width: 100%; border-collapse: collapse; }
+  header h1 { font-size: 20px; text-align: left; }
+  header .hdrbtn {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: 8px;
+    padding: 5px 9px;
+    margin-right: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  header .hdrbtn svg { display: block; }
+  header a.hdrbtn { text-decoration: none; }
+  header #appTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header #whoami { font-size: 15px; font-weight: bold; text-align: right; white-space: nowrap; }
+  main { max-width: 640px; margin: 0 auto; padding: 0 10px 12px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 10px;
+    margin-top: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card h2 {
+    font-size: 20px;
+    color: #2e6b34;
+    border-left: 6px solid #2e6b34;
+    padding-left: 10px;
+    margin-bottom: 10px;
+  }
+  label { font-size: 16px; font-weight: bold; display: block; margin-top: 10px; }
+  input[type=text], select {
+    width: 100%;
+    font-size: 20px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+  }
+  textarea {
+    width: 100%;
+    font-size: 15px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #2e6b34; outline: none; }
+
+  /* 状態表示 */
+  #status {
+    text-align: center;
+    font-size: 14px;
+    padding: 2px;
+    color: #555;
+    min-height: 22px;
+  }
+  #status.err { color: #b00020; font-weight: bold; }
+
+  /* 月ナビ */
+  .monthnav { width: 100%; border-collapse: collapse; }
+  .monthnav td { text-align: center; vertical-align: middle; }
+  .monthnav .mv {
+    width: 70px; height: 44px;
+    font-size: 22px;
+    border: 2px solid #2e6b34;
+    background: #fff;
+    color: #2e6b34;
+    border-radius: 8px;
+  }
+  .monthnav .ym { font-size: 22px; font-weight: bold; color: #2e6b34; }
+
+  /* カレンダー本体 */
+  table.cal { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  table.cal th {
+    font-size: 14px; padding: 4px 0;
+    background: #e3eee4; color: #444;
+    border: 1px solid #cdd8ce;
+  }
+  table.cal th.sun, table.cal td.sun .dnum { color: #c62828; }
+  table.cal th.sat, table.cal td.sat .dnum { color: #1565c0; }
+  table.cal td {
+    border: 1px solid #cdd8ce;
+    height: 56px;
+    vertical-align: top;
+    padding: 2px;
+    background: #fff;
+  }
+  table.cal td.out { background: #f2f2f2; }
+  table.cal td.today { background: #fff8d6; }
+  table.cal td .dnum { font-size: 15px; }
+  table.cal td .marks { font-size: 13px; color: #2e6b34; line-height: 1.2; word-break: break-all; }
+  table.cal td.hasev { background: #e8f4e9; }
+  table.cal td.hasev.today { background: #fff8d6; }
+  /* その日の予定がすべて中止のときは、緑を薄くして目立たせない */
+  table.cal td.hasev.allcancel { background: #f4f4f4; }
+  table.cal td .marks s { color: #999; }
+
+  /* 予定カード */
+  .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 10px; margin-top: 10px; background: #fff; }
+  .ev .evdate { font-size: 16px; font-weight: bold; color: #2e6b34; margin-right: 8px; }
+  .ev .evdate .sun { color: #c62828; }
+  .ev .evdate .sat { color: #1565c0; }
+  .ev .evtitle { font-size: 20px; font-weight: bold; }
+  .ev .evinfo { font-size: 15px; color: #444; margin-top: 2px; }
+  .ev .evowner { font-size: 14px; color: #888; }
+
+  /* 出欠ボタン */
+  .attbtns { margin-top: 8px; }
+  .attbtns button {
+    width: 32%;
+    font-size: 18px;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: 2px solid #aaa;
+    background: #fff;
+    margin-right: 1%;
+  }
+  .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
+  .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
+  .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
+  .proxybox { margin-top: 8px; padding: 6px 8px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
+  table.proxytbl { width: 100%; border-collapse: collapse; }
+  .proxytbl td { padding: 2px 0; vertical-align: middle; }
+  .proxytbl td.pname { font-size: 16px; font-weight: bold; }
+  .proxytbl td.pb { width: 52px; text-align: right; }
+  .pbtn {
+    width: 46px; height: 40px; font-size: 18px; font-weight: bold;
+    border-radius: 8px; border: 2px solid #aaa; background: #fff; color: #444;
+  }
+  .pbtn.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; }
+  .pbtn.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; }
+  .pbtn.on-no { background: #888; border-color: #888; color: #fff; }
+  .pnote, .pfoot { font-size: 14px; color: #555; }
+  .pfoot { text-align: right; margin-top: 4px; }
+  a.pset { color: #2e6b34; font-weight: bold; }
+  .psetlbl { font-size: 14px; font-weight: bold; color: #2e6b34; margin-bottom: 4px; }
+  label.pchk { display: inline-block; margin: 4px 12px 4px 0; font-size: 17px; }
+  label.pchk input { transform: scale(1.4); margin-right: 6px; }
+  .psavebtn {
+    width: 100%; font-size: 17px; font-weight: bold; padding: 10px 0; margin-top: 8px;
+    background: #2e6b34; color: #fff; border: none; border-radius: 8px;
+  }
+  .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
+  .attlist b.yes { color: #2e6b34; }
+  .attlist b.maybe { color: #b57e00; }
+  .attlist b.no { color: #666; }
+  .attlist a.attdel {
+    color: #b00020; font-size: 14px; font-weight: bold;
+    text-decoration: none; padding: 0 4px;
+  }
+  .refbtn {
+    width: 100%; font-size: 18px; font-weight: bold;
+    padding: 12px 0; margin-top: 4px;
+    background: #e8f4e9; color: #2e6b34;
+    border: 2px solid #2e6b34; border-radius: 8px;
+  }
+  .pickitem {
+    display: block; width: 100%; text-align: left;
+    font-size: 17px; padding: 10px; margin-top: 6px;
+    background: #fff; border: 2px solid #cfe0d0; border-radius: 8px;
+    word-break: break-all;
+  }
+  .filelinks { margin-top: 6px; }
+  pre.settle {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: inherit;
+    font-size: 15px;
+    background: #f5f8f5;
+    border: 2px solid #cfe0d0;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+  }
+  .filelinks a.filebtn {
+    display: inline-block;
+    font-size: 16px; font-weight: bold;
+    color: #2e6b34; background: #e8f4e9;
+    border: 2px solid #2e6b34; border-radius: 8px;
+    padding: 6px 14px; margin-right: 8px; margin-top: 4px;
+    text-decoration: none;
+  }
+  /* 山行グループLINEボタン（緑で区別） */
+  .filelinks a.linebtn {
+    color: #fff; background: #06C755; border-color: #06C755;
+  }
+  /* 予定の表題行（左＝日付・山名、右＝アイコンボタン） */
+  table.evhead { width: 100%; border-collapse: collapse; }
+  table.evhead td { vertical-align: top; }
+  table.evhead td.evicons { text-align: right; white-space: nowrap; width: 1%; }
+  td.evicons a { display: inline-block; margin-left: 10px; text-decoration: none; line-height: 1; }
+  /* 予定の下にならぶ操作。1つの言葉が途中で折り返さないようにする */
+  .evdel {
+    margin-top: 6px;
+    display: flex; flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 14px;
+  }
+  .evdel a {
+    font-size: 14px; color: #b00020;
+    white-space: nowrap;
+  }
+  .evdel a.lock { color: #2e6b34; font-weight: bold; }
+  /* 中止になった予定 */
+  .ev.cancelled .evtitle { text-decoration: line-through; color: #999; }
+  .ev.cancelled .evdate  { color: #999; }
+  .cancelbadge {
+    display: inline-block; background: #c0392b; color: #fff;
+    font-size: 14px; font-weight: bold; border-radius: 5px;
+    padding: 2px 9px; margin-right: 7px;
+  }
+  .cancelnote {
+    margin-top: 8px; background: #fdecea; border: 2px solid #e8b4ae;
+    border-radius: 8px; padding: 9px 11px;
+    font-size: 16px; color: #8a2b20; white-space: pre-wrap;
+  }
+  .lockedmsg {
+    margin-top: 10px;
+    background: #fff3e0;
+    border: 2px solid #e8a000;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #8a5a00;
+    text-align: center;
+  }
+
+  /* 追加ボタン・フォーム */
+  .bigbtn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 14px 0;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 12px;
+    margin-top: 16px;
+  }
+  .bigbtn.gray { background: #789a7c; }
+  a.bigbtn { text-align: center; text-decoration: none; box-sizing: border-box; }
+  .row3 { width: 100%; border-collapse: collapse; }
+  .row3 td { padding-right: 6px; }
+  .row3 td:last-child { padding-right: 0; }
+  .subbtn {
+    width: 100%; font-size: 20px; font-weight: bold;
+    padding: 12px 0; margin-top: 14px;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 10px;
+  }
+  .cancelbtn {
+    width: 100%; font-size: 16px;
+    padding: 8px 0; margin-top: 8px;
+    background: #fff; color: #666;
+    border: 2px solid #bbb; border-radius: 10px;
+  }
+  .note { font-size: 14px; color: #777; margin-top: 6px; }
+
+  /* お知らせ（クラブからの連絡。LINEのように流れない） */
+  .ntc {
+    background: #fff; border-radius: 10px; padding: 9px 11px;
+    margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.10);
+    border-left: 6px solid #c9d8c9;
+  }
+  .ntc.unread { border-left-color: #d2691e; background: #fffaf2; }
+  .ntc .nhead { font-size: 13px; color: #888; }
+  .ntc .nbody {
+    font-size: 17px; margin-top: 3px; white-space: pre-wrap; word-break: break-all;
+  }
+  .minibtn {
+    font-size: 14px; padding: 6px 10px; margin-top: 8px; margin-right: 6px;
+    background: #fff; color: #2e6b34;
+    border: 2px solid #9bbd9f; border-radius: 8px;
+  }
+  .seen {
+    font-size: 13px; color: #6a8a6a; margin-top: 6px; cursor: pointer;
+    display: inline-block; border-bottom: 1px dotted #9bbd9f;
+  }
+  .telbtn {
+    display: inline-block; text-decoration: none;
+    background: #fff; color: #1a5c3d;
+    border: 1px solid #9bbd9f; border-radius: 6px;
+    padding: 2px 8px; margin: 2px 3px 0 0; font-size: 14px;
+  }
+  .nagrow { margin-top: 5px; font-size: 15px; }
+  .nagrow b { display: inline-block; min-width: 4.5em; }
+  .notel { font-size: 12px; color: #aaa; margin-left: 4px; }
+  .unreadlist {
+    font-size: 14px; background: #f4f7f4; border-radius: 8px;
+    padding: 7px 9px; margin-top: 6px; line-height: 1.6;
+  }
+  .chkrow { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .chkrow input { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
+
+  /* 名前を選ぶ画面 */
+  .rowfilter { margin: 8px 0 4px; }
+  .rowfilter .rowbtn {
+    font-size: 16px; padding: 8px 10px; margin: 0 4px 6px 0;
+    border: 2px solid #7aa87e; background: #fff; color: #2e6b34;
+    border-radius: 8px; min-width: 58px;
+  }
+  .rowfilter .rowbtn.on { background: #2e6b34; color: #fff; border-color: #2e6b34; font-weight: bold; }
+  .namegrid { display: flex; flex-wrap: wrap; margin-top: 6px; }
+  .namegrid .namebtn {
+    width: 48%; margin: 0 4% 8px 0; min-height: 58px;
+    font-size: 21px; font-weight: bold;
+    border: 2px solid #cfe0d0; border-radius: 10px;
+    background: #fff; color: #222;
+  }
+  .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
+  .namegrid .namebtn:active { background: #e8f4e9; }
+  .namegrid .namebtn.mine { border-color: #2e6b34; background: #f2f8f2; }
+  .instep {
+    font-size: 17px; line-height: 1.8; margin-top: 10px;
+    background: #f4f8f4; border-radius: 8px; padding: 10px 12px 10px 46px;
+    position: relative;
+  }
+  .instep b:first-child {
+    position: absolute; left: 10px; top: 10px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #2e6b34; color: #fff; text-align: center; line-height: 28px;
+    font-size: 16px;
+  }
+  .cfgbtn {
+    font-size: 15px; color: #789a7c; background: transparent;
+    border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
+  }
+  /* 4けたの数字だけを入れる欄 */
+  input.pin {
+    width: 100%; font-size: 34px; font-weight: bold;
+    letter-spacing: 0.45em; text-align: center;
+    padding: 12px 0 12px 0.45em;
+    border: 3px solid #2e6b34; border-radius: 10px;
+    margin-top: 4px; background: #fff;
+    -moz-appearance: textfield;
+  }
+  input.pin::-webkit-outer-spin-button,
+  input.pin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pinbox { background: #f4f8f4; border-radius: 10px; padding: 14px; margin-top: 10px; }
+  .namegrid .namebtn .mtag { display: block; font-size: 11px; font-weight: normal; color: #2e6b34; }
+  #noev { text-align: center; color: #888; padding: 16px 0; }
+</style>
+</head>
+<body>
+<div style="position:sticky;top:0;z-index:99999;background:#b3261e;color:#fff;
+ font-weight:bold;text-align:center;padding:6px 10px;font-size:15px;line-height:1.5;">
+ 開発版です（OHCのみなさんが使うものではありません）<br>
+ <span style="font-weight:normal;font-size:13px;">OHC用は
+ <a href="https://dxbears1972-maker.github.io/ohc-calendar/" style="color:#fff;text-decoration:underline;">こちら</a></span>
+</div>
+<script>
+(function(){
+  if (!"") {
+    var d=document.createElement("div");
+    d.style.cssText="background:#fff3cd;color:#664d03;padding:10px;font-size:14px;"+
+      "border-bottom:2px solid #ffc107;text-align:center;font-weight:bold;";
+    d.textContent="開発用のGAS URLが未設定です。サーバーにはつながりません。"+
+      "（開発版を作る.py の DEV_GAS_URL に貼ってください）";
+    document.body.insertBefore(d, document.body.firstChild.nextSibling);
+  }
+})();
+</script>
+
+
+<!-- LINE内ブラウザで開いたときの案内（外部ブラウザへ誘導） -->
+<div id="lineWarn" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#eef3ee; padding:24px 18px; overflow:auto;">
+  <div style="max-width:420px; margin:6vh auto 0; background:#fff; border-radius:14px; padding:22px 18px; box-shadow:0 2px 10px rgba(0,0,0,.15); text-align:center;">
+    <div style="font-size:40px; margin-bottom:8px;">📅</div>
+    <div style="font-size:21px; font-weight:bold; color:#2e6b34; margin-bottom:12px;">
+      LINEの中では正しく動きません
+    </div>
+    <div id="lineWarnMsg" style="font-size:17px; line-height:1.7; color:#333; text-align:left; margin-bottom:18px;">
+      OHC カレンダーは、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。
+    </div>
+
+    <!-- Android用：ボタン1つで外部ブラウザへ -->
+    <div id="lineAndroid" style="display:none">
+      <button id="lineOpenBtn" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
+        ブラウザで開く
+      </button>
+      <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#f4f7f4; border-radius:8px; padding:12px;">
+        ボタンで開けないときは、画面のはしにある
+        <b>点が3つ縦に並んだ印</b>を押して<br>
+        <b>「ブラウザで開く」</b>を選んでください。
+      </div>
+    </div>
+
+    <!-- iPhone用：まずボタン。効かないときの逃げ道を下に用意する -->
+    <div id="lineIos" style="display:none">
+      <button id="lineOpenBtnIos" style="width:100%; font-size:21px; font-weight:bold; color:#fff; background:#2e6b34; border:none; border-radius:10px; padding:16px; margin-bottom:16px;">
+        ブラウザで開く
+      </button>
+
+      <div style="font-size:17px; line-height:1.9; color:#333; text-align:left; background:#f4f7f4; border-radius:10px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:bold; color:#2e6b34; margin-bottom:8px; font-size:19px;">
+          押しても何も起きないときは
+        </div>
+        画面の<b>いちばん下、右のはし</b>に
+        <b>点が3つ縦に並んだ印</b>があります。<br>
+        それを押すと一覧が出るので、<br>
+        <b>「ブラウザで開く」</b>を押してください。
+      </div>
+
+      <div style="font-size:15px; line-height:1.7; color:#555; text-align:left; background:#fff3e0; border:2px solid #e8a000; border-radius:10px; padding:12px;">
+        <b>それでも分からないときは</b><br>
+        同じ一覧の中の<b>「リンクをコピー」</b>を押し、<br>
+        Safariを開いてアドレス欄に貼り付けてください。<br>
+        下のボタンからでもコピーできます。
+        <input type="text" id="lineUrlBox" readonly
+               style="width:100%; font-size:14px; padding:8px; margin-top:8px;
+                      border:2px solid #aaa; border-radius:6px; background:#fff;">
+        <button id="lineCopyBtn"
+                style="width:100%; font-size:17px; font-weight:bold; color:#fff;
+                       background:#e8a000; border:none; border-radius:8px;
+                       padding:12px; margin-top:8px;">
+          URLをコピーする
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+/* LINE内ブラウザ判定：UAに Line/ が含まれる場合だけ案内を出す */
+(function(){
+  var ua = navigator.userAgent || '';
+  if (ua.indexOf('Line') === -1) return;
+
+  var warn = document.getElementById('lineWarn');
+  warn.style.display = 'block';
+
+  var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+              (/Macintosh/.test(ua) && 'ontouchend' in document);
+
+  /* LINEの外のブラウザで開き直す。Androidは確実、iPhoneは端末により効かないことがある */
+  function openOutside(){
+    var url = location.href;
+    if (url.indexOf('openExternalBrowser=1') === -1) {
+      url += (url.indexOf('?') === -1 ? '?' : '&') + 'openExternalBrowser=1';
+    }
+    location.href = url;
+  }
+
+  if (isIOS) {
+    /* iPhoneでも、まずボタンを出す（効く端末が多い）。
+       効かなかった人のために、下に操作の場所とURLのコピーを用意しておく。 */
+    document.getElementById('lineIos').style.display = 'block';
+    document.getElementById('lineOpenBtnIos').onclick = openOutside;
+    var box = document.getElementById('lineUrlBox');
+    box.value = location.href;
+    box.onclick = function(){ this.select(); };
+    document.getElementById('lineCopyBtn').onclick = function(){
+      var ok = false;
+      try {
+        box.select();
+        box.setSelectionRange(0, 99999);
+        ok = document.execCommand('copy');
+      } catch(e){}
+      if (!ok && navigator.clipboard) {
+        try { navigator.clipboard.writeText(location.href); ok = true; } catch(e){}
+      }
+      this.innerHTML = ok ? 'コピーしました' : '枠を長く押してコピーしてください';
+    };
+  } else {
+    document.getElementById('lineAndroid').style.display = 'block';
+    document.getElementById('lineOpenBtn').onclick = openOutside;
+  }
+})();
+</script>
+
+<header>
+  <table><tr>
+    <td><h1 id="appTitle">OHC カレンダー</h1></td>
+    <!-- クラブのLINEグループを開く（「設定」シートにURLがあるときだけ出ます） -->
+    <td id="lineCell" style="width:1%; white-space:nowrap; display:none">
+      <a id="lineGo" class="hdrbtn" href="#" target="_blank">
+        <svg viewBox="0 0 48 48" width="19" height="19" aria-hidden="true">
+          <ellipse cx="24" cy="21" rx="16" ry="12" fill="#fff"/>
+          <path fill="#fff" d="M15 31l-2.5 7L24 33z"/>
+          <text x="24" y="25" font-size="11" font-weight="bold" fill="#2e6b34"
+                text-anchor="middle" font-family="Arial,sans-serif">LINE</text>
+        </svg><span>グループ</span>
+      </a>
+    </td>
+
+    <!-- お知らせを書く（幹事・リーダー等にだけ出ます） -->
+    <td id="noticeCell" style="width:1%; white-space:nowrap; display:none">
+      <button type="button" id="showNotice" class="hdrbtn" title="お知らせを書く">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 11v2a1 1 0 0 0 1 1h3l5 4V6L7 10H4a1 1 0 0 0-1 1z"/>
+          <path d="M16 9a4 4 0 0 1 0 6"/>
+          <path d="M19 6.5a8 8 0 0 1 0 11"/>
+        </svg><span>お知らせ</span>
+      </button>
+    </td>
+    <td id="whoami"></td>
+  </tr></table>
+</header>
+
+<div id="status">読み込み中…</div>
+
+<main>
+  <!-- ホーム画面に置くご案内（端末に合わせて中身が変わります） -->
+  <div class="card" id="installCard" style="display:none">
+    <h2 id="installTitle">つぎから、すぐ開けるようにできます</h2>
+    <div id="installBody"></div>
+  </div>
+
+  <!-- 名前が分からないときの案内 -->
+  <div class="card" id="nameCard" style="display:none">
+    <h2>あなたのお名前を選んでください</h2>
+    <p class="note" id="nameCardNote">一度選ぶと、この端末はずっとその方のものになります。予定を見るだけなら選ばなくてもできます。</p>
+    <div id="namePickBody"></div>
+  </div>
+
+  <!-- 登録・お知らせのあとに出る「LINEで知らせる」 -->
+  <div class="card" id="shareCard" style="display:none">
+    <h2>LINEのグループに知らせますか？</h2>
+    <p class="note">押すとLINEが開きます。<b>送り先のグループを選んで</b>送信してください。<br>
+      いくら送っても費用はかかりません。あとから知らせることもできます。</p>
+    <div id="sharePrev" class="unreadlist"></div>
+    <a class="bigbtn" id="shareGo" href="#">LINEで知らせる</a>
+    <button class="minibtn" type="button" id="shareCopy">文だけコピーする</button>
+    <button class="minibtn" type="button" id="shareClose">いまはしない</button>
+  </div>
+
+  <!-- お知らせ（クラブからの連絡） -->
+  <div id="noticeWrap"></div>
+  <div class="card" id="noticeCard" style="display:none">
+    <h2>お知らせを書く</h2>
+    <p class="note">会員のアプリのいちばん上に出ます。LINEのように下へ流れていきません。<br>
+      開いた方は自動で記録されるので、まだ見ていない方が分かります。</p>
+    <label>お知らせの内容</label>
+    <textarea id="noticeText" rows="5" placeholder="例）8月2日の例会は、会場が公民館2階に変わりました。お間違えのないようお願いします。"></textarea>
+    <label>いつまで出しておくか（空欄なら、消すまでずっと）</label>
+    <input type="date" id="noticeUntil">
+    <p class="chkrow">
+      <label><input type="checkbox" id="noticeMail" checked>
+        メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
+    </p>
+    <button class="subbtn" id="noticeSave" type="button">この内容で出す</button>
+    <button class="cancelbtn" id="noticeCancel" type="button">やめる</button>
+  </div>
+
+  <!-- カレンダー -->
+  <div class="card">
+    <table class="monthnav"><tr>
+      <td><button class="mv" id="prevM" type="button">◀</button></td>
+      <td class="ym" id="ymLabel"></td>
+      <td><button class="mv" id="nextM" type="button">▶</button></td>
+    </tr></table>
+    <table class="cal" id="calTable"></table>
+    <p class="note">緑色の日は予定あり。日付を押すとその予定に移動します。</p>
+  </div>
+
+  <!-- 予定追加 -->
+  <button class="bigbtn" id="showAdd" type="button">＋ 予定を追加する</button>
+  <div class="card" id="addCard" style="display:none">
+    <h2 id="addTitleH">予定を追加</h2>
+    <label>日付</label>
+    <table class="row3"><tr>
+      <td style="width:38%"><select id="addY"></select></td>
+      <td style="width:31%"><select id="addM"></select></td>
+      <td style="width:31%"><select id="addD"></select></td>
+    </tr></table>
+    <div id="repRow">
+      <label>くり返し</label>
+      <select id="addRep">
+        <option value="none">なし（この日だけ）</option>
+        <option value="week">毎週（同じ曜日にくり返す）</option>
+      </select>
+      <div id="repLenWrap" style="display:none">
+        <label>いつの分まで登録するか</label>
+        <select id="addRepLen">
+          <option value="1">1ヶ月分</option>
+          <option value="3" selected>3ヶ月分</option>
+          <option value="6">6ヶ月分</option>
+        </select>
+      </div>
+    </div>
+    <label>山名・タイトル（必須）</label>
+    <input type="text" id="addTitle" placeholder="例）高尾山、例会 など">
+    <label>時間（集合・開始時刻）</label>
+    <table class="row3"><tr>
+      <td style="width:50%"><select id="addHour"></select></td>
+      <td style="width:50%"><select id="addMin"></select></td>
+    </tr></table>
+    <label>集合場所</label>
+    <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
+    <label>係・担当（いれば）</label>
+    <select id="staffType">
+      <option value="山行">山行の係</option>
+      <option value="定例会">定例会の係</option>
+      <option value="懇親会">懇親会の係</option>
+    </select>
+    <div id="staffRows"></div>
+    <label>メモ</label>
+    <input type="text" id="addMemo" placeholder="例）雨天中止">
+    <label>計画表（あれば）</label>
+    <table class="row3"><tr>
+      <td><input type="text" id="addPlan" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td style="width:100px"><button type="button" class="refbtn" id="refPlan">参照</button></td>
+    </tr></table>
+    <label>報告書（あれば）</label>
+    <table class="row3"><tr>
+      <td><input type="text" id="addReport" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td style="width:100px"><button type="button" class="refbtn" id="refReport">参照</button></td>
+    </tr></table>
+    <p class="note">「参照」でGoogleドライブから選べます（閲覧の共有設定も自動）。最初は「山行」フォルダが開き、上のフォルダや別のフォルダにも移動できます。別の場所のファイルはURLの貼り付けでもOKです。</p>
+    <label>山行グループLINE（あれば）</label>
+    <input type="text" id="addLineGroup" placeholder="LINEの招待リンク（https://line.me/... ）を貼る">
+    <p class="note">LINEでその山行グループを開く→メンバー→招待→「リンクをコピー・共有」で出るURLを貼ってください。参加者はここから直接グループに入れます。</p>
+
+    <!-- ファイル選択 -->
+    <div id="pickerCard" style="display:none; border:2px solid #2e6b34; border-radius:10px; padding:10px; margin-top:10px; background:#f7fbf7;">
+      <p class="note" id="pickerPath"></p>
+      <div id="pickerList"></div>
+      <button class="cancelbtn" id="pickerClose" type="button">選ぶのをやめる</button>
+    </div>
+    <p class="chkrow" id="addMailRow">
+      <label><input type="checkbox" id="addMail" checked>
+        メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
+    </p>
+    <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
+    <button class="cancelbtn" id="addCancel" type="button">やめる</button>
+  </div>
+
+  <!-- まとめて登録（管理者専用） -->
+  <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
+  <div class="card" id="importCard" style="display:none">
+    <h2>まとめて登録（管理者用）</h2>
+    <p class="note">Excelの表を<b>見出し行ごと</b>範囲コピーして貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
+    <div id="dropZone" style="border:3px dashed #7aa87e; border-radius:10px; background:#f4f9f4; text-align:center; padding:16px 10px; margin-top:8px; color:#2e6b34; font-size:16px;">
+      📂 ここにExcel（.xlsx）やCSVのファイルをドロップ<br>
+      <span style="font-size:14px; color:#666">または</span><br>
+      <button type="button" class="refbtn" id="filePickBtn" style="width:auto; padding:8px 24px; margin-top:6px">参照（ファイルを選ぶ）</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.tsv,.txt" style="display:none">
+    </div>
+    <p class="note">ファイルを読み込むと下の欄に表が入ります。内容を確認して「まとめて登録する」を押してください。</p>
+    <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
+    <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
+    <button class="refbtn" id="exportFileBtn" type="button" style="margin-top:10px">⬇ 今の予定をExcelファイルで保存</button>
+    <button class="refbtn" id="exportBtn" type="button" style="margin-top:8px">今の予定をコピーする（Excel貼り付け用）</button>
+    <p class="note">「保存」は予定の一覧をExcelファイル（.xlsx）にして保存します。Excelで手直しして、上の枠にドロップすれば、日付やタイトルの食い違いなく更新できます（出欠はそのまま残ります）。</p>
+    <button class="cancelbtn" id="importCancel" type="button">やめる</button>
+  </div>
+
+  <!-- Googleカレンダー連携の設定 -->
+  <div class="card" style="padding:10px 12px">
+    <label style="font-size:16px; display:flex; align-items:center; margin:0;">
+      <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
+      参加した予定をGoogleカレンダーにも追加する
+    </label>
+    <p class="note" style="margin-top:6px">チェックを入れると、「参加」を押したときにGoogleカレンダーの追加画面が開きます。外すと開きません。（この設定はこの端末に記憶されます）</p>
+  </div>
+
+  <!-- 予定一覧 -->
+  <div class="card">
+    <h2 id="listTitle">今月の予定</h2>
+    <div id="evList"></div>
+  </div>
+
+  <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
+
+  <!-- 設定（めったに使わないものは、ここにまとめる） -->
+  <p style="text-align:center; margin-top:14px">
+    <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
+  </p>
+  <div class="card" id="cfgCard" style="display:none">
+    <h2>設定</h2>
+    <p class="note" id="cfgWho"></p>
+
+    <!-- 幹事が決まっていないときだけ、管理者に出す -->
+    <div id="needEditor" style="display:none; background:#fff3e0; border:2px solid #e8a000;
+         border-radius:10px; padding:12px; margin-bottom:14px">
+      <p style="font-size:17px; font-weight:bold; color:#8a5a00; margin-bottom:6px">
+        連絡窓口が決まっていません</p>
+      <p class="note" style="color:#8a5a00">
+        会員の方が困ったときに、誰に聞けばよいかを案内できません。<br>
+        名簿シートの <b>「連絡窓口」</b> の欄に <b>○</b> を入れて、担当の方を決めてください。<br>
+        <b>役割（権限）とは別です。</b>予定を削除できる権限を渡さなくても、窓口だけお願いできます。</p>
+    </div>
+
+    <!-- 会員に電話をかける（幹事・管理者だけに出す） -->
+    <div id="telBook" style="display:none">
+      <h2 style="margin-top:4px">会員に電話をかける</h2>
+      <p class="note">名字を押すと、そのまま電話がかかります。<br>
+        番号は名簿シートの「電話」の欄から取っています。<b>幹事・管理者にしか出ません。</b></p>
+      <div id="telBookList" class="unreadlist"></div>
+    </div>
+
+    <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
+      パソコンなど、べつの端末でも使う
+    </button>
+    <p class="note" id="setCodeNote">いま使っているこの端末のほかに、パソコンや新しいスマホでも
+      同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>
+      1台だけで使う方は、押す必要はありません。</p>
+
+    <!-- 4けたの数字を決める欄 -->
+    <div class="pinbox" id="codeForm" style="display:none">
+      <p class="note" style="margin-top:0">4けたの数字を決めてください。<br>
+        お誕生日の月日がおすすめです（4月12日なら 0412）。</p>
+      <label>4けたの数字</label>
+      <input type="tel" class="pin" id="code1" inputmode="numeric" pattern="[0-9]*"
+             maxlength="4" autocomplete="off" placeholder="････">
+      <label style="margin-top:12px">確認のため、もう一度</label>
+      <input type="tel" class="pin" id="code2" inputmode="numeric" pattern="[0-9]*"
+             maxlength="4" autocomplete="off" placeholder="････">
+      <button type="button" class="subbtn" onclick="submitSetCode()">この番号で登録する</button>
+      <button type="button" class="cancelbtn" onclick="closeCodeForm()">やめる</button>
+    </div>
+
+    <button type="button" class="cancelbtn" id="reInstallBtn" onclick="showInstallAgain()">
+      ホーム画面に置く方法をもう一度見る
+    </button>
+
+    <p style="margin-top:18px; text-align:center">
+      <a href="javascript:void(0)" onclick="changeName()" style="font-size:14px; color:#888">
+        ちがう方の名前になっている場合はこちら
+      </a>
+    </p>
+
+    <button type="button" class="cancelbtn" onclick="closeCfg()">とじる</button>
+  </div>
+
+  <p class="note" style="text-align:center" id="verLine"></p>
+</main>
+
+<script>
+/* ==================================================================
+   ★★★ クラブごとの設定は、この CLUB の中だけを直してください ★★★
+   ここから下（「ここから下は共通」の行より下）は、
+   どのクラブでも 1 文字も変えません。
+   ------------------------------------------------------------------
+   新しいクラブに渡すときの手順
+     1. id を決める（半角英数字の小文字・3〜10文字。あとから変えない）
+     2. appTitle / homeTitle / contactLabel をそのクラブの言い方に変える
+     3. apiUrl にそのクラブ用の GAS のURL（…/exec）を貼る
+     4. members に名簿（名字だけ・50音順）を入れる
+     5. keys に個人コードを入れる（当面は従来どおり）
+   ================================================================== */
+var CLUB = {
+
+  /* クラブを見分けるID（半角小文字英数字） */
+  id: 'ohc',
+
+  /* 画面の上と、ブラウザのタブに出る名前 */
+  appTitle: 'OHC カレンダー',
+
+  /* ホーム画面のアイコンの下に出る名前（短く。全角6文字くらいまで） */
+  homeTitle: 'OHC予定',
+
+  /* LINEで送る文章の先頭に付く見出し（【　】の中身） */
+  shareTag: 'OHC予定',
+
+  /* 画面の色（ヘッダーの緑） */
+  themeColor: '#2e6b34',
+
+  /* 「分からないときは○○に連絡してください」の○○ */
+  contactLabel: '只隈さん',
+
+  /* GAS のウェブアプリURL（https://script.google.com/macros/s/…/exec） */
+  apiUrl: '★開発用GAS未設定★',
+
+  /* マイカー精算アプリのURL */
+  carpoolUrl: 'https://dxbears1972-maker.github.io/ohc-calendar/dev/carpool/',
+
+  /* 管理者の名前（どの予定でも削除でき、出欠の回答も取り消せる） */
+  adminName: '只隈',
+
+  /* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
+     杉野さん・大原さんは、自分が登録した予定／自分がリーダーの予定だけ編集できる
+     扱いに変更したため、ここには入れていません（2026-07-20〜）。
+     例： editors: ['杉野', '大原'],
+     ※GASコード側の EDITORS にも同じ名前を入れること */
+  editors: [],
+
+  /* メンバー一覧（増減したらここを直してGitHubに上げ直す）
+     ※50音順に並べておくこと。出欠の名前がこの順で表示される
+     ※将来はスプレッドシート管理に移す予定 */
+  members: ['荒木', '植松', '大原', '岡本', '奥村', '上口', '川村', '小柳', '後藤', '杉野', '竹田', '只隈', '永野', '蓮尾', '福永', '松田', '宮本', '山本', '若杉'],
+
+  /* 個人コード → 名前（URLの ?key=○○ で本人確認する） */
+  keys: {
+    'v50cbx': '荒木',
+    'nyzeaj': '植松',
+    'u7lr9x': '大原',
+    'tt89j5': '岡本',
+    'g751dl': '奥村',
+    'il9s3s': '上口',
+    'ndqvpe': '川村',
+    'xm6jfn': '小柳',
+    'al3b77': '後藤',
+    'twhy2g': '杉野',
+    'gexa0n': '竹田',
+    'tw8vg5': '只隈',
+    'cxtntt': '永野',
+    'uza40b': '蓮尾',
+    'xhf3aj': '福永',
+    'r7ceqh': '松田',
+    'xlt64o': '宮本',
+    'qn8ji3': '山本',
+    'dzgqoa': '若杉'
+  }
+};
+
+/* ============ ここから下は共通。クラブごとに変えないこと ============ */
+
+/* ------------------------------------------------------------------
+   このアプリ（index.html）の版。
+   直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
+   付け方：日付 ＋ その日の何回目か（a, b, c …）
+   ------------------------------------------------------------------ */
+var APP_VER = '2026-07-29o';
+
+/* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
+function applyClubConfig(){
+  try {
+    document.title = CLUB.appTitle;
+    var v0 = $('verLine');
+    if (v0) v0.innerHTML = '版 ' + esc(APP_VER);
+    var h = $('appTitle');
+    if (h) h.innerHTML = esc(CLUB.appTitle);
+    var lw = $('lineWarnMsg');
+    if (lw) lw.innerHTML = esc(CLUB.appTitle) +
+      'は、ChromeやSafariなどの<b>ブラウザ</b>で開くと使えます。';
+    var nc = $('nameCardNote');
+    if (nc) nc.innerHTML = '一度選ぶと、この端末はずっとその方のものになります。' +
+      '予定を見るだけなら選ばなくてもできます。';
+    var tc = document.querySelector('meta[name="theme-color"]');
+    if (tc) tc.setAttribute('content', CLUB.themeColor);
+    var at = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (at) at.setAttribute('content', CLUB.homeTitle);
+  } catch(e){}
+}
+
+/* ------------------------------------------------------------------
+   端末に覚えさせておく項目の名前。
+   クラブごとに分けておかないと、1台の端末で2つのクラブを開いたときに
+   名前や予定が混ざってしまうため、うしろにクラブIDを付ける。
+   ------------------------------------------------------------------ */
+var LSK = {
+  name:      'name_'      + CLUB.id,   /* 自分の名前 */
+  cache:     'cache_'     + CLUB.id,   /* 予定の控え（圏外でも見えるように） */
+  proxyList: 'proxyList_' + CLUB.id,   /* 代理回答でよく選ぶ人 */
+  gcalPref:  'gcalPref_'  + CLUB.id,   /* Googleカレンダーに追加するか */
+  gotoId:    'gotoId_'    + CLUB.id,   /* 精算アプリから戻ってきたときの行き先 */
+  pickDir:   'pickDir_'   + CLUB.id,   /* ファイル参照で最後に開いたフォルダ */
+  device:    'device_'    + CLUB.id,   /* この端末を見分けるための記号 */
+  claimed:   'claimed_'   + CLUB.id,   /* この端末で登録済みの名前 */
+  mid:       'mid_'       + CLUB.id,   /* この端末の持ち主の会員ID（名字が変わっても追える） */
+  instHide:  'instHide_'  + CLUB.id    /* ホーム画面の案内を閉じたか */
+};
+
+/* この端末を見分けるための記号を作る（初回だけ）。
+   個人を特定するものではなく、「同じスマホかどうか」が分かればよい。 */
+/* この端末が何かを、日本語で返す（名簿に読める形で残すため） */
+function deviceName(){
+  var ua = navigator.userAgent || '';
+  if (/iPhone|iPod/.test(ua)) return 'iPhone';
+  if (/iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)) return 'iPad';
+  if (/Android/.test(ua)) return 'Android';
+  return 'パソコン';
+}
+
+function deviceId(){
+  var d = lsGet(LSK.device);
+  if (!d){
+    d = 'd' + new Date().getTime().toString(36) +
+        Math.random().toString(36).substring(2, 8);
+    lsSet(LSK.device, d);
+  }
+  return d;
+}
+
+/* 旧バージョン（ohcName など共通の名前だったころ）の内容を引き継ぐ。
+   起動時に1回だけ実行する。
+   ※旧の項目はわざと消していません。もし前の版に戻しても、
+   　これまでどおり動くようにしておくためです。 */
+function migrateOldKeys(){
+  var pairs = [
+    ['ohcName',      LSK.name],
+    ['ohcCache',     LSK.cache],
+    ['ohcProxyList', LSK.proxyList],
+    ['ohcGcalPref',  LSK.gcalPref],
+    ['ohcGotoId',    LSK.gotoId],
+    ['ohcPickDir',   LSK.pickDir]
+  ];
+  for (var i = 0; i < pairs.length; i++){
+    var oldKey = pairs[i][0], newKey = pairs[i][1];
+    var v = lsGet(oldKey);
+    if (v && !lsGet(newKey)) lsSet(newKey, v);
+  }
+}
+
+var API_URL = CLUB.apiUrl;
+
+/* ------------------------------------------------------------------
+   名簿・管理者・幹事は、スプレッドシートの「名簿」シートで管理します。
+   起動時にサーバーから受け取って、下の3つを入れ替えます。
+
+   下の値は「まだ受け取れていないとき」の予備です。
+   会員が増減しても、ここを直す必要はありません。
+   幹事さんが名簿シートに1行足すだけで反映されます。
+   ------------------------------------------------------------------ */
+var ADMINS     = [CLUB.adminName];
+var ADMIN_NAME = CLUB.adminName;
+var EDITORS    = CLUB.editors;
+var MEMBERS    = CLUB.members;
+var KEYS       = CLUB.keys;
+
+/* 名字 → ひらがなの読み（名前選択の「あ行・か行…」に使う）
+   サーバーから名簿を受け取ったときに入れ替わります */
+var MEMBER_YOMI = {};
+
+/* ------------------------------------------------------------------
+   名字 → 会員ID の対応表。
+   出欠は「名前」ではなく「会員ID」で記録しています。
+   ・同じ名字の方が、あとから増えても混ざりません
+   ・名簿の名字を直しても、過去の記録はその方についてきます
+   ------------------------------------------------------------------ */
+var MEMBER_ID = {};
+var ID_NAME   = {};
+/* 名字 → 電話番号。サーバーは幹事・管理者にしか送ってきません */
+var MEMBER_TEL = {};
+/* 電話をかけるリンク（数字だけにする。かけられないときは空） */
+function telLink(name){
+  var t = String(MEMBER_TEL[name] || '').replace(/[^0-9+]/g, '');
+  return t.length >= 10 ? t : '';
+}
+function idOf(name){ return MEMBER_ID[name] || ''; }
+/* その予定を登録したのは、この人か？
+   会員IDが分かるときはIDで比べる（同じ名字の人がいても取り違えないため） */
+function isOwnerOf(ev, name){
+  if (!ev || !ev.owner) return false;
+  if (ev.ownerId && idOf(name)) return ev.ownerId === idOf(name);
+  return name === ev.owner;
+}
+function nameOfId(id){ return ID_NAME[id] || ''; }
+
+/* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
+var TAKEN = [];
+
+/* 会員向けの案内に出す連絡窓口（名簿の「連絡窓口」に印がある方） */
+var CONTACTS = [];
+
+function isAdmin_(name){
+  return !!name && ADMINS.indexOf(name) >= 0;
+}
+
+function isStaff(name){
+  return !!name && (ADMINS.indexOf(name) >= 0 || EDITORS.indexOf(name) >= 0);
+}
+
+/* 「分からないときは○○にご連絡ください」の○○。
+   ①名簿の「連絡窓口」に印がある方 → ②幹事 → ③管理者 の順に探す。
+   （設定の CLUB.contactLabel は、名簿がまだ読めていないときの予備） */
+function contactName(){
+  var list = CONTACTS.length ? CONTACTS
+           : (EDITORS.length ? EDITORS : (ADMINS.length ? ADMINS : []));
+  if (!list.length) return CLUB.contactLabel;
+  var s = [];
+  for (var i = 0; i < list.length && i < 3; i++) s.push(list[i] + 'さん');
+  return s.join('・');
+}
+
+/* 出欠の名前をメンバー一覧の順（＝50音順）に並べる */
+function byMember_(a, b){
+  var ia = MEMBERS.indexOf(a), ib = MEMBERS.indexOf(b);
+  if (ia < 0) ia = 999;
+  if (ib < 0) ib = 999;
+  if (ia !== ib) return ia - ib;
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
+
+/* マイカー精算アプリのURL（設定は CLUB のほうを直すこと） */
+var CARPOOL_URL = CLUB.carpoolUrl;
+
+/* 表題行の右端に置くアイコン（どの端末でも同じに出るようSVGで埋め込む・全て26px）
+   ・CAR_ICON   ：マイカー精算（緑の車）
+   ・SETTLE_ICON：精算結果（¥の丸。精算結果がある予定だけ車の隣に出る）
+   ・GCAL_ICON  ：Googleカレンダーに追加（青いカレンダーに「31」） */
+var CAR_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  '<path fill="#2e6b34" d="M10 22l4-9c.6-1.4 2-2.3 3.5-2.3h13c1.5 0 2.9.9 3.5 2.3l4 9v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-1H16v1a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V22z"/>' +
+  '<path fill="#fff" d="M15 20l2.4-6h13.2l2.4 6z"/>' +
+  '<circle cx="16.5" cy="26.5" r="2.2" fill="#fff"/>' +
+  '<circle cx="31.5" cy="26.5" r="2.2" fill="#fff"/>' +
+  '</svg>';
+var SETTLE_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  '<circle cx="24" cy="24" r="19" fill="#e8a000"/>' +
+  '<text x="24" y="31" font-size="22" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Arial,sans-serif">&#165;</text>' +
+  '</svg>';
+var GCAL_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  '<rect x="5" y="9" width="38" height="34" rx="5" fill="#1a73e8"/>' +
+  '<rect x="9" y="17" width="30" height="22" rx="2" fill="#fff"/>' +
+  '<rect x="13" y="4" width="5" height="9" rx="2.5" fill="#1a73e8"/>' +
+  '<rect x="30" y="4" width="5" height="9" rx="2.5" fill="#1a73e8"/>' +
+  '<text x="24" y="34" font-size="16" font-weight="bold" fill="#1a73e8" text-anchor="middle" font-family="Arial,sans-serif">31</text>' +
+  '</svg>';
+var LINE_ICON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  '<rect x="3" y="3" width="42" height="42" rx="10" fill="#06C755"/>' +
+  '<ellipse cx="24" cy="22" rx="15" ry="11" fill="#fff"/>' +
+  '<path fill="#fff" d="M16 31l-2.5 6.5L23 33z"/>' +
+  '<text x="24" y="26" font-size="10" font-weight="bold" fill="#06C755" text-anchor="middle" font-family="Arial,sans-serif">LINE</text>' +
+  '</svg>';
+
+/* LINEで送る用の文章を作って、共有画面を開くURLを返す */
+function lineShareUrl(ev){
+  var p = ev.date.split('-');
+  var dow = WEEK[new Date(parseInt(p[0],10), parseInt(p[1],10)-1, parseInt(p[2],10)).getDay()];
+  var t = '【' + CLUB.shareTag + '】' + parseInt(p[1],10) + '月' + parseInt(p[2],10) + '日(' + dow + ') ' + (ev.title || '') + '\n';
+  if (ev.time)  t += '時間：' + ev.time + '\n';
+  if (ev.place) t += '場所：' + ev.place + '\n';
+  if (ev.staff) t += '係：' + sortStaffStr(ev.staff) + '\n';
+  if (ev.memo)  t += 'メモ：' + ev.memo + '\n';
+  t += '出欠の回答は、' + CLUB.appTitle + '（ホーム画面のアイコン）から！';
+  return 'https://line.me/R/share?text=' + encodeURIComponent(t);
+}
+
+var WEEK = ['日','月','火','水','木','金','土'];
+var myName = '';
+var editingId = '';
+var gotoId = '';
+var gotoStick = '';   /* 画面を作り直したあと、合わせ直す先 */
+function getName(){ return myName; }
+var state = {
+  events: [],
+  attendance: [],
+  notices: [],   /* クラブからのお知らせ */
+  year: 0,
+  month: 0   /* 1〜12 */
+};
+
+/* ---------- 便利関数 ---------- */
+function $(id){ return document.getElementById(id); }
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function dkey(y, m, d){ return y + '-' + pad2(m) + '-' + pad2(d); }
+
+function lsGet(k){ try { return window.localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+function lsSet(k, v){ try { window.localStorage.setItem(k, v); } catch(e){} }
+
+function setStatus(msg, isErr){
+  var s = $('status');
+  s.innerHTML = msg || '';
+  s.className = isErr ? 'err' : '';
+}
+
+/* ---------- 通信 ---------- */
+function api(method, body, cb){
+  if (API_URL.indexOf('http') !== 0){
+    setStatus('設定が終わっていません（GASのURLが未設定です）', true);
+    return;
+  }
+  var xhr = new XMLHttpRequest();
+  var url = API_URL;
+  if (method === 'GET'){
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + new Date().getTime();
+    /* この端末の記号もいっしょに送る。
+       サーバーが「この端末は誰のものか」を名簿から答えてくれます。 */
+    try { url += '&dev=' + encodeURIComponent(deviceId()); } catch(eD){}
+    xhr.open('GET', url, true);
+  } else {
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+  }
+  xhr.onreadystatechange = function(){
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300){
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch(e){}
+      if (data){ cb(null, data); } else { cb(true); }
+    } else {
+      cb(true);
+    }
+  };
+  try {
+    xhr.send(method === 'GET' ? null : JSON.stringify(body));
+  } catch(e){ cb(true); }
+}
+
+function applyData(data){
+  state.events = data.events || [];
+  state.attendance = data.attendance || [];
+  if (data.notices) state.notices = data.notices;
+
+  /* 名簿シートの内容を受け取ったら、こちらの一覧を入れ替える。
+     （幹事さんがシートに1行足せば、次に開いたときから反映されます）
+     受け取れなかったとき（圏外の控えを表示しているときなど）は、
+     いまの一覧をそのまま使う。 */
+  if (data.members && data.members.length) {
+    MEMBERS = data.members;
+    /* 名簿が読めているのに管理者が1人もいないときは、管理者なしのまま。
+       ここでコードの名前を使うと、ほかのクラブでも只隈が管理者になってしまう。 */
+    ADMINS  = (data.admins && data.admins.length) ? data.admins : [];
+    EDITORS = data.editors || [];
+    ADMIN_NAME = ADMINS[0] || '';
+
+    TAKEN = data.taken || [];
+    CONTACTS = data.contacts || [];
+
+    /* サーバー（GAS）の版も画面いちばん下に出す。
+       貼り替えとデプロイができているかを、目で確かめられるように。 */
+    try {
+      var vl = $('verLine');
+      if (vl && data.gasver){
+        vl.innerHTML = '版 ' + esc(APP_VER) + '（サーバー ' + esc(data.gasver) + '）';
+      }
+    } catch(e){}
+
+    /* 読み方の対応表を作り直す */
+    MEMBER_YOMI = {};
+    if (data.yomis){
+      for (var yi = 0; yi < MEMBERS.length; yi++){
+        MEMBER_YOMI[MEMBERS[yi]] = data.yomis[yi] || '';
+      }
+    }
+    /* 名字 → 会員ID の対応表も作り直す */
+    MEMBER_ID = {}; ID_NAME = {}; MEMBER_TEL = {};
+    if (data.ids){
+      for (var ii = 0; ii < MEMBERS.length; ii++){
+        if (data.ids[ii]){
+          MEMBER_ID[MEMBERS[ii]] = String(data.ids[ii]);
+          ID_NAME[String(data.ids[ii])] = MEMBERS[ii];
+        }
+      }
+    }
+    /* 電話番号は幹事・管理者にしか届きません（届かなければ空のまま） */
+    canWriteNotice = !!data.canNotice;
+    /* クラブのLINEグループへのボタン。URLが決まっているときだけ出す */
+    lineGroupUrl = data.lineGroupUrl || '';
+    if (lineGroupUrl){
+      $('lineGo').href = lineGroupUrl;
+      $('lineCell').style.display = 'table-cell';
+    } else {
+      $('lineCell').style.display = 'none';
+    }
+    if (data.tels){
+      for (var ti = 0; ti < MEMBERS.length; ti++){
+        if (data.tels[ti]) MEMBER_TEL[MEMBERS[ti]] = String(data.tels[ti]);
+      }
+    }
+    /* 名前を選ぶ画面が出ていたら、新しい名簿で作り直す */
+    if ($('nameCard').style.display === 'block') renderNamePick();
+
+    /* 管理者が1人もいないと、締め切り・削除・お知らせができません。
+       誰も気づけないと困るので、開いた人全員に知らせます（起動時に1回だけ）。 */
+    if (ADMINS.length === 0 && !adminWarned){
+      adminWarned = true;
+      setTimeout(function(){
+        alert('このクラブには、まだ「管理者」がいません。\n\n' +
+              '名簿シートの「役割」で、どなたか1名を\n' +
+              '「管理者」に決めてください。\n\n' +
+              '決まるまでは、予定の締め切り・削除や\n' +
+              'お知らせの投稿ができません。');
+      }, 600);
+    }
+
+    /* 連絡窓口が決まっていないことを、管理者に知らせる（起動時に1回だけ） */
+    if (isAdmin_(myName) && CONTACTS.length === 0 && !editorWarned){
+      editorWarned = true;
+      setTimeout(function(){
+        alert('連絡窓口が決まっていません。\n\n' +
+              '会員の方が困ったときに、誰に聞けばよいかを\n' +
+              'アプリの中で案内できません。\n\n' +
+              '名簿シートの「連絡窓口」の欄に「○」を入れて、\n' +
+              '担当の方を決めてください。\n\n' +
+              '（決まるまでは、' + contactName() + 'のお名前が出ます）');
+      }, 800);
+    }
+
+    /* ------------------------------------------------------------------
+       サーバーが「この端末は◯◯さんのものです」と教えてくれた場合。
+       名簿の登録端末を見て答えているので、これがいちばん確かです。
+       端末の中の覚えが消えていても、ここで元に戻ります。
+       ------------------------------------------------------------------ */
+    if (data.me && data.me.name && MEMBERS.indexOf(data.me.name) >= 0){
+      if (data.me.id) lsSet(LSK.mid, String(data.me.id));
+      if (myName !== data.me.name){
+        var was = myName;
+        myName = data.me.name;
+        lsSet(LSK.name, myName);
+        lsSet(LSK.claimed, myName);
+        updateWho();
+        if ($('nameCard').style.display === 'block'){
+          $('nameCard').style.display = 'none';
+          namePickRow = '';
+        }
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+        setStatus(was ? ('お名前の表記が「' + myName + '」に変わりました')
+                      : (myName + 'さんとして開いています'));
+        renderInstallCard();
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       名簿で名字が直されたときの追従。
+       この端末は「会員ID」でも持ち主を覚えています。
+       「只隈」→「只隈（吉）」のように直されても、
+       名前を聞き直さず、そのまま新しい表記に切り替わります。
+       ------------------------------------------------------------------ */
+    if (myName && MEMBERS.indexOf(myName) >= 0){
+      /* ふだんは、いまの名前の会員IDを控えておく */
+      if (idOf(myName)) lsSet(LSK.mid, idOf(myName));
+    } else if (myName) {
+      var keepId = lsGet(LSK.mid);
+      var newNm  = keepId ? nameOfId(keepId) : '';
+      if (newNm){
+        myName = newNm;
+        lsSet(LSK.name, newNm);
+        if (lsGet(LSK.claimed)) lsSet(LSK.claimed, newNm);
+        updateWho();
+        /* 名前を選ぶ画面が出ていたら、引っ込める */
+        if ($('nameCard').style.display === 'block'){
+          $('nameCard').style.display = 'none';
+          namePickRow = '';
+        }
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+        setStatus('お名前の表記が「' + newNm + '」に変わりました');
+      } else {
+        /* 名簿に載っていない名前が端末に残っていたら、名乗りを外す
+           （退会された方の端末など） */
+        myName = '';
+        updateWho();
+        showNamePick();
+      }
+    }
+    /* 役割が変わっているかもしれないので、管理者向けボタンを出し直す */
+    $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+  }
+
+  /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
+  try {
+    lsSet(LSK.cache, JSON.stringify({
+      events: state.events, attendance: state.attendance, notices: state.notices,
+      /* 名簿も控えておく。圏外のときに、コードに書いてある古い一覧ではなく、
+         最後に受け取った本物の名簿を使えるようにするため。 */
+      members: MEMBERS, yomis: (function(){
+        var y = []; for (var q2 = 0; q2 < MEMBERS.length; q2++) y.push(MEMBER_YOMI[MEMBERS[q2]] || '');
+        return y;
+      })(),
+      ids: (function(){
+        var d = []; for (var q3 = 0; q3 < MEMBERS.length; q3++) d.push(MEMBER_ID[MEMBERS[q3]] || '');
+        return d;
+      })(),
+      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS
+      /* 電話番号は控えに残しません。端末に置いたままにしないためです */
+    }));
+  } catch(e){}
+  render();
+}
+
+function load(){
+  var hasCache = state.events.length > 0;
+  setStatus(hasCache ? '最新の情報を確認しています…' : '読み込み中…');
+  api('GET', null, function(err, data){
+    if (err){
+      setStatus(hasCache
+        ? '通信できませんでした。前回の内容を表示しています。'
+        : '読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true);
+      return;
+    }
+    setStatus('');
+    applyData(data);
+    tryGoto();
+    /* 作り直しで位置がずれるので、合わせ直す */
+    if (gotoStick){
+      var sid = gotoStick;
+      scrollToEv(sid);
+      setTimeout(function(){ scrollToEv(sid); gotoStick = ''; }, 350);
+    }
+  });
+}
+
+/* 精算アプリから戻ってきたとき、その予定の場所を表示する */
+function tryGoto(){
+  if (!gotoId) return;
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === gotoId) ev = state.events[i];
+  }
+  /* 手元の控えに無ければ、まだ消さない。
+     サーバーの返事が届いたときに、もう一度ここへ来る。 */
+  if (!ev) return;
+  gotoId = '';
+  var p = ev.date.split('-');
+  state.year = parseInt(p[0], 10);
+  state.month = parseInt(p[1], 10);
+  render();
+  var el = $('ev-' + ev.id);
+  if (!el && !state.showOldEvents){
+    /* 終わって3日過ぎて隠れている予定なら、表示してから移動 */
+    state.showOldEvents = true;
+    renderList();
+    el = $('ev-' + ev.id);
+  }
+  scrollToEv(ev.id);
+  /* ------------------------------------------------------------------
+     この予定を「行き先」として少しの間だけ覚えておきます。
+     サーバーの返事が届くと画面を作り直すため、行の高さが変わり、
+     先に合わせた位置がずれてしまうためです。
+     作り直したあと、もう一度きちんと合わせ直します。
+     ------------------------------------------------------------------ */
+  gotoStick = ev.id;
+  setTimeout(function(){ if (gotoStick === ev.id) gotoStick = ''; }, 8000);
+}
+
+/* その予定の場所へ、画面をきちんと合わせる。
+   上に少し余白を残して、見出しが隠れないようにする。 */
+function scrollToEv(id){
+  var el = $('ev-' + id);
+  if (!el) return;
+  try {
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 12;
+    window.scrollTo(0, y < 0 ? 0 : y);
+  } catch(e){
+    if (el.scrollIntoView) el.scrollIntoView(true);
+  }
+}
+
+function post(body, doneMsg, after, onFail){
+  setStatus('送信中…');
+  /* この端末の記号を必ず添える。サーバーは名簿の登録端末を見て、
+     送ってきたのが誰かを確かめます（名前まかせにしないため）。 */
+  try { if (body && !body.deviceId) body.deviceId = deviceId(); } catch(eP){}
+  api('POST', body, function(err, data){
+    if (err){
+      setStatus('送信に失敗しました。もう一度お試しください。', true);
+      if (onFail) { try { onFail(); } catch(eF){} }
+      return;
+    }
+    if (data && data.error){
+      setStatus(data.error, true);
+      if (onFail) { try { onFail(); } catch(eF2){} }
+      return;
+    }
+    setStatus(doneMsg || '');
+    applyData(data);
+    if (after) { try { after(data); } catch(eA){} }
+  });
+}
+
+/* ---------- カレンダー描画 ---------- */
+function eventsOn(key){
+  var r = [];
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].date === key) r.push(state.events[i]);
+  }
+  return r;
+}
+
+function renderCalendar(){
+  var y = state.year, m = state.month;
+  $('ymLabel').innerHTML = y + '年' + m + '月';
+  $('listTitle').innerHTML = m + '月の予定';
+
+  var first = new Date(y, m - 1, 1);
+  var startDow = first.getDay();
+  var days = new Date(y, m, 0).getDate();
+  var now = new Date();
+  var todayKey = dkey(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+  var html = '<tr>';
+  for (var w = 0; w < 7; w++){
+    var cls = w === 0 ? ' class="sun"' : (w === 6 ? ' class="sat"' : '');
+    html += '<th' + cls + '>' + WEEK[w] + '</th>';
+  }
+  html += '</tr>';
+
+  var cell = 0;
+  var d = 1;
+  while (d <= days){
+    html += '<tr>';
+    for (var c = 0; c < 7; c++){
+      if ((cell < startDow) || d > days){
+        html += '<td class="out"></td>';
+      } else {
+        var key = dkey(y, m, d);
+        var evs = eventsOn(key);
+        var classes = [];
+        if (c === 0) classes.push('sun');
+        if (c === 6) classes.push('sat');
+        if (evs.length > 0) classes.push('hasev');
+        if (key === todayKey) classes.push('today');
+        var marks = '', allCancel = evs.length > 0;
+        for (var e = 0; e < evs.length && e < 2; e++){
+          var t = evs[e].title;
+          if (t.length > 5) t = t.substring(0, 5) + '…';
+          /* 中止になった山行は、カレンダーでも取り消し線で出す */
+          marks += (evs[e].cancelled ? '<s>' + esc(t) + '</s>' : esc(t)) + '<br>';
+        }
+        for (var e2 = 0; e2 < evs.length; e2++){
+          if (!evs[e2].cancelled) allCancel = false;
+        }
+        if (allCancel) classes.push('allcancel');
+        if (evs.length > 2) marks += '他' + (evs.length - 2) + '件';
+        html += '<td class="' + classes.join(' ') + '" onclick="tapDay(' + d + ')">' +
+                '<div class="dnum">' + d + '</div>' +
+                '<div class="marks">' + marks + '</div></td>';
+        d++;
+      }
+      cell++;
+    }
+    html += '</tr>';
+  }
+  $('calTable').innerHTML = html;
+}
+
+function tapDay(d){
+  var key = dkey(state.year, state.month, d);
+  var evs = eventsOn(key);
+  if (evs.length > 0){
+    /* 隠れている（終わって3日過ぎた）予定なら、いったん全部表示してから移動 */
+    if (!$('ev-' + evs[0].id) && !state.showOldEvents){
+      state.showOldEvents = true;
+      renderList();
+    }
+    var el = $('ev-' + evs[0].id);
+    if (el && el.scrollIntoView) el.scrollIntoView(true);
+  } else {
+    /* 予定がない日 → 追加フォームをその日付で開く */
+    openAddForm(state.year, state.month, d);
+  }
+}
+
+/* ---------- 予定一覧描画 ---------- */
+function fmtDate(key){
+  var p = key.split('-');
+  var y = parseInt(p[0], 10), m = parseInt(p[1], 10), d = parseInt(p[2], 10);
+  var dow = new Date(y, m - 1, d).getDay();
+  var wcls = dow === 0 ? 'sun' : (dow === 6 ? 'sat' : '');
+  return m + '月' + d + '日 <span class="' + wcls + '">(' + WEEK[dow] + ')</span>';
+}
+
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* Googleドライブ／ドキュメントのリンクを、アカウント選択の出にくい
+   「プレビュー表示」に変換して開く。編集したい人はプレビュー画面から
+   「Googleドキュメントで開く」を押せば通常画面に進める。 */
+function previewLink(url){
+  var u = String(url == null ? '' : url);
+  if (!u) return u;
+  /* .../d/<ID>/... 形式（docs, drive/file など）→ /d/<ID>/preview */
+  var m = u.match(/^(https:\/\/[^\/]*\.google\.com\/[^?]*\/d\/[a-zA-Z0-9_-]+)/);
+  if (m) return m[1] + '/preview';
+  /* open?id=<ID> 形式 → ドライブのプレビューURLに変換 */
+  var m2 = u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2 && u.indexOf('google.com') >= 0) return 'https://drive.google.com/file/d/' + m2[1] + '/preview';
+  return u;
+}
+
+/* ============================================================
+   カレンダー連携（Googleカレンダーに追加 / .icsダウンロード）
+   ・時間ありの予定：開始＝その時刻、終了＝2時間後（日本時間）
+   ・時間なしの予定：終日予定
+   ============================================================ */
+/* 予定から開始・終了の日時文字列を作る */
+function calTimes(ev){
+  var p = (ev.date || '').split('-');
+  var y = p[0], mo = p[1], d = p[2];
+  var tm = ev.time ? String(ev.time).match(/(\d{1,2}):(\d{2})/) : null;
+  if (tm){
+    var hh = ('0' + tm[1]).slice(-2), mm = tm[2];
+    var startLocal = y + mo + d + 'T' + hh + mm + '00';
+    var endDt = new Date(parseInt(y,10), parseInt(mo,10) - 1, parseInt(d,10), parseInt(tm[1],10) + 2, parseInt(mm,10));
+    var endLocal = endDt.getFullYear() + pad2(endDt.getMonth() + 1) + pad2(endDt.getDate()) +
+                   'T' + pad2(endDt.getHours()) + pad2(endDt.getMinutes()) + '00';
+    return { allday: false, start: startLocal, end: endLocal };
+  } else {
+    var startD = y + mo + d;
+    var nd = new Date(parseInt(y,10), parseInt(mo,10) - 1, parseInt(d,10) + 1);
+    var endD = nd.getFullYear() + pad2(nd.getMonth() + 1) + pad2(nd.getDate());
+    return { allday: true, start: startD, end: endD };
+  }
+}
+
+/* 予定の説明文（メモ・計画表・報告書のリンクをまとめる） */
+function calDesc(ev){
+  var desc = [];
+  if (ev.staff)  desc.push('係・担当: ' + sortStaffStr(ev.staff));
+  if (ev.memo)   desc.push(ev.memo);
+  if (ev.plan)   desc.push('計画表: ' + ev.plan);
+  if (ev.report) desc.push('報告書: ' + ev.report);
+  return desc;
+}
+
+/* Googleカレンダーに追加するURL */
+function gcalUrl(ev){
+  var t = calTimes(ev);
+  var desc = calDesc(ev);
+  var url = 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+    '&text=' + encodeURIComponent(ev.title || '') +
+    '&dates=' + t.start + '/' + t.end +
+    '&ctz=Asia/Tokyo';
+  if (ev.place) url += '&location=' + encodeURIComponent(ev.place);
+  if (desc.length) url += '&details=' + encodeURIComponent(desc.join('\n'));
+  return url;
+}
+
+function attNamesHtml(arr, evId, isAdmin, emptyText){
+  if (arr.length === 0) return emptyText;
+  var parts = [];
+  for (var i = 0; i < arr.length; i++){
+    var s = esc(arr[i]);
+    if (isAdmin){
+      s += '<a href="javascript:void(0)" class="attdel" onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">[取消]</a>';
+    }
+    parts.push(s);
+  }
+  return parts.join('、');
+}
+
+function attOf(evId){
+  var r = { yes: [], maybe: [], no: [] };
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId !== evId) continue;
+    if (a.status === 'yes') r.yes.push(a.name);
+    else if (a.status === 'maybe') r.maybe.push(a.name);
+    else if (a.status === 'no') r.no.push(a.name);
+  }
+  r.yes.sort(byMember_);
+  r.maybe.sort(byMember_);
+  r.no.sort(byMember_);
+  return r;
+}
+
+function statusOfName(evId, name){
+  if (!name) return '';
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId === evId && a.name === name) return a.status;
+  }
+  return '';
+}
+
+function myStatus(evId){
+  return statusOfName(evId, getName());
+}
+
+/* ---------- 代理回答（管理者） ----------
+   対象メンバーはこの端末に記憶し、各予定に○△×の表を出す */
+var proxySetupFor = '';   /* 設定パネルを開いている予定のid */
+
+function getProxyList(){
+  var r = [];
+  try {
+    var arr = JSON.parse(lsGet(LSK.proxyList) || '[]');
+    for (var i = 0; i < arr.length; i++){
+      if (MEMBERS.indexOf(arr[i]) >= 0 && r.indexOf(arr[i]) < 0) r.push(arr[i]);
+    }
+  } catch(e){}
+  r.sort(byMember_);
+  return r;
+}
+
+function openProxySetup(evId){ proxySetupFor = evId; render(); }
+function closeProxySetup(){ proxySetupFor = ''; render(); }
+
+function saveProxySetup(evId){
+  var box = $('psetup-' + evId);
+  if (!box) return;
+  var ins = box.getElementsByTagName('input');
+  var sel = [];
+  for (var i = 0; i < ins.length; i++){
+    if (ins[i].checked) sel.push(ins[i].value);
+  }
+  try { lsSet(LSK.proxyList, JSON.stringify(sel)); } catch(e){}
+  proxySetupFor = '';
+  render();
+}
+
+/* 代理で○△×を押したとき：先に画面へ反映してから送信する */
+function proxySet(evId, name, st){
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      return;
+    }
+  }
+  var found = false;
+  for (var j = 0; j < state.attendance.length; j++){
+    var a = state.attendance[j];
+    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+  }
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  render();
+  var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
+  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+         status: st, by: getName() },
+    name + 'さん：' + label + ' を記録しました');
+}
+
+/* 予定カード内の代理回答欄を作る */
+function buildProxyBox(ev){
+  var plist = getProxyList();
+  var html = '<div class="proxybox">';
+  if (proxySetupFor === ev.id){
+    html += '<div class="psetlbl">代理で回答する人に印を付けてください（この端末に記憶されます）</div>';
+    html += '<div id="psetup-' + ev.id + '">';
+    for (var i = 0; i < MEMBERS.length; i++){
+      var m = MEMBERS[i];
+      html += '<label class="pchk"><input type="checkbox" value="' + esc(m) + '"' +
+        (plist.indexOf(m) >= 0 ? ' checked' : '') + '>' + esc(m) + '</label>';
+    }
+    html += '</div>';
+    html += '<button type="button" class="psavebtn" onclick="saveProxySetup(\'' + ev.id + '\')">この内容で記憶する</button>';
+    html += '<button type="button" class="cancelbtn" onclick="closeProxySetup()">やめる</button>';
+  } else if (plist.length === 0){
+    html += '<div class="pnote">代理回答：<a href="javascript:void(0)" class="pset" onclick="openProxySetup(\'' + ev.id + '\')">設定</a> で対象の人を選ぶと、ここに○△×が並びます</div>';
+  } else {
+    html += '<table class="proxytbl">';
+    for (var j = 0; j < plist.length; j++){
+      var nm = plist[j];
+      var st = statusOfName(ev.id, nm);
+      html += '<tr><td class="pname">' + esc(nm) + '</td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'yes' ? ' on-yes' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'yes\')">○</button></td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'maybe' ? ' on-maybe' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'maybe\')">△</button></td>' +
+        '<td class="pb"><button type="button" class="pbtn' + (st === 'no' ? ' on-no' : '') + '" onclick="proxySet(\'' + ev.id + '\',\'' + esc(nm) + '\',\'no\')">×</button></td></tr>';
+    }
+    html += '</table>';
+    html += '<div class="pfoot"><a href="javascript:void(0)" class="pset" onclick="openProxySetup(\'' + ev.id + '\')">代理する人を変更</a></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+/* 終わって3日たった予定は隠す（「表示する」ボタンで出せる） */
+var HIDE_ENDED_AFTER_DAYS = 3;
+
+function hideCutoff_(){
+  var t = new Date();
+  t.setDate(t.getDate() - HIDE_ENDED_AFTER_DAYS);
+  return dkey(t.getFullYear(), t.getMonth() + 1, t.getDate());
+}
+
+function toggleOldEvents(){
+  state.showOldEvents = !state.showOldEvents;
+  renderList();
+}
+
+function renderList(){
+  var y = state.year, m = state.month;
+  var prefix = y + '-' + pad2(m);
+  var list = [];
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].date.indexOf(prefix) === 0) list.push(state.events[i]);
+  }
+  list.sort(function(a, b){
+    if (a.date < b.date) return -1;
+    if (a.date > b.date) return 1;
+    return 0;
+  });
+
+  if (list.length === 0){
+    $('evList').innerHTML = '<div id="noev">この月の予定はまだありません</div>';
+    return;
+  }
+
+  /* 終了から3日を過ぎた予定は隠す */
+  var cutoff = hideCutoff_();
+  var hidden = 0;
+  if (!state.showOldEvents){
+    var keep = [];
+    for (var h = 0; h < list.length; h++){
+      if (list[h].date < cutoff) hidden++;
+      else keep.push(list[h]);
+    }
+    list = keep;
+  }
+  var oldBtn = '';
+  if (hidden > 0){
+    oldBtn = '<button type="button" class="refbtn" style="margin-top:10px" onclick="toggleOldEvents()">終わった予定も表示する（' + hidden + '件）</button>';
+  } else if (state.showOldEvents){
+    oldBtn = '<button type="button" class="refbtn" style="margin-top:10px" onclick="toggleOldEvents()">終わった予定を隠す</button>';
+  }
+  if (list.length === 0){
+    $('evList').innerHTML = '<div id="noev">この月に、これからの予定はありません</div>' + oldBtn;
+    return;
+  }
+
+  var myn = getName();
+  var isAdmin = isAdmin_(myn);
+  var html = '';
+  for (var j = 0; j < list.length; j++){
+    var ev = list[j];
+    var att = attOf(ev.id);
+    var mine = myStatus(ev.id);
+    var canDel = !ev.owner || (myn !== '' && (isOwnerOf(ev, myn) || isStaff(myn) || staffCanEdit(ev, myn)));
+    var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
+    var parts = [];
+    if (ev.time)  parts.push('🕒 ' + esc(ev.time));
+    if (ev.place) parts.push('📍 ' + esc(ev.place));
+    if (ev.staff) parts.push('👤 ' + esc(sortStaffStr(ev.staff)));
+    if (ev.owner) parts.push('<span class="evowner">（' + esc(ev.owner) + '）</span>');
+    var info = parts.join('　');
+    if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
+    var files = '';
+    if (ev.plan)   files += '<a class="filebtn" href="' + esc(previewLink(ev.plan)) + '" target="_blank">📄 計画表</a>';
+    if (ev.report) files += '<a class="filebtn" href="' + esc(previewLink(ev.report)) + '" target="_blank">📝 報告書</a>';
+
+    /* 表題行の右端に常時表示するアイコン
+       （車＝マイカー精算、¥＝精算結果〔ある時だけ〕、カレンダー＝Googleカレンダーに追加） */
+    var icons =
+      '<a href="' + CARPOOL_URL + '?event=' + ev.id +
+        '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
+        '&time=' + encodeURIComponent(ev.time || '') +
+        '&place=' + encodeURIComponent(ev.place || '') + '" title="マイカー精算">' + CAR_ICON + '</a>';
+    if (ev.settle){
+      icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
+    }
+    if (ev.lineGroup) icons += '<a href="' + esc(ev.lineGroup) + '" target="_blank" title="山行グループLINE">' + LINE_ICON + '</a>';
+
+    var isCancel = !!ev.cancelled;
+    html += '<div class="ev' + (isCancel ? ' cancelled' : '') + '" id="ev-' + ev.id + '">' +
+      '<table class="evhead"><tr>' +
+        '<td>' + (isCancel ? '<span class="cancelbadge">中止</span>' : '') +
+          '<span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + esc(ev.title) + '</span></td>' +
+        '<td class="evicons">' + icons + '</td>' +
+      '</tr></table>' +
+      (info ? '<div class="evinfo">' + info + '</div>' : '') +
+      (isCancel && ev.cancelNote ? '<div class="cancelnote">' + esc(ev.cancelNote) + '</div>' : '') +
+      (files ? '<div class="filelinks">' + files + '</div>' : '') +
+      (ev.settle ? '<pre class="settle" id="settle-' + ev.id + '" style="display:none">' + esc(ev.settle) + '</pre>' : '') +
+      (locked ?
+        (isCancel
+          ? '<div class="lockedmsg">この山行は中止になりました</div>'
+          : '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>')
+      :
+        '<div class="attbtns">' +
+          '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
+          '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
+          '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
+        '</div>'
+      ) +
+      (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
+      '<div class="attlist">' +
+        '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
+        '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
+        '<b class="no">不参加 ' + att.no.length + '人</b>：' + attNamesHtml(att.no, ev.id, isAdmin, '－') +
+      '</div>' +
+      (canDel ?
+        '<div class="evdel">' +
+          '<a href="javascript:void(0)" class="lock" onclick="askCancel(\'' + ev.id + '\',' +
+            (isCancel ? 'false' : 'true') + ')">' + (isCancel ? '中止をやめる' : '中止にする') + '</a>' +
+          (isCancel ? '<a href="javascript:void(0)" class="lock" onclick="makeAlt(\'' + ev.id + '\')">代案で予定を作る</a>' : '') +
+          '<a href="javascript:void(0)" class="lock" onclick="shareEvent(\'' + ev.id + '\')">LINEで知らせる</a>' +
+          '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
+          (isCancel ? '' :
+            '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
+              (locked ? '締切を解除' : '出欠を締切る') + '</a>') +
+          '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">削除</a>' +
+        '</div>' : '') +
+    '</div>';
+  }
+  $('evList').innerHTML = html + oldBtn;
+}
+
+function render(){
+  renderNotices();
+  renderTelBook();
+  renderCalendar();
+  renderList();
+}
+
+/* ==================================================================
+   お知らせ
+   LINEの群では大事な連絡が流れて見落とされます。
+   ここに書けば、アプリのいちばん上に出て、流れません。
+   開いた方は自動で記録されるので、**まだ見ていない方**が分かります。
+   ================================================================== */
+/* 会員に電話をかける一覧（幹事・管理者だけ） */
+function renderTelBook(){
+  var box = $('telBook');
+  if (!box) return;
+  var myn = getName();
+  var html = '', n = 0;
+  if (isStaff(myn)){
+    for (var i = 0; i < MEMBERS.length; i++){
+      var tl = telLink(MEMBERS[i]);
+      if (!tl) continue;
+      html += '<a class="telbtn" href="tel:' + tl + '">' + esc(MEMBERS[i]) + '&nbsp;📞</a> ';
+      n++;
+    }
+  }
+  if (n === 0){
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  $('telBookList').innerHTML = html;
+}
+
+function renderNotices(){
+  var wrap = $('noticeWrap');
+  if (!wrap) return;
+  var myn = getName(), myid = idOf(myn);
+  var list = state.notices || [];
+
+  /* 書けるのは、幹事・管理者と、これからの予定でリーダー・司会・幹事になっている人 */
+  $('noticeCell').style.display =
+    (canWriteNotice && $('noticeCard').style.display !== 'block') ? 'table-cell' : 'none';
+
+  var html = '', toMark = [];
+  for (var i = 0; i < list.length; i++){
+    var n = list[i];
+    var seenMe = false;
+    for (var r = 0; r < n.read.length; r++){
+      if ((myid && n.read[r] === myid) || (myn && n.read[r] === myn)) seenMe = true;
+    }
+    var unread = (myn !== '' && !seenMe);
+    if (unread) toMark.push(n.id);   /* 開いた時点で「見た」にする。押させない */
+
+    html += '<div class="ntc' + (unread ? ' unread' : '') + '">';
+    html += '<div class="nhead">' + esc(n.at) + '　' + esc(n.by) + 'さん' +
+            (n.until ? '（' + esc(n.until) + 'まで）' : '') + '</div>';
+    html += '<div class="nbody">' + esc(n.text) + '</div>';
+
+    /* 幹事だけに、見た人数を1行で。押したときだけ中身が出る */
+    if (canWriteNotice){
+      var yet = [];
+      for (var m = 0; m < MEMBERS.length; m++){
+        var mid = idOf(MEMBERS[m]), done = false;
+        for (var k = 0; k < n.read.length; k++){
+          if ((mid && n.read[k] === mid) || n.read[k] === MEMBERS[m]) done = true;
+        }
+        if (!done) yet.push(MEMBERS[m]);
+      }
+      html += '<div class="seen" onclick="toggleSeen(' + i + ')">' +
+              (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人が見ました' +
+              (yet.length ? '　▸ まだの方' : '') + '</div>';
+      html += '<div id="seen' + i + '" style="display:none">';
+      if (yet.length){
+        html += '<div class="unreadlist">';
+        for (var u = 0; u < yet.length; u++){
+          var tl = telLink(yet[u]);
+          var msg = yet[u] + 'さん\n【' + CLUB.shareTag + '】お知らせが出ています。\n' +
+                    n.text + '\n\n' + location.href.split('?')[0];
+          html += '<div class="nagrow"><b>' + esc(yet[u]) + '</b>' +
+                  '<a class="telbtn" href="https://line.me/R/share?text=' +
+                    encodeURIComponent(msg) + '">LINE</a>' +
+                  (tl ? '<a class="telbtn" href="tel:' + tl + '">電話</a>'
+                      : '<span class="notel">番号なし</span>') +
+                  '</div>';
+        }
+        html += '</div>';
+      }
+      html += '<button class="minibtn" type="button" onclick="copyNotice(' + i + ')">LINEで知らせる</button>' +
+              '<button class="minibtn" type="button" onclick="removeNotice(\'' + esc(n.id) + '\')">消す</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  wrap.innerHTML = html;
+
+  /* 見たことを、あとからそっと記録する（ボタンは押させない） */
+  if (toMark.length && myn){
+    var send = [];
+    for (var t = 0; t < toMark.length; t++){
+      if (!markedSeen[toMark[t]]){ markedSeen[toMark[t]] = true; send.push(toMark[t]); }
+    }
+    if (send.length){
+      setTimeout(function(){
+        api('POST', { action: 'readNotice', ids: send, name: myn,
+                      memberId: myid, deviceId: deviceId() },
+          function(err, data){ if (!err && data && !data.error) applyData(data); });
+      }, 2500);
+    }
+  }
+}
+
+/* 「○／○人が見ました」を押したときだけ、中身を出す */
+function toggleSeen(i){
+  var b = $('seen' + i);
+  if (b) b.style.display = (b.style.display === 'none') ? 'block' : 'none';
+}
+
+/* ==================================================================
+   LINEのグループに知らせる
+   LINE公式アカウントの自動配信は、無料枠が月200通しかありません。
+   ここは**人がLINEに貼る**やり方なので、通数の制限がありません。
+   ================================================================== */
+var shareText = '';
+
+function offerShare(text){
+  shareText = text;
+  $('sharePrev').innerHTML = esc(text);
+  $('shareGo').href = 'https://line.me/R/share?text=' + encodeURIComponent(text);
+  $('shareCard').style.display = 'block';
+  if ($('shareCard').scrollIntoView) $('shareCard').scrollIntoView(true);
+}
+
+function closeShare(){
+  $('shareCard').style.display = 'none';
+  shareText = '';
+}
+
+/* 文字を、そのまま貼れる形でコピーする */
+function copyText(t){
+  var ok = false;
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch(e){}
+  if (!ok && navigator.clipboard){
+    try { navigator.clipboard.writeText(t); ok = true; } catch(e){}
+  }
+  setStatus(ok ? 'コピーしました。LINEに貼りつけてください' : 'コピーできませんでした', !ok);
+}
+
+/* 予定1件を、LINEに貼れる文にする */
+function eventShareText(ev){
+  var d = ev.date.split('-');
+  var wd = ['日','月','火','水','木','金','土'];
+  var dt = new Date(+d[0], +d[1] - 1, +d[2]);
+  var t = '【' + CLUB.shareTag + '】\n' +
+          (+d[1]) + '月' + (+d[2]) + '日（' + wd[dt.getDay()] + '）' + ev.title + '\n';
+  if (ev.time)  t += '時間：' + ev.time + '\n';
+  if (ev.place) t += '場所：' + ev.place + '\n';
+  if (ev.staff) t += '係：' + ev.staff + '\n';
+  if (ev.memo)  t += ev.memo + '\n';
+  t += '\n出欠の回答はこちら\n' + location.href.split('?')[0] + '?goto=' + ev.id;
+  return t;
+}
+
+/* ==================================================================
+   山行の中止・代案
+
+   予定は消しません。**誰が行く予定だったかの記録を残す**ためです。
+   中止のあいだは出欠の回答を締め切ります。
+   ================================================================== */
+function askCancel(evId, on){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+
+  var note = '';
+  if (on){
+    note = prompt(
+      '「' + ev.title + '」を中止にします。\n\n' +
+      '理由や、代わりの案があれば書いてください。\n' +
+      '（例）雨天のため中止します。\n' +
+      '　　　代わりに三池山へ行きます。集合は同じです。\n\n' +
+      '空欄のままでもかまいません。', '雨天のため中止します。');
+    if (note === null) return;
+  } else {
+    if (!confirm('「' + ev.title + '」の中止を取り消します。\n' +
+                 'ふたたび出欠を受け付けます。よろしいですか？')) return;
+  }
+
+  var tell = confirm(
+    (on ? '中止を' : '中止の取り消しを') + '、みなさんに知らせますか？\n\n' +
+    'OK … メールとLINEで自動的に知らせます\n' +
+    'キャンセル … 知らせずに、印だけ付けます');
+
+  /* ------------------------------------------------------------------
+     押した瞬間に画面を変えて、送信は裏で行います（出欠と同じやり方）。
+     知らせるときはサーバーがメールとLINEも送るため、
+     返事が返るまで数秒かかります。待たせないためです。
+     ------------------------------------------------------------------ */
+  for (var k = 0; k < state.events.length; k++){
+    var e2 = state.events[k];
+    if (e2.id !== evId) continue;
+    e2.cancelled  = on ? '中止' : '';
+    e2.cancelNote = on ? note : '';
+    if (on) e2.locked = '中止';
+    else if (e2.locked === '中止') e2.locked = '';
+  }
+  render();
+
+  post({ action: 'setCancel', id: evId, on: on, note: note,
+         tell: tell, mail: tell, name: getName() },
+       on ? (tell ? '中止にしました（お知らせを送っています）' : '中止にしました')
+          : '中止を取り消しました');
+}
+
+/* 中止になった予定の内容を引き継いで、新しい予定を作る */
+function makeAlt(evId){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+  var p = ev.date.split('-');
+  openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
+  $('addTitle').value = ev.title + '（代わりの山行）';
+  $('addPlace').value = ev.place || '';
+  $('addMemo').value  = ev.cancelNote || '';
+  if (ev.time){
+    var tm = ev.time.match(/(\d{1,2}):(\d{2})/);
+    if (tm){
+      $('addHour').value = String(parseInt(tm[1], 10));
+      $('addMin').value = tm[2];
+    }
+  }
+  setStatus('中止になった予定の内容を写しました。日付と山名を直して登録してください。');
+}
+
+function shareEvent(evId){
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId){ offerShare(eventShareText(state.events[i])); return; }
+  }
+}
+
+/* いまは使っていません（開いた時点で自動的に「見た」になります）。
+   手で押す形に戻したくなったときのために残しています。 */
+function readNotice(id){
+  var myn = getName();
+  if (!myn){ showNamePick(); return; }
+  post({ action: 'readNotice', id: id, name: myn, memberId: idOf(myn) }, '読みましたを送りました');
+}
+
+function removeNotice(id){
+  if (!confirm('このお知らせを消します。よろしいですか？')) return;
+  post({ action: 'deleteNotice', id: id, name: getName() }, 'お知らせを消しました');
+}
+
+/* LINEの群に貼るための文を作って、コピーする。
+   人が貼るぶんには、通数の制限も、クラブごとの設定も要りません。 */
+function copyNotice(i){
+  var n = (state.notices || [])[i];
+  if (!n) return;
+  offerShare('【' + CLUB.shareTag + '】お知らせ\n' + n.text +
+             '\n\nアプリを開くと、いちばん上に出ています。\n' +
+             location.href.split('?')[0]);
+}
+
+/* ---------- 操作 ---------- */
+function moveMonth(diff){
+  var m = state.month + diff;
+  if (m < 1){ m = 12; state.year--; }
+  if (m > 12){ m = 1; state.year++; }
+  state.month = m;
+  render();
+}
+
+function answer(evId, st){
+  var name = getName();
+  if (!name){
+    showNamePick();
+    alert('先に、あなたのお名前を選んでください');
+    return;
+  }
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      return;
+    }
+  }
+  var prev = myStatus(evId);
+  /* 押した瞬間にボタンの色を変え、送信は裏で行う */
+  var found = false;
+  for (var j = 0; j < state.attendance.length; j++){
+    var a = state.attendance[j];
+    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+  }
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  render();
+  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+         status: st, by: getName() }, '回答を送りました');
+  /* チェックが入っている人だけ、新たに「参加」にしたときGoogleカレンダー追加を開く */
+  if (st === 'yes' && prev !== 'yes' && lsGet(LSK.gcalPref) === 'yes'){
+    var ev = null;
+    for (var g = 0; g < state.events.length; g++){
+      if (state.events[g].id === evId) ev = state.events[g];
+    }
+    if (ev){
+      /* Googleカレンダーから戻ってきたとき、この予定へ移動できるよう記憶しておく */
+      lsSet(LSK.gotoId, evId);
+      window.open(gcalUrl(ev), '_blank');
+    }
+  }
+  /* 参加→不参加/未定 に変えたとき、連携オンの人には手動削除を案内する */
+  if (prev === 'yes' && st !== 'yes' && lsGet(LSK.gcalPref) === 'yes'){
+    alert('この予定をGoogleカレンダーに入れていた場合は、\nお手数ですがGoogleカレンダーから手動で削除してください。\n（アプリから自動では消せません）');
+  }
+}
+
+function toggleSettle(evId){
+  var el = $('settle-' + evId);
+  if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+function delAnswer(evId, name){
+  var myn = getName();
+  if (!confirm('「' + name + '」さんの回答を取り消します。よろしいですか？')) return;
+  post({ action: 'deleteAttendance', eventId: evId, name: name, memberId: idOf(name),
+         requester: myn }, '回答を取り消しました');
+}
+
+function setLock(evId, lock){
+  var name = getName();
+  var msg = lock
+    ? '出欠を締め切ります。メンバーは参加・不参加を変更できなくなります。よろしいですか？'
+    : '締め切りを解除して、出欠を変更できるようにします。よろしいですか？';
+  if (!confirm(msg)) return;
+  /* 押した瞬間に画面を変える（出欠と同じやり方） */
+  for (var k2 = 0; k2 < state.events.length; k2++){
+    if (state.events[k2].id === evId) state.events[k2].locked = lock ? '1' : '';
+  }
+  render();
+  post({ action: 'setLocked', id: evId, locked: lock ? '1' : '', name: name },
+    lock ? '出欠を締め切りました' : '締め切りを解除しました');
+}
+
+function delEvent(evId, title){
+  var name = getName();
+  if (!confirm('「' + title + '」を削除します。よろしいですか？')) return;
+  /* 押した瞬間に消して、送信は裏で行う。失敗したら戻す */
+  var backup = null, pos = -1;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId){ backup = state.events[i]; pos = i; }
+  }
+  if (pos >= 0) state.events.splice(pos, 1);
+  render();
+  post({ action: 'deleteEvent', id: evId, name: name }, '削除しました', null, function(){
+    if (backup) { state.events.splice(pos, 0, backup); render(); }
+  });
+}
+
+/* ---------- 係・担当の入力（種別ごとのプルダウン） ----------
+   保存は「係：名前、係：名前」の文字列（今まで通りの形式） */
+var STAFF_ROLES = {
+  '山行':   ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅'],
+  '定例会': ['司会', '書記', '受付', '自己PR'],
+  '懇親会': ['幹事']
+};
+
+/* 係の表示順（この順に並び替えて表示する。一覧にない係は最後） */
+var STAFF_ORDER = ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅', '司会', '書記', '受付', '自己PR'];
+
+function staffOrderOf_(item){
+  var kv = item.split(/[：:]/);
+  var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
+  var i = STAFF_ORDER.indexOf(role);
+  return i < 0 ? 999 : i;
+}
+
+/* 「係：名前、係：名前」の文字列を決まった順に並び替える */
+function sortStaffStr(s){
+  s = String(s == null ? '' : s);
+  if (!s) return '';
+  var items = s.split(/[、,，]/);
+  var dec = [];
+  for (var i = 0; i < items.length; i++){
+    var it = items[i].replace(/^\s+|\s+$/g, '');
+    if (it) dec.push({ o: staffOrderOf_(it), i: i, t: it });
+  }
+  dec.sort(function(a, b){ return a.o !== b.o ? a.o - b.o : a.i - b.i; });
+  var r = [];
+  for (var j = 0; j < dec.length; j++) r.push(dec[j].t);
+  return r.join('、');
+}
+
+/* その予定の係の中で、編集・代理の権限を持つ人か？
+   （山行の「リーダー」、定例会の「司会」、懇親会の「幹事」が対象） */
+function staffCanEdit(ev, name){
+  if (!name || !ev || !ev.staff) return false;
+  var items = String(ev.staff).split(/[、,，]/);
+  for (var i = 0; i < items.length; i++){
+    var kv = items[i].split(/[：:]/);
+    if (kv.length < 2) continue;
+    var role = kv[0].replace(/^\s+|\s+$/g, '');
+    var nm = kv[1].replace(/^\s+|\s+$/g, '');
+    if (nm === name && (role === 'リーダー' || role === '司会' || role === '幹事')) return true;
+  }
+  return false;
+}
+var staffRows = [];
+
+function resetStaff(){
+  staffRows = [];
+  if ($('staffType')) $('staffType').value = '山行';
+  renderStaffRows();
+}
+
+function currentRoles_(){
+  return STAFF_ROLES[$('staffType').value] || STAFF_ROLES['山行'];
+}
+
+function renderStaffRows(){
+  /* 空の行を除いてから、最後に空の行を1つ足す（1つ選ぶと次の行が出る仕組み） */
+  var rows = [];
+  for (var i = 0; i < staffRows.length; i++){
+    var r = staffRows[i];
+    if (r.role || r.name || r.roleFree) rows.push(r);
+  }
+  rows.push({ role: '', roleFree: '', name: '' });
+  staffRows = rows;
+
+  var roles = currentRoles_();
+  var html = '';
+  for (var j = 0; j < staffRows.length; j++){
+    var row = staffRows[j];
+    var ropt = '<option value="">（係を選ぶ）</option>';
+    for (var k = 0; k < roles.length; k++){
+      ropt += '<option value="' + esc(roles[k]) + '"' + (row.role === roles[k] ? ' selected' : '') + '>' + esc(roles[k]) + '</option>';
+    }
+    ropt += '<option value="その他"' + (row.role === 'その他' ? ' selected' : '') + '>その他</option>';
+    var nopt = '<option value="">（名前）</option>';
+    var names = MEMBERS.slice();
+    if (row.name && names.indexOf(row.name) < 0) names.push(row.name);
+    for (var m = 0; m < names.length; m++){
+      nopt += '<option value="' + esc(names[m]) + '"' + (row.name === names[m] ? ' selected' : '') + '>' + esc(names[m]) + '</option>';
+    }
+    html += '<table class="row3" style="margin-top:6px"><tr>' +
+      '<td style="width:48%"><select onchange="staffRoleChg(' + j + ', this.value)">' + ropt + '</select></td>' +
+      '<td style="width:52%"><select onchange="staffNameChg(' + j + ', this.value)">' + nopt + '</select></td>' +
+      '</tr></table>';
+    if (row.role === 'その他'){
+      html += '<input type="text" placeholder="係の名前を入力（例）車出し）" value="' + esc(row.roleFree || '') + '" oninput="staffFreeChg(' + j + ', this.value)">';
+    }
+  }
+  $('staffRows').innerHTML = html;
+}
+
+function staffRoleChg(i, v){ if (staffRows[i]){ staffRows[i].role = v; renderStaffRows(); } }
+function staffNameChg(i, v){ if (staffRows[i]){ staffRows[i].name = v; renderStaffRows(); } }
+function staffFreeChg(i, v){ if (staffRows[i]) staffRows[i].roleFree = v; }
+
+function serializeStaff(){
+  var parts = [];
+  for (var i = 0; i < staffRows.length; i++){
+    var r = staffRows[i];
+    var label = (r.role === 'その他') ? String(r.roleFree || '').replace(/^\s+|\s+$/g, '') : r.role;
+    if (label && r.name) parts.push(label + '：' + r.name);
+  }
+  return sortStaffStr(parts.join('、'));
+}
+
+function parseStaff(s){
+  staffRows = [];
+  var type = '山行';
+  s = sortStaffStr(String(s || ''));
+  if (s){
+    var items = s.split(/[、,，]/);
+    for (var i = 0; i < items.length; i++){
+      var kv = items[i].split(/[：:]/);
+      if (kv.length < 2) continue;
+      var role = kv[0].replace(/^\s+|\s+$/g, '');
+      var name = kv[1].replace(/^\s+|\s+$/g, '');
+      if (!role || !name) continue;
+      var known = false;
+      for (var t in STAFF_ROLES){
+        if (STAFF_ROLES[t].indexOf(role) >= 0){
+          known = true;
+          if (t !== '山行') type = t;
+        }
+      }
+      staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
+    }
+  }
+  if ($('staffType')) $('staffType').value = type;
+  renderStaffRows();
+}
+
+function setMailRow(isEdit){
+  var r = $('addMailRow');
+  if (r) r.style.display = isEdit ? 'none' : 'block';
+}
+
+function openAddForm(y, m, d){
+  $('addCard').style.display = 'block';
+  $('showAdd').style.display = 'none';
+  fillDateSelects(y, m, d);
+  if (!$('addHour').innerHTML) fillTimeSelects();
+  resetStaff();
+  if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
+}
+
+function closeAddForm(){
+  $('addCard').style.display = 'none';
+  $('showAdd').style.display = 'block';
+  $('addTitle').value = '';
+  $('addHour').value = '';
+  $('addMin').value = '00';
+  $('addPlace').value = '';
+  resetStaff();
+  $('addMemo').value = '';
+  $('addPlan').value = '';
+  $('addReport').value = '';
+  $('addLineGroup').value = '';
+  $('addRep').value = 'none';
+  $('repLenWrap').style.display = 'none';
+  closePicker();
+  editingId = '';
+  setMailRow(false);
+  $('addTitleH').innerHTML = '予定を追加';
+  $('addBtn').innerHTML = 'この内容で登録する';
+  $('repRow').style.display = 'block';
+}
+
+function editEvent(evId){
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) ev = state.events[i];
+  }
+  if (!ev) return;
+  var p = ev.date.split('-');
+  openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
+  editingId = evId;
+  setMailRow(true);   /* 変更のときはメールを送らない（何度も届かないように） */
+  $('addTitleH').innerHTML = '予定を変更';
+  $('addBtn').innerHTML = '変更を保存する';
+  $('repRow').style.display = 'none';
+  $('addTitle').value = ev.title;
+  $('addPlace').value = ev.place;
+  parseStaff(ev.staff || '');
+  $('addMemo').value = ev.memo;
+  $('addPlan').value = ev.plan || '';
+  $('addReport').value = ev.report || '';
+  $('addLineGroup').value = ev.lineGroup || '';
+  $('addHour').value = '';
+  $('addMin').value = '00';
+  var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
+  if (tm){
+    $('addHour').value = String(parseInt(tm[1], 10));
+    $('addMin').value = tm[2];
+    if ($('addMin').value !== tm[2]){
+      /* 5分きざみ以外の分は選択肢を足して保持 */
+      $('addMin').innerHTML += '<option value="' + tm[2] + '">' + tm[2] + '分</option>';
+      $('addMin').value = tm[2];
+    }
+  }
+}
+
+function fillTimeSelects(){
+  var html = '<option value="">時間なし</option>';
+  for (var h = 0; h <= 23; h++){
+    html += '<option value="' + h + '">' + h + '時</option>';
+  }
+  $('addHour').innerHTML = html;
+  html = '';
+  for (var mi = 0; mi < 60; mi += 5){
+    var mv = (mi < 10 ? '0' : '') + mi;
+    html += '<option value="' + mv + '">' + mv + '分</option>';
+  }
+  $('addMin').innerHTML = html;
+}
+
+function fillDateSelects(y, m, d){
+  var now = new Date();
+  var thisY = now.getFullYear();
+  var y0 = Math.min(thisY, y);
+  var y1 = Math.max(thisY + 1, y);
+  var html = '', i;
+  for (i = y0; i <= y1; i++){
+    html += '<option value="' + i + '"' + (i === y ? ' selected' : '') + '>' + i + '年</option>';
+  }
+  $('addY').innerHTML = html;
+  html = '';
+  for (i = 1; i <= 12; i++){
+    html += '<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + i + '月</option>';
+  }
+  $('addM').innerHTML = html;
+  html = '';
+  for (i = 1; i <= 31; i++){
+    html += '<option value="' + i + '"' + (i === d ? ' selected' : '') + '>' + i + '日</option>';
+  }
+  $('addD').innerHTML = html;
+}
+
+function submitAdd(){
+  var title = $('addTitle').value.replace(/^\s+|\s+$/g, '');
+  if (!title){
+    alert('山名・タイトルを入れてください');
+    return;
+  }
+  var y = parseInt($('addY').value, 10);
+  var m = parseInt($('addM').value, 10);
+  var d = parseInt($('addD').value, 10);
+  var check = new Date(y, m - 1, d);
+  if (check.getMonth() !== m - 1){
+    alert('その月に ' + d + '日 はありません。日付を確認してください');
+    return;
+  }
+  var name = getName();
+  if (!name){
+    showNamePick();
+    alert('先に、あなたのお名前を選んでください\n（誰が登録した予定か分かるようにするためです）');
+    return;
+  }
+
+  /* くり返し設定に応じて日付リストを作る */
+  var dates = [];
+  if ($('addRep').value === 'week'){
+    var months = parseInt($('addRepLen').value, 10);
+    var endDt = new Date(y, m - 1 + months, d);
+    var cur = new Date(y, m - 1, d);
+    var guard = 0;
+    while (cur <= endDt && guard < 60){
+      dates.push(dkey(cur.getFullYear(), cur.getMonth() + 1, cur.getDate()));
+      cur.setDate(cur.getDate() + 7);
+      guard++;
+    }
+  } else {
+    dates.push(dkey(y, m, d));
+  }
+
+  var time = '';
+  if ($('addHour').value !== ''){
+    time = $('addHour').value + ':' + $('addMin').value;
+  }
+
+  /* 計画表・報告書のリンク（貼るならhttpで始まるURL） */
+  var plan = $('addPlan').value.replace(/^\s+|\s+$/g, '');
+  var report = $('addReport').value.replace(/^\s+|\s+$/g, '');
+  var lineGroup = $('addLineGroup').value.replace(/^\s+|\s+$/g, '');
+  if ((plan && plan.indexOf('http') !== 0) || (report && report.indexOf('http') !== 0) ||
+      (lineGroup && lineGroup.indexOf('http') !== 0)){
+    alert('リンクは https:// で始まるURLを貼り付けてください');
+    return;
+  }
+
+  /* 編集モードなら既存の予定を書き換える */
+  if (editingId){
+    /* 日付が変わったときは、知らせるかどうかを聞く */
+    var tellMove = false;
+    var oldEv = null;
+    for (var oi = 0; oi < state.events.length; oi++){
+      if (state.events[oi].id === editingId) oldEv = state.events[oi];
+    }
+    if (oldEv && oldEv.date !== dkey(y, m, d)){
+      tellMove = confirm(
+        '日程が ' + oldEv.date + ' から ' + dkey(y, m, d) + ' に変わります。\n\n' +
+        'みなさんに知らせますか？\n\n' +
+        'OK … メールとLINEで自動的に知らせます\n' +
+        'キャンセル … 知らせずに直します\n\n' +
+        '※出欠の回答はそのまま残ります');
+    }
+    /* ------------------------------------------------------------------
+       押した瞬間に画面の内容を入れ替えて、送信は裏で行います。
+       失敗したときは、控えておいた元の内容に戻します。
+       ------------------------------------------------------------------ */
+    var editId = editingId, before = null;
+    for (var ui2 = 0; ui2 < state.events.length; ui2++){
+      var ue = state.events[ui2];
+      if (ue.id !== editId) continue;
+      before = {};
+      for (var kk in ue) { if (ue.hasOwnProperty(kk)) before[kk] = ue[kk]; }
+      ue.date  = dkey(y, m, d);
+      ue.title = title;
+      ue.time  = time;
+      ue.place = $('addPlace').value;
+      ue.memo  = $('addMemo').value;
+      ue.staff = serializeStaff();
+      ue.plan  = plan;
+      ue.report = report;
+      ue.lineGroup = lineGroup;
+    }
+
+    post({
+      action: 'updateEvent',
+      id: editingId,
+      tell: tellMove,
+      mail: tellMove,
+      date: dkey(y, m, d),
+      title: title,
+      time: time,
+      place: $('addPlace').value,
+      staff: serializeStaff(),
+      memo: $('addMemo').value,
+      plan: plan,
+      report: report,
+      lineGroup: lineGroup,
+      name: name
+    }, '予定を変更しました', null, function(){
+      /* 送れなかったときは、元の内容に戻す */
+      if (before){
+        for (var bi = 0; bi < state.events.length; bi++){
+          if (state.events[bi].id === editId) state.events[bi] = before;
+        }
+        render();
+      }
+    });
+    state.year = y;
+    state.month = m;
+    closeAddForm();
+    render();
+    return;
+  }
+
+  /* ------------------------------------------------------------------
+     押した瞬間に一覧へ出して、送信は裏で行います（出欠と同じやり方）。
+     サーバーはメールとLINEも送るため、返事まで数秒かかります。
+     本物が届いたら、この仮の分は自動的に置き換わります。
+     ------------------------------------------------------------------ */
+  var tmpBase = 'tmp' + new Date().getTime() + '_';
+  var tmpIds = [];
+  for (var ti = 0; ti < dates.length; ti++){
+    var tid = tmpBase + ti;
+    tmpIds.push(tid);
+    state.events.push({
+      id: tid, date: dates[ti], title: title, time: time,
+      place: $('addPlace').value, memo: $('addMemo').value,
+      staff: serializeStaff(), owner: name, ownerId: idOf(name),
+      plan: plan, report: report, lineGroup: lineGroup,
+      locked: '', settle: '', cancelled: '', cancelNote: ''
+    });
+  }
+
+  post({
+    action: 'addEvents',
+    dates: dates,
+    title: title,
+    time: time,
+    place: $('addPlace').value,
+    staff: serializeStaff(),
+    memo: $('addMemo').value,
+    plan: plan,
+    report: report,
+    lineGroup: lineGroup,
+    mail: $('addMail').checked,
+    owner: name
+  }, '予定を登録しました（' + dates.length + '件）', function(){
+    /* 登録できたら、そのままLINEに知らせられるようにする */
+    var newest = null;
+    for (var si = 0; si < state.events.length; si++){
+      var e2 = state.events[si];
+      if (e2.date === dates[0] && e2.title === title) newest = e2;
+    }
+    if (newest) offerShare(eventShareText(newest));
+  }, function(){
+    /* 送れなかったときは、仮に出していた分を取り消す */
+    state.events = state.events.filter(function(e3){ return tmpIds.indexOf(e3.id) < 0; });
+    render();
+  });
+  /* 追加した月を表示 */
+  state.year = y;
+  state.month = m;
+  closeAddForm();
+  render();
+}
+
+/* ---------- まとめて登録（管理者用） ----------
+   見出し行（「日付」で始まる行）ごと貼り付けると、列名で読み取る。
+   決まった列名（日付・タイトル・時間…）以外の列は「係の名前」とみなし、
+   例えば「受付」列に「永野」とあれば自動で「受付：永野」を作る */
+var IMPORT_FIXED = {
+  '日付': 'date',
+  '山名・タイトル': 'title', 'タイトル': 'title', '山名': 'title',
+  '時間': 'time',
+  '集合場所': 'place', '場所': 'place',
+  'メモ': 'memo',
+  '計画表リンク': 'plan', '計画表': 'plan',
+  '報告書リンク': 'report', '報告書': 'report',
+  '係・担当': 'staff', '係': 'staff', '担当': 'staff'
+};
+
+function parseImport(text){
+  var lines = text.split(/\r\n|\n|\r/);
+  var evs = [], errs = [];
+  var nowY = new Date().getFullYear();
+  var headers = null;
+
+  function trimS(s){ return String(s == null ? '' : s).replace(/^\s+|\s+$/g, ''); }
+
+  for (var i = 0; i < lines.length; i++){
+    var line = lines[i].replace(/^\s+|\s+$/g, '');
+    if (!line) continue;
+    var cols = line.indexOf('\t') >= 0 ? line.split('\t') : line.split(',');
+    var dRaw = trimS(cols[0]);
+
+    /* 見出し行なら列名を覚える */
+    if (dRaw === '日付'){
+      headers = [];
+      for (var h = 0; h < cols.length; h++) headers.push(trimS(cols[h]));
+      continue;
+    }
+
+    /* 列の値を取り出す（見出しがあれば列名で、なければ位置で） */
+    function val(field, defIdx){
+      if (headers){
+        for (var c = 0; c < headers.length; c++){
+          if (IMPORT_FIXED[headers[c]] === field) return trimS(cols[c]);
+        }
+        return '';
+      }
+      return trimS(cols[defIdx]);
+    }
+
+    var title = val('title', 1);
+    var y = 0, mo = 0, d = 0;
+    var m = dRaw.match(/^(\d{4})[\/\-年\.](\d{1,2})[\/\-月\.](\d{1,2})日?$/);
+    if (m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else {
+      m = dRaw.match(/^(\d{1,2})[\/\-月\.](\d{1,2})日?$/);
+      if (m){ y = nowY; mo = +m[1]; d = +m[2]; }
+    }
+    if (!m || !title){ errs.push((i + 1) + '行目'); continue; }
+    var chk = new Date(y, mo - 1, d);
+    if (chk.getMonth() !== mo - 1){ errs.push((i + 1) + '行目（日付）'); continue; }
+    var time = val('time', 2);
+    var tm = time.match(/^(\d{1,2}:\d{2}):\d{2}$/);
+    if (tm) time = tm[1];
+
+    /* 係を組み立てる：「係・担当」列＋役割ごとの列（司会・書記・受付など） */
+    var staffParts = [];
+    var combined = val('staff', 7);
+    if (combined) staffParts.push(combined);
+    if (headers){
+      for (var rc = 0; rc < headers.length && rc < cols.length; rc++){
+        var hname = headers[rc];
+        if (!hname || IMPORT_FIXED[hname]) continue;
+        var v = trimS(cols[rc]);
+        if (!v) continue;
+        /* 1つの欄に複数人（永野、松田 など）はそれぞれに分ける */
+        var nms = v.split(/[、,，・\/／]/);
+        for (var ni = 0; ni < nms.length; ni++){
+          var n1 = trimS(nms[ni]);
+          if (n1) staffParts.push(hname + '：' + n1);
+        }
+      }
+    }
+
+    evs.push({
+      date: dkey(y, mo, d),
+      title: title,
+      time: time,
+      place: val('place', 3),
+      memo: val('memo', 4),
+      plan: val('plan', 5),
+      report: val('report', 6),
+      staff: sortStaffStr(staffParts.join('、'))
+    });
+  }
+  return { events: evs, errors: errs };
+}
+
+function submitImport(){
+  var name = getName();
+  if (!name){ alert('先に、あなたのお名前を選んでください'); return; }
+  var r = parseImport($('importText').value);
+  if (r.errors.length > 0){
+    alert('読み取れない行があります：' + r.errors.join('、') + '\n「日付、タイトル、時間…」の順になっているか確認してください');
+    return;
+  }
+  if (r.events.length === 0){ alert('登録する予定がありません。表を貼り付けてください'); return; }
+
+  /* 貼り付け内に同じ予定（日付＋タイトル）が2回あれば、後の行を採用 */
+  var list = [], i2, j2;
+  for (i2 = 0; i2 < r.events.length; i2++){
+    var ne = r.events[i2];
+    var repl = false;
+    for (j2 = 0; j2 < list.length; j2++){
+      if (list[j2].date === ne.date && list[j2].title === ne.title){ list[j2] = ne; repl = true; break; }
+    }
+    if (!repl) list.push(ne);
+  }
+
+  /* すでにある予定（同じ日付＋同じタイトル）は上書きになる。その件数を数える */
+  var over = 0;
+  for (i2 = 0; i2 < list.length; i2++){
+    for (j2 = 0; j2 < state.events.length; j2++){
+      if (state.events[j2].date === list[i2].date && state.events[j2].title === list[i2].title){ over++; break; }
+    }
+  }
+
+  var ex = list[0];
+  var overMsg = over > 0 ? '\n（うち' + over + '件は登録済みのため上書きします。出欠はそのまま残ります）' : '';
+  if (!confirm(list.length + '件の予定をまとめて登録します。よろしいですか？\n（1件目：' + ex.date + ' ' + ex.title + '）' + overMsg)) return;
+  post({ action: 'importEvents', events: list, owner: name },
+    over > 0
+      ? '予定を登録しました（新規' + (list.length - over) + '件・上書き' + over + '件）'
+      : '予定を登録しました（' + list.length + '件）');
+  $('importText').value = '';
+  closeImport();
+}
+
+function closeImport(){
+  $('importCard').style.display = 'none';
+  $('showImport').style.display = 'block';
+}
+
+/* ---------- 今の予定をコピー（Excel貼り付け用） ----------
+   登録済みの予定を、一括登録フォーマットと同じ列の表（タブ区切り）にして
+   コピーする。Excelに貼り付けて手直し→コピーして貼り戻せば、
+   日付・タイトルの食い違いなく上書き更新できる */
+var EXPORT_ROLE_COLS = ['リーダー', '班長', '留守宅', '司会', '書記', '受付', '自己PR'];
+
+function buildExportRows(){
+  var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
+              '計画表リンク', '報告書リンク'].concat(EXPORT_ROLE_COLS).concat(['係・担当']);
+  var rows = [head];
+  var evs = state.events.slice();
+  evs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  for (var i = 0; i < evs.length; i++){
+    var ev = evs[i];
+    var p = ev.date.split('-');
+    var dateStr = (+p[0]) + '/' + (+p[1]) + '/' + (+p[2]);
+    /* 係を「決まった列」と「係・担当」列に振り分ける */
+    var roleMap = {}, others = [];
+    var items = String(ev.staff || '').split(/[、,，]/);
+    for (var j = 0; j < items.length; j++){
+      var it = items[j].replace(/^\s+|\s+$/g, '');
+      if (!it) continue;
+      var kv = it.split(/[：:]/);
+      var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
+      var nm = (kv[1] || '').replace(/^\s+|\s+$/g, '');
+      if (nm && EXPORT_ROLE_COLS.indexOf(role) >= 0){
+        roleMap[role] = roleMap[role] ? roleMap[role] + '、' + nm : nm;
+      } else {
+        others.push(it);
+      }
+    }
+    function cl(s){ return String(s == null ? '' : s).replace(/[\t\r\n]+/g, ' '); }
+    var row = [dateStr, cl(ev.title), cl(ev.time), cl(ev.place), cl(ev.memo),
+               cl(ev.plan), cl(ev.report)];
+    for (var k = 0; k < EXPORT_ROLE_COLS.length; k++){
+      row.push(roleMap[EXPORT_ROLE_COLS[k]] || '');
+    }
+    row.push(others.join('、'));
+    rows.push(row);
+  }
+  return { rows: rows, count: evs.length };
+}
+
+function buildExportText(){
+  var r = buildExportRows();
+  var lines = [];
+  for (var i = 0; i < r.rows.length; i++) lines.push(r.rows[i].join('\t'));
+  return { text: lines.join('\n'), count: r.count };
+}
+
+/* 今の予定をExcelファイル(.xlsx)にして保存する */
+function exportEventsFile(){
+  var r = buildExportRows();
+  if (r.count === 0){ alert('保存する予定がまだありません'); return; }
+  loadSheetJS(function(){
+    try {
+      var ws = XLSX.utils.aoa_to_sheet(r.rows);
+      /* 列の幅をほどよく */
+      var wch = [11, 16, 7, 16, 14, 14, 14, 8, 8, 8, 8, 8, 8, 8, 18];
+      ws['!cols'] = [];
+      for (var i = 0; i < wch.length; i++) ws['!cols'].push({ wch: wch[i] });
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '予定入力');
+      var now = new Date();
+      var fname = '予定一覧_' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) + '.xlsx';
+      var out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (window.showSaveFilePicker){
+        /* 保存場所を選べるブラウザ（パソコンのChrome・Edgeなど） */
+        window.showSaveFilePicker({
+          suggestedName: fname,
+          types: [{ description: 'Excelファイル', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }]
+        }).then(function(handle){
+          return handle.createWritable().then(function(w){
+            return w.write(blob).then(function(){ return w.close(); });
+          });
+        }).then(function(){
+          setStatus(r.count + '件の予定をExcelファイルに保存しました');
+        }).catch(function(e){
+          if (e && e.name === 'AbortError') return; /* 保存をやめただけ */
+          saveBlobFallback_(blob, fname, r.count);
+        });
+      } else {
+        saveBlobFallback_(blob, fname, r.count);
+      }
+    } catch (err){
+      alert('Excelファイルを作れませんでした。「コピーする」の方をお試しください');
+    }
+  }, function(msg){ alert(msg); });
+}
+
+/* 保存場所を選べないブラウザでは、ふつうのダウンロードにする */
+function saveBlobFallback_(blob, fname, count){
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setStatus(count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
+}
+
+function exportEvents(){
+  var r = buildExportText();
+  if (r.count === 0){ alert('コピーする予定がまだありません'); return; }
+  function done(){
+    alert(r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
+  }
+  function fallback(){
+    /* コピーできない環境では、貼り付け欄に表を出して手動コピーしてもらう */
+    $('importText').value = r.text;
+    alert('自動コピーができない環境のようです。\n下の欄に表を出しました。全選択（Ctrl+A）→コピー（Ctrl+C）でExcelに貼り付けてください。\n※このまま「まとめて登録する」は押さないでください');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(r.text).then(done, fallback);
+  } else {
+    fallback();
+  }
+}
+
+/* ---------- ファイルから読み込み（ドロップ・参照） ----------
+   Excel(.xlsx)やCSVのファイルを、コピー＆貼り付けの代わりに
+   そのまま読み込んで貼り付け欄に展開する */
+
+/* Excel読み込み用の部品（SheetJS）を、必要になった時だけ取り寄せる */
+function loadSheetJS(ok, ng){
+  if (window.XLSX){ ok(); return; }
+  var s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = ok;
+  s.onerror = function(){ ng('Excel読み込み用の部品を取得できませんでした。通信状態を確認するか、Excelからコピー＆貼り付けでお試しください'); };
+  document.head.appendChild(s);
+}
+
+/* Excelのセルの値を文字にする（日付・時刻のセルに対応） */
+function xcell(v){
+  if (v == null) return '';
+  if (v instanceof Date){
+    if (v.getFullYear() < 1905){
+      /* 時刻だけのセル（Excel内部では1900年ごろの日付になる） */
+      var mm = v.getMinutes();
+      return v.getHours() + ':' + (mm < 10 ? '0' : '') + mm;
+    }
+    return v.getFullYear() + '/' + (v.getMonth() + 1) + '/' + v.getDate();
+  }
+  return String(v).replace(/[\t\r\n]+/g, ' ');
+}
+
+function fileToTable(file){
+  var name = String(file.name || '');
+  var isExcel = /\.(xlsx|xlsm)$/i.test(name);
+
+  function apply(text, rows){
+    $('importText').value = text;
+    setStatus('「' + name + '」を読み込みました（' + rows + '行）');
+    alert('「' + name + '」を読み込みました（見出しを除いて' + rows + '行）。\n下の欄の内容を確認して「まとめて登録する」を押してください');
+  }
+
+  if (isExcel){
+    loadSheetJS(function(){
+      var fr = new FileReader();
+      fr.onload = function(e){
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          var ws = wb.Sheets['予定入力'] || wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+          var lines = [];
+          for (var i = 0; i < rows.length; i++){
+            var cells = [], empty = true;
+            for (var j = 0; j < rows[i].length; j++){
+              var t = xcell(rows[i][j]);
+              if (t !== '') empty = false;
+              cells.push(t);
+            }
+            if (!empty) lines.push(cells.join('\t'));
+          }
+          if (lines.length === 0){ alert('ファイルに読み取れる行がありませんでした'); return; }
+          apply(lines.join('\n'), Math.max(0, lines.length - 1));
+        } catch (err){
+          alert('Excelファイルを読み込めませんでした。Excelで開いてコピー＆貼り付けでお試しください');
+        }
+      };
+      fr.readAsArrayBuffer(file);
+    }, function(msg){ alert(msg); });
+  } else {
+    /* CSV・TSV：文字コードはUTF-8とShift_JIS（Excelの標準）の両方に対応 */
+    var fr2 = new FileReader();
+    fr2.onload = function(e){
+      var buf = e.target.result;
+      var text = '';
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (e2){
+        try { text = new TextDecoder('shift_jis').decode(buf); }
+        catch (e3){ text = new TextDecoder('utf-8').decode(buf); }
+      }
+      text = text.replace(/^\uFEFF/, '');
+      var n = text.split(/\r\n|\n|\r/).filter(function(l){ return l.replace(/[\s,\t]/g, '') !== ''; }).length;
+      if (n === 0){ alert('ファイルに読み取れる行がありませんでした'); return; }
+      apply(text, Math.max(0, n - 1));
+    };
+    fr2.readAsArrayBuffer(file);
+  }
+}
+
+/* ---------- ファイル参照（Googleドライブ） ---------- */
+var pickTarget = '';
+
+function openPicker(target){
+  pickTarget = target;
+  var card = $('pickerCard');
+  /* 押した「参照」ボタンの行のすぐ下に一覧を出す */
+  try {
+    var input = (target === 'report') ? $('addReport') : $('addPlan');
+    var row = input.closest ? input.closest('table') : null;
+    if (row && row.parentNode) row.parentNode.insertBefore(card, row.nextSibling);
+  } catch(e){}
+  card.style.display = 'block';
+  loadPickerFolder(lsGet(LSK.pickDir) || '');
+}
+
+function closePicker(){
+  $('pickerCard').style.display = 'none';
+}
+
+function byName_(a, b){
+  return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+}
+
+function loadPickerFolder(folderId){
+  $('pickerList').innerHTML = '<p class="note">読み込み中…</p>';
+  api('POST', { action: 'listFiles', folderId: folderId }, function(err, data){
+    if (err || !data || data.error || !data.folderId){
+      $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。' +
+        (data && data.error ? '<br>詳細：' + esc(data.error) : '') +
+        (data && !data.error && !data.folderId ? '<br>詳細：GASが古いバージョンのままの可能性があります（新バージョンでデプロイしてください）' : '') +
+        '</p>';
+      return;
+    }
+    lsSet(LSK.pickDir, data.folderId);
+    $('pickerPath').innerHTML = '📁 「' + esc(data.folderName) + '」の中から選んでください';
+    var html = '';
+    if (data.parentId){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + data.parentId + '\')">⬆ 上のフォルダへ戻る</button>';
+    }
+    if (data.baseId && data.folderId !== data.baseId){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + data.baseId + '\')">🏠 「山行」フォルダに戻る</button>';
+    }
+    var folders = data.folders || [];
+    var files = data.files || [];
+    folders.sort(byName_);
+    files.sort(byName_);
+    var i;
+    for (i = 0; i < folders.length; i++){
+      html += '<button type="button" class="pickitem" onclick="loadPickerFolder(\'' + folders[i].id + '\')">📁 ' + esc(folders[i].name) + '</button>';
+    }
+    for (i = 0; i < files.length; i++){
+      html += '<button type="button" class="pickitem" onclick="pickFile(\'' + files[i].id + '\')">📄 ' + esc(files[i].name) + '</button>';
+    }
+    if (folders.length === 0 && files.length === 0){
+      html += '<p class="note">このフォルダは空です。Googleドライブでこのフォルダにファイルを入れてください。</p>';
+    }
+    $('pickerList').innerHTML = html;
+  });
+}
+
+function pickFile(fileId){
+  $('pickerList').innerHTML = '<p class="note">リンクを取得しています…</p>';
+  api('POST', { action: 'pickFile', fileId: fileId }, function(err, data){
+    if (err || !data || !data.url){
+      $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。</p>';
+      return;
+    }
+    $(pickTarget === 'report' ? 'addReport' : 'addPlan').value = data.url;
+    closePicker();
+    if (data.shared === false){
+      setStatus('「' + data.name + '」を入れましたが、共有設定を変更できませんでした。このままだと開けない人が出ます。Googleドライブでこのファイルを「リンクを知っている全員（閲覧者）」にしてください', true);
+    } else {
+      setStatus('「' + data.name + '」を' + (pickTarget === 'report' ? '報告書' : '計画表') + 'に入れました');
+    }
+  });
+}
+
+/* ---------- 名前の表示 ---------- */
+function updateWho(){
+  /* 名前は表示するだけ。押しても何も起きない。
+     名前の変更は、画面いちばん下の「⚙ 設定」から行う
+     （うっかり押して名乗りが外れないようにするため） */
+  $('whoami').innerHTML = myName ? esc(myName) + ' さん' : '';
+  var cw = $('cfgWho');
+  if (cw) cw.innerHTML = myName
+    ? 'いまは「' + esc(myName) + '」さんとして開いています。'
+    : 'まだお名前が選ばれていません。';
+}
+
+function openCfg(){
+  updateWho();
+  closeCodeForm();
+
+  /* 連絡窓口が1人も決まっていなければ、管理者にだけ知らせる */
+  $('needEditor').style.display =
+    (isAdmin_(myName) && CONTACTS.length === 0) ? 'block' : 'none';
+
+  /* 「べつの端末でも使う」を出してよいかを決める。
+     ・管理者と幹事：専用URLでどの端末でも開けるので、この設定は不要
+     ・この端末で名前を登録していない方：ここでは設定できない */
+  var canSet = !!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName);
+  $('setCodeBtn').style.display = canSet ? 'block' : 'none';
+
+  if (!myName){
+    $('setCodeNote').innerHTML = 'まだお名前が選ばれていません。';
+  } else if (isStaff(myName)) {
+    $('setCodeNote').innerHTML =
+      '幹事・管理者の方は、LINEで届いている<b>専用のURL</b>から、' +
+      'スマホでもパソコンでも開けます。この設定は必要ありません。';
+  } else if (!canSet) {
+    $('setCodeNote').innerHTML =
+      'この端末では、べつの端末を追加する設定ができません。<br>' +
+      'ふだんお使いの端末から行ってください。';
+  } else {
+    $('setCodeNote').innerHTML =
+      'いま使っているこの端末のほかに、パソコンや新しいスマホでも' +
+      '同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>' +
+      '1台だけで使う方は、押す必要はありません。';
+  }
+  $('setCodeNote').style.display = 'block';
+
+  var rb = $('reInstallBtn');
+  if (rb) rb.style.display = isStandalone() ? 'none' : 'block';
+
+  $('cfgCard').style.display = 'block';
+  $('cfgBtn').style.display = 'none';
+  if ($('cfgCard').scrollIntoView) $('cfgCard').scrollIntoView(true);
+}
+
+function closeCfg(){
+  $('cfgCard').style.display = 'none';
+  $('cfgBtn').style.display = 'inline-block';
+}
+
+/* ==================================================================
+   ホーム画面に置くご案内
+   ------------------------------------------------------------------
+   手順書を読んでもらうのではなく、その端末に合った案内だけを出す。
+   ・すでにホーム画面から開いている人には出さない
+   ・Androidは「追加」ボタン1つで終わる（ブラウザの仕組みを使う）
+   ・iPhoneは操作の順番を文字で出す（自動では追加できないため）
+   ・「あとで」で閉じられる。閉じたら二度と出さない
+   ・そもそも追加しなくても使えます。無理に勧めない
+   ================================================================== */
+
+var deferredPrompt = null;   /* Androidの「追加」を保留しておく入れ物 */
+
+function isStandalone(){
+  try {
+    if (window.navigator && window.navigator.standalone) return true;        /* iPhone */
+    if (window.matchMedia &&
+        window.matchMedia('(display-mode: standalone)').matches) return true; /* Android他 */
+  } catch(e){}
+  return false;
+}
+function isIOSDevice(){
+  var ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod/.test(ua) ||
+         (/Macintosh/.test(ua) && 'ontouchend' in document);
+}
+function isLineBrowser(){
+  return (navigator.userAgent || '').indexOf('Line') >= 0;
+}
+
+/* Androidのブラウザが「追加できますよ」と教えてくれたら受け取っておく */
+window.addEventListener('beforeinstallprompt', function(e){
+  try { e.preventDefault(); } catch(err){}
+  deferredPrompt = e;
+  renderInstallCard();
+});
+
+/* 追加が済んだら、案内を消す */
+window.addEventListener('appinstalled', function(){
+  deferredPrompt = null;
+  lsSet(LSK.instHide, 'yes');
+  var c = $('installCard'); if (c) c.style.display = 'none';
+});
+
+function hideInstallCard(){
+  lsSet(LSK.instHide, 'yes');
+  $('installCard').style.display = 'none';
+}
+
+/* 設定から「もう一度見る」を押したとき。
+   一度「あとでよい」を押した方が、やっぱり置きたくなったときに使います。 */
+function showInstallAgain(){
+  if (isStandalone()){
+    alert('すでにホーム画面から開いています。\nこのまま、そのアイコンをお使いください。');
+    return;
+  }
+  lsSet(LSK.instHide, '');
+  closeCfg();
+  renderInstallCard();
+  if ($('installCard').style.display === 'block'){
+    if ($('installCard').scrollIntoView) $('installCard').scrollIntoView(true);
+  } else {
+    alert('この端末では、この画面からは追加できません。\n' +
+          'ブラウザのメニューから「ホーム画面に追加」をお試しください。');
+  }
+}
+
+function doInstall(){
+  if (!deferredPrompt){ hideInstallCard(); return; }
+  try {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(r){
+      deferredPrompt = null;
+      if (r && r.outcome === 'accepted') hideInstallCard();
+    });
+  } catch(e){ hideInstallCard(); }
+}
+
+function renderInstallCard(){
+  var card = $('installCard');
+  if (!card) return;
+
+  /* 出さない場合 */
+  if (isStandalone() ||                       /* すでにホーム画面から開いている */
+      lsGet(LSK.instHide) === 'yes' ||        /* 前に閉じた */
+      isLineBrowser() ||                      /* LINEの中（先に別の案内が出る） */
+      !myName ||                              /* まだ名前を選んでいない */
+      $('nameCard').style.display === 'block' /* 名前を選ぶ画面が出ている */
+     ){
+    card.style.display = 'none';
+    return;
+  }
+
+  var html = '';
+  if (deferredPrompt){
+    /* Android：ボタン1つで終わる */
+    html =
+      '<p class="note">下のボタンを押すと、スマホの画面にこのアプリの絵が置かれます。' +
+      'つぎからは、それを押すだけで開けます。</p>' +
+      '<button type="button" class="subbtn" onclick="doInstall()">ホーム画面に置く</button>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else if (isIOSDevice()){
+    /* iPhone：自動ではできないので、順番を出す */
+    html =
+      '<p class="note">つぎの順で押すと、スマホの画面にこのアプリの絵が置かれます。</p>' +
+      '<div class="instep"><b>1</b> 画面のいちばん下にある、' +
+      '<b>四角から上に矢印が出た印</b>を押す</div>' +
+      '<div class="instep"><b>2</b> 出てきた一覧を下にたどって' +
+      '<b>「ホーム画面に追加」</b>を押す</div>' +
+      '<div class="instep"><b>3</b> 右上の<b>「追加」</b>を押す</div>' +
+      '<p class="note">やらなくても、このまま使えます。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else {
+    /* そのほか（らくらくホンの独自ブラウザなど） */
+    html =
+      '<p class="note">画面の右上か右下にある<b>メニューの印</b>（点が3つ並んだ印など）を押して、' +
+      '<b>「ホーム画面に追加」</b>を選ぶと、つぎからすぐ開けます。</p>' +
+      '<p class="note">見つからないときは、そのままお使いいただいて大丈夫です。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  }
+  $('installBody').innerHTML = html;
+  card.style.display = 'block';
+}
+
+/* ==================================================================
+   名前を選ぶ画面
+   ------------------------------------------------------------------
+   ・LINEで届く「自分専用のURL（?key=…）」がある人は、これまでどおり
+     自動で名乗るので、この画面は出ません
+   ・名簿に載っているだけの人（新しく入った会員など）は、
+     ここで自分の名前をタップすれば使えるようになります
+   ・管理者と幹事は、この一覧に出しません（専用URLからのみ名乗れます）
+   ================================================================== */
+
+var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
+var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
+var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが判定） */
+var lineGroupUrl = '';       /* クラブのLINEグループを開くURL（「設定」シート） */
+var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
+var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
+var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
+
+var YOMI_ROWS = [
+  { label: 'あ行', chars: 'あいうえおぁぃぅぇぉ' },
+  { label: 'か行', chars: 'かきくけこがぎぐげご' },
+  { label: 'さ行', chars: 'さしすせそざじずぜぞ' },
+  { label: 'た行', chars: 'たちつてとだぢづでどっ' },
+  { label: 'な行', chars: 'なにぬねの' },
+  { label: 'は行', chars: 'はひふへほばびぶべぼぱぴぷぺぽ' },
+  { label: 'ま行', chars: 'まみむめも' },
+  { label: 'や行', chars: 'やゆよゃゅょ' },
+  { label: 'ら行', chars: 'らりるれろ' },
+  { label: 'わ行', chars: 'わをん' }
+];
+
+/* 名前選択に出す人
+   ・管理者・幹事は出さない（専用URLのみ）
+   ・すでにどれかの端末で使い始めている人も出さない
+   　→ 新しい会員には、自分の名前だけが並んで見えます
+   ・機種変更などで自分の名前が要るときは「見つからない方はこちら」で全員出す */
+var showTakenNames = false;
+
+function selectableMembers(){
+  var mine = lsGet(LSK.claimed);   /* この端末で登録した名前 */
+  var r = [];
+  for (var i = 0; i < MEMBERS.length; i++){
+    var n = MEMBERS[i];
+    /* 管理者・幹事も一覧に出します。
+       ただしサーバー側で確認番号が必ず求められるので、
+       番号を知らない人は名乗れません。 */
+    var taken = (TAKEN.indexOf(n) >= 0);
+    /* この端末で登録した名前は、使用中でも出す（自分に戻れるように） */
+    if (taken && n === mine){
+      r.push({ name: n, yomi: (MEMBER_YOMI[n] || ''), mine: true });
+      continue;
+    }
+    if (!showTakenNames && taken) continue;
+    r.push({ name: n, yomi: (MEMBER_YOMI[n] || ''), mine: false });
+  }
+  return r;
+}
+
+function toggleTakenNames(){
+  showTakenNames = !showTakenNames;
+  namePickRow = '';
+  renderNamePick();
+}
+
+/* その読みが何行か（'あ' 'か' …）。分からなければ空 */
+function rowOfYomi(y){
+  if (!y) return '';
+  var c = y.charAt(0);
+  for (var i = 0; i < YOMI_ROWS.length; i++){
+    if (YOMI_ROWS[i].chars.indexOf(c) >= 0) return YOMI_ROWS[i].label;
+  }
+  return '';
+}
+
+function showNamePick(){
+  renderNamePick();
+  $('installCard').style.display = 'none';
+  $('nameCard').style.display = 'block';
+  if ($('nameCard').scrollIntoView) $('nameCard').scrollIntoView(true);
+}
+
+function renderNamePick(){
+  var list = selectableMembers();
+  var html = '';
+
+  if (list.length === 0){
+    if (!showTakenNames && TAKEN.length > 0){
+      $('namePickBody').innerHTML =
+        '<p class="note">選べるお名前がありません。会員のみなさんは、すでにお使いです。</p>' +
+        '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">' +
+        'スマホを変えた方・お名前が見つからない方はこちら</button>';
+    } else {
+      $('namePickBody').innerHTML =
+        '<p class="note">名簿がまだ読み込めていません。' +
+        '「最新の情報に更新する」を押してから、もう一度お試しください。</p>';
+    }
+    return;
+  }
+
+  /* 人数が多いときだけ「あ行・か行…」の絞り込みを出す */
+  if (list.length > 20){
+    var used = {};
+    for (var u = 0; u < list.length; u++) used[rowOfYomi(list[u].yomi)] = true;
+    html += '<div class="rowfilter">';
+    html += '<button type="button" class="rowbtn' + (namePickRow === '' ? ' on' : '') +
+            '" onclick="setNameRow(\'\')">全部</button>';
+    for (var g = 0; g < YOMI_ROWS.length; g++){
+      var lb = YOMI_ROWS[g].label;
+      if (!used[lb]) continue;
+      html += '<button type="button" class="rowbtn' + (namePickRow === lb ? ' on' : '') +
+              '" onclick="setNameRow(\'' + lb + '\')">' + lb + '</button>';
+    }
+    html += '</div>';
+  }
+
+  html += '<div class="namegrid">';
+  var shown = 0;
+  for (var i = 0; i < list.length; i++){
+    if (namePickRow && rowOfYomi(list[i].yomi) !== namePickRow) continue;
+    var nm = list[i].name;
+    html += '<button type="button" class="namebtn' + (list[i].mine ? ' mine' : '') +
+            '" onclick="pickName(\'' + esc(nm).replace(/'/g, '') + '\')">' + esc(nm) +
+            (list[i].mine ? '<span class="mtag">この端末で登録ずみ</span>' : '') + '</button>';
+    shown++;
+  }
+  html += '</div>';
+  if (shown === 0) html += '<p class="note">この行の方はいません。「全部」を押してください。</p>';
+
+  if (showTakenNames){
+    html += '<p class="note">すでにお使いの方を選ぶときは、確認番号が必要です。</p>' +
+            '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">まだの人だけ表示する</button>';
+  } else if (TAKEN.length > 0){
+    html += '<button type="button" class="cancelbtn" onclick="toggleTakenNames()">' +
+            'スマホを変えた方・お名前が見つからない方はこちら</button>';
+  }
+  html += '<p class="note">お名前がないときは' + esc(contactName()) + 'にご連絡ください。</p>';
+  $('namePickBody').innerHTML = html;
+}
+
+function setNameRow(r){
+  namePickRow = r;
+  renderNamePick();
+}
+
+/* 名前を選んだとき。サーバーに「この端末で使います」と登録しに行く。
+   ・まだ誰も使っていない名前 → そのまま通る
+   ・別のスマホで使われている名前 → 確認番号を聞く */
+function pickName(name, code, retry){
+  if (MEMBERS.indexOf(name) < 0) return;
+  if (!code && !retry && !confirm('「' + name + '」さんとして使います。\nよろしいですか？')) return;
+
+  setStatus(retry ? 'もう一度確認しています…' : '確認しています…');
+  api('POST', { action: 'claimName', name: name, deviceId: deviceId(),
+                devName: deviceName(), code: code || '' },
+    function(err, data){
+      if (err || !data){
+        /* 書き込みは通っているのに返事だけ届かないことがある。
+           同じ端末からの2回目は「登録ずみ」としてすぐ返るので、一度だけやり直す。 */
+        if (!retry){
+          setTimeout(function(){ pickName(name, code, true); }, 1500);
+          return;
+        }
+        setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
+        return;
+      }
+      if (data.ok){
+        myName = name;
+        lsSet(LSK.name, name);
+        lsSet(LSK.claimed, name);
+        if (idOf(name)) lsSet(LSK.mid, idOf(name));
+        namePickRow = '';
+        $('nameCard').style.display = 'none';
+        updateWho();
+        $('showImport').style.display = isStaff(myName) ? 'block' : 'none';
+        setStatus(name + 'さんとして開いています');
+        render();
+        renderInstallCard();
+        return;
+      }
+      if (data.needCode){
+        if (data.error) alert(data.error);
+        askPickCode(name, data.first);
+        return;
+      }
+      if (data.needAdmin){
+        setStatus('');
+        alert(data.error || 'この端末では登録できません');
+        return;
+      }
+      setStatus('', false);
+      alert(data.error || 'うまくいきませんでした。もう一度お試しください。');
+    });
+}
+
+/* 確認番号を聞く（4けたの数字だけ入れられる欄を出す） */
+function askPickCode(name, first){
+  var msg = first
+    ? '「' + name + '」さんの確認番号を入れてください。'
+    : '「' + name + '」さんは、すでに別の端末でお使いです。<br>' +
+      'ご本人であれば、確認番号を入れてください。';
+  var html =
+    '<div class="pinbox">' +
+      '<p class="note" style="margin-top:0">' + msg + '</p>' +
+      '<input type="tel" class="pin" id="pickCode" inputmode="numeric" pattern="[0-9]*" ' +
+        'maxlength="4" autocomplete="off" placeholder="････">' +
+      '<button type="button" class="subbtn" onclick="submitPickCode(\'' +
+        esc(name).replace(/'/g, '') + '\')">この番号で使う</button>' +
+      '<button type="button" class="cancelbtn" onclick="cancelPickCode()">やめる</button>' +
+      '<p class="note">分からないときは' + esc(contactName()) + 'にご連絡ください。</p>' +
+    '</div>';
+  $('namePickBody').innerHTML = html;
+  onlyDigits($('pickCode'));
+  try { $('pickCode').focus(); } catch(e){}
+  setStatus('');
+}
+
+function submitPickCode(name){
+  var c = $('pickCode').value.replace(/[^0-9]/g, '');
+  if (c.length !== 4){
+    alert('4けたの数字を入れてください');
+    try { $('pickCode').focus(); } catch(e){}
+    return;
+  }
+  pickName(name, c);
+}
+
+function cancelPickCode(){
+  setStatus('');
+  renderNamePick();
+}
+
+/* ------------------------------------------------------------------
+   「パソコンなど、べつの端末でも使う」
+   4けたの数字をご本人に決めてもらい、名簿に保存する。
+   もう一方の端末では、お名前を選んだあとにこの数字を入れれば使えるようになる。
+   ------------------------------------------------------------------ */
+/* 数字以外を打てないようにする */
+function onlyDigits(el){
+  if (!el) return;
+  el.oninput = function(){
+    this.value = this.value.replace(/[^0-9]/g, '').substring(0, 4);
+  };
+}
+
+function askSetCode(){
+  if (!myName){
+    alert('先に、あなたのお名前を選んでください');
+    return;
+  }
+  $('code1').value = '';
+  $('code2').value = '';
+  onlyDigits($('code1'));
+  onlyDigits($('code2'));
+  $('codeForm').style.display = 'block';
+  $('setCodeBtn').style.display = 'none';
+  $('setCodeNote').style.display = 'none';
+  try { $('code1').focus(); } catch(e){}
+}
+
+function closeCodeForm(){
+  $('codeForm').style.display = 'none';
+  $('setCodeNote').style.display = 'block';
+  /* ボタンを出してよいかは openCfg が決める */
+  var canSet = !!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName);
+  $('setCodeBtn').style.display = canSet ? 'block' : 'none';
+}
+
+function submitSetCode(){
+  var c1 = $('code1').value.replace(/[^0-9]/g, '');
+  var c2 = $('code2').value.replace(/[^0-9]/g, '');
+  if (c1.length !== 4){
+    alert('4けたの数字を入れてください');
+    try { $('code1').focus(); } catch(e){}
+    return;
+  }
+  if (c1 !== c2){
+    alert('2回の数字がちがいます。もう一度入れてください');
+    $('code2').value = '';
+    try { $('code2').focus(); } catch(e){}
+    return;
+  }
+
+  setStatus('登録しています…');
+  api('POST', { action: 'setCode', name: myName, deviceId: deviceId(), code: c1 },
+    function(err, data){
+      if (err || !data){
+        setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
+        return;
+      }
+      if (data.ok){
+        setStatus('');
+        alert('登録しました。\n\n' +
+              'パソコン（または新しいスマホ）でこのアプリを開き、\n' +
+              '「' + myName + '」を選んで、いま決めた4けたの数字を入れてください。\n\n' +
+              '※数字は忘れないようにしてください');
+        closeCodeForm();
+        closeCfg();
+        return;
+      }
+      setStatus('');
+      alert(data.error || 'うまくいきませんでした。もう一度お試しください。');
+    });
+}
+
+/* 「ちがう方の名前になっている場合はこちら」から呼ばれる */
+function changeName(){
+  if (!confirm('お名前を選び直しますか？\n\nちがう方の名前で開いてしまったときに使います。\nふだんは変える必要はありません。')) return;
+  myName = '';
+  lsSet(LSK.name, '');
+  lsSet(LSK.mid, '');
+  closeCfg();
+  updateWho();
+  showNamePick();
+  render();
+}
+
+/* ---------- 初期化 ---------- */
+function init(){
+  applyClubConfig();
+  migrateOldKeys();
+
+  var now = new Date();
+  state.year = now.getFullYear();
+  state.month = now.getMonth() + 1;
+
+  /* URLに ?key=○○（個人コード）が付いていたら、その人の名前を自動セット */
+  try {
+    var q = window.location.search;
+    var mg = q ? q.match(/[?&]goto=([^&]+)/) : null;
+    if (mg) gotoId = mg[1];
+    /* Googleカレンダーへ行って戻ってきた（再読み込みされた）場合、記憶した予定へ移動 */
+    if (!gotoId){
+      var rg = lsGet(LSK.gotoId);
+      if (rg){ gotoId = rg; }
+    }
+    lsSet(LSK.gotoId, '');
+    var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
+    if (mk && KEYS[mk[1]]){
+      lsSet(LSK.name, KEYS[mk[1]]);
+      cameFromKey = true;
+    } else {
+      /* 旧形式 ?name=○○ にも当面対応 */
+      var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
+      if (mm){
+        var qn = '';
+        try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
+        qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
+        if (qn) lsSet(LSK.name, qn);
+      }
+    }
+  } catch(e){}
+
+  /* ------------------------------------------------------------------
+     前回の内容（予定・名簿）を先に読み込む。
+     圏外のときも、コードに書いてある古い一覧ではなく、
+     最後に受け取った本物の名簿で判断できるようにするため。
+     ------------------------------------------------------------------ */
+  try {
+    var cd0 = JSON.parse(lsGet(LSK.cache) || '{}');
+    state.events     = cd0.events || [];
+    state.attendance = cd0.attendance || [];
+    state.notices    = cd0.notices || [];
+    if (cd0.members && cd0.members.length){
+      MEMBERS  = cd0.members;
+      ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [];
+      EDITORS  = cd0.editors  || [];
+      ADMIN_NAME = ADMINS[0] || '';
+      TAKEN    = cd0.taken    || [];
+      CONTACTS = cd0.contacts || [];
+      MEMBER_YOMI = {}; MEMBER_ID = {}; ID_NAME = {};
+      for (var ci = 0; ci < MEMBERS.length; ci++){
+        MEMBER_YOMI[MEMBERS[ci]] = (cd0.yomis && cd0.yomis[ci]) || '';
+        var cid = (cd0.ids && cd0.ids[ci]) || '';
+        if (cid){ MEMBER_ID[MEMBERS[ci]] = cid; ID_NAME[cid] = MEMBERS[ci]; }
+      }
+    }
+  } catch(e){}
+
+  /* 保存されている名前を読み込む（メンバー一覧にある名前だけ有効） */
+  var saved = lsGet(LSK.name);
+  myName = '';
+  for (var ni = 0; ni < MEMBERS.length; ni++){
+    if (MEMBERS[ni] === saved) myName = saved;
+  }
+
+  /* ------------------------------------------------------------------
+     ここで見ている一覧は、まだサーバーから名簿が届く前の古いものです。
+     名簿で名字が直されていると、この時点では「知らない名前」に見えます。
+     会員IDを控えている端末は、名簿が届くまで名乗りをそのままにして、
+     届いてから正しい表記に直します（名前を聞き直さないため）。
+     ------------------------------------------------------------------ */
+  if (!myName && saved){
+    var bootId = lsGet(LSK.mid);
+    var bootNm = bootId ? nameOfId(bootId) : '';
+    if (bootNm){
+      /* 控えの名簿に、その会員IDの新しい名字があった */
+      myName = bootNm;
+      lsSet(LSK.name, bootNm);
+      if (lsGet(LSK.claimed)) lsSet(LSK.claimed, bootNm);
+    } else if (bootId){
+      /* まだ名簿が届いていない。名乗りはそのままにして、届いてから直す */
+      myName = saved;
+    }
+  }
+
+  updateWho();
+  if (!myName) showNamePick();
+  renderInstallCard();
+
+  /* 専用URL（?key=）で開いている方も、その名前をこの端末のものとして
+     登録しておく。こうしておかないと、ほかの人が名前選択の画面で
+     その方の名前を選べてしまうため。1つの端末につき1回だけ送る。 */
+  try {
+    var claimedMark = lsGet(LSK.claimed);
+    if (myName && claimedMark !== myName && claimedMark !== ('-' + myName)){
+      api('POST', { action: 'claimName', name: myName, deviceId: deviceId(),
+                    devName: deviceName(), silent: 1, viaKey: (cameFromKey ? 1 : 0) },
+        function(err, data){
+          if (!err && data && data.ok){
+            lsSet(LSK.claimed, myName);
+          } else {
+            /* 登録できなかった（すでに別の端末のものになっている等）。
+               毎回送り直さないよう、しばらく間を置く印を付けておく */
+            lsSet(LSK.claimed, '-' + myName);
+          }
+        });
+    }
+  } catch(e){}
+
+  /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
+  if (isStaff(myName)) $('showImport').style.display = 'block';
+  $('shareCopy').onclick = function(){ copyText(shareText); };
+  $('shareClose').onclick = closeShare;
+  $('shareGo').onclick = function(){ setTimeout(closeShare, 1200); };
+
+  $('showNotice').onclick = function(){
+    $('noticeCard').style.display = 'block';
+    $('noticeCell').style.display = 'none';
+    $('noticeText').value = '';
+    $('noticeUntil').value = '';
+    $('noticeText').focus();
+  };
+  $('noticeCancel').onclick = function(){
+    $('noticeCard').style.display = 'none';
+    $('noticeCell').style.display = canWriteNotice ? 'table-cell' : 'none';
+  };
+  $('noticeSave').onclick = function(){
+    var t = $('noticeText').value.replace(/^[\s　]+|[\s　]+$/g, '');
+    if (!t){ alert('お知らせの内容を書いてください'); return; }
+    $('noticeCard').style.display = 'none';
+    post({ action: 'addNotice', text: t, until: $('noticeUntil').value || '',
+           mail: $('noticeMail').checked,
+           name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました', function(){
+      offerShare('【' + CLUB.shareTag + '】お知らせ\n' + t +
+                 '\n\nアプリを開くと、いちばん上に出ています。\n' +
+                 location.href.split('?')[0]);
+    });
+  };
+
+  $('showImport').onclick = function(){
+    $('importCard').style.display = 'block';
+    $('showImport').style.display = 'none';
+  };
+  $('importCancel').onclick = closeImport;
+  $('importBtn').onclick = submitImport;
+  $('exportBtn').onclick = exportEvents;
+  $('exportFileBtn').onclick = exportEventsFile;
+  $('filePickBtn').onclick = function(){ $('fileInput').click(); };
+  $('fileInput').onchange = function(){
+    if (this.files && this.files[0]) fileToTable(this.files[0]);
+    this.value = '';
+  };
+  var dz = $('dropZone');
+  dz.ondragover = function(e){ e.preventDefault(); dz.style.background = '#dff0e0'; };
+  dz.ondragleave = function(){ dz.style.background = '#f4f9f4'; };
+  dz.ondrop = function(e){
+    e.preventDefault();
+    dz.style.background = '#f4f9f4';
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]){
+      fileToTable(e.dataTransfer.files[0]);
+    }
+  };
+
+  $('prevM').onclick = function(){ moveMonth(-1); };
+  $('nextM').onclick = function(){ moveMonth(1); };
+  $('showAdd').onclick = function(){
+    var n = new Date();
+    openAddForm(state.year, state.month, state.year === n.getFullYear() && state.month === n.getMonth() + 1 ? n.getDate() : 1);
+  };
+  $('addCancel').onclick = closeAddForm;
+  $('addBtn').onclick = submitAdd;
+  $('refPlan').onclick = function(){ openPicker('plan'); };
+  $('refReport').onclick = function(){ openPicker('report'); };
+  $('pickerClose').onclick = closePicker;
+  $('addRep').onchange = function(){
+    $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
+  };
+  $('staffType').onchange = function(){
+    staffRows = [];
+    renderStaffRows();
+  };
+  $('reloadBtn').onclick = load;
+  $('cfgBtn').onclick = openCfg;
+
+  /* Googleカレンダー連携チェックボックス（この端末に記憶） */
+  $('gcalChk').checked = (lsGet(LSK.gcalPref) === 'yes');
+  $('gcalChk').onchange = function(){
+    lsSet(LSK.gcalPref, this.checked ? 'yes' : 'no');
+  };
+
+  /* 前回の内容は、この関数のはじめで読み込みずみ */
+
+  render();
+  /* 精算アプリから戻ってきたときは、手元の控えですぐその予定へ移動する。
+     サーバーの返事を待たないので、待たされません。 */
+  tryGoto();
+  load();
+}
+init();
+</script>
+</body>
+</html>
