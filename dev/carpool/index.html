@@ -373,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03e（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03f（開発版）</p>
 
 </main>
 
@@ -802,13 +802,15 @@ function lookupDistance() {
 
     msg.innerHTML = head + ul_(li) + cmp + btn2 +
       '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>' +
-      routePointsHtml(data.points);
+      '<div id="icLink" style="margin-top:8px;"></div>';
+    /* ★高速料金との連携（2026-08-03f）。下の applyIcRoute_ が中身を入れます */
     lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
     lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
     /* どの行き先について調べた名前かを覚えておきます。
        行き先を変えたあとも古い名前を使ってしまうのを防ぐためです。 */
     lastTollFor = to;
-    autoPickRoute();
+    applyIcRoute_(data);            /* ★区間から料金表を引く（2026-08-03f） */
+    if (!data.noHw) autoPickRoute(true);   /* 引けなかったときは行き先で探す */
     document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
   });
 }
@@ -924,7 +926,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03e（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03f（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1158,6 +1160,124 @@ function autoPickRoute(quiet) {
 
 /* 地図で調べたときのIC名を覚えておく（料金表の名前づけに使う） */
 var lastTollIn = "", lastTollOut = "", lastTollFor = "";
+
+/* ==================================================================
+   高速の区間と、料金表をつなぐ　2026-08-03f
+   ------------------------------------------------------------------
+   これまでは「高速道路にチェック → ルートを選ぶ → 金額を入れる」を
+   手でやっていました。地図を調べれば、どのインターで乗り降りするかは
+   分かっているので、そこから料金表を引いて自動で入れます。
+   ================================================================== */
+/* 「杷木IC」→「杷木」。名前をくらべやすくします */
+function icShort_(v) {
+  return String(v || "").replace(/^[\s　]+|[\s　]+$/g, "")
+                        .replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+}
+
+/* いまの区間の名前。例：「南関⇔杷木」 */
+function icPairName_() {
+  var a = icShort_(lastTollIn), b = icShort_(lastTollOut);
+  return (a && b) ? (a + "⇔" + b) : "";
+}
+
+/* 料金表から、この区間の行をさがします。
+   「杷木⇔南関」と「南関⇔杷木」は同じ区間なので、順番は見ません。 */
+function findRouteByIcPair_(a, b) {
+  a = icShort_(a); b = icShort_(b);
+  if (!a || !b) return -1;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var p = String(routes[i].name).split(/[⇔↔〜～~\-–—]/);
+    if (p.length < 2) continue;
+    var x = icShort_(p[0]), y = icShort_(p[1]);
+    if (!x || !y) continue;
+    if ((x === a && y === b) || (x === b && y === a)) return i;
+  }
+  return -1;
+}
+
+/* 料金表にこの区間を足して、金額を入れてもらう */
+function addIcRoute_() {
+  var nm = icPairName_();
+  if (!nm) return;
+  addEtcRow(nm, "", "", document.getElementById("destPlace").value.trim());
+  saveEtc();
+  var box = document.getElementById("etcRows");
+  if (box) {
+    var d = box.closest("details");
+    if (d) d.open = true;
+    var rows = box.querySelectorAll(".etc-row");
+    var last = rows[rows.length - 1];
+    if (last) {
+      last.scrollIntoView({ behavior: "smooth", block: "center" });
+      var f = last.querySelector(".etc-fee");
+      if (f) setTimeout(function () { f.focus(); }, 400);
+    }
+  }
+}
+
+/* 調べた結果に合わせて、各車の高速料金の欄を整えます */
+function applyIcRoute_(data) {
+  var box = document.getElementById("icLink");
+  if (!box) return;
+  var cars = document.querySelectorAll("#cars .car-card");
+
+  /* --- 高速を使わない道のとき --- */
+  if (data.noHw) {
+    var off = 0;
+    cars.forEach(function (c) {
+      var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc");
+      if (!chk || !chk.checked) return;
+      /* 手で入れた金額には触りません。空か、アプリが入れた値のときだけ外します */
+      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+      chk.checked = false; toggleOpt(chk, "blk-etc");
+      if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
+      var sel = c.querySelector(".car-route"); if (sel) sel.value = "";
+      off++;
+    });
+    box.innerHTML = ul_(["高速に乗らないので、<b>高速料金はかかりません</b>",
+      off ? "「高速道路」のチェックを <b>" + off + "台</b> 分はずしました"
+          : "「高速道路」にチェックの入った車はありません"]);
+    saveForm();
+    return;
+  }
+
+  /* --- 高速を使う道のとき --- */
+  var nm = icPairName_();
+  if (!nm) { box.innerHTML = ""; return; }
+  var idx = findRouteByIcPair_(lastTollIn, lastTollOut);
+
+  if (idx < 0) {
+    box.innerHTML =
+      '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
+      '<button type="button" class="btn btn-sub" style="margin-top:6px;" ' +
+      'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>' +
+      '<div style="color:#5a6b5c;font-size:14px;margin-top:4px;">' +
+      '金額を1回入れれば、<b>次から自動で入ります。</b></div>';
+    return;
+  }
+
+  var routes = getEtcRoutes(), n = 0;
+  cars.forEach(function (c) {
+    var fee = c.querySelector(".car-etc");
+    /* 手で入れた金額には触りません */
+    if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+    var chk = c.querySelector(".chk-etc");
+    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    var sel = c.querySelector(".car-route");
+    if (!sel) return;
+    sel.value = String(idx);
+    routeSelected(sel);
+    if (fee) fee.setAttribute("data-auto", fee.value);
+    n++;
+  });
+  box.innerHTML = ul_([
+    "区間：<b>" + escapeHtml(nm) + "</b>",
+    n ? "料金表の <b>" + escapeHtml(routes[idx].name) + "</b> から、<b>" + n +
+        "台</b> 分の高速料金を入れました"
+      : "各車の高速料金は、すでに入っているのでそのままにしています"]);
+  saveForm();
+}
 
 /* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
 function feeChanged(el) {
