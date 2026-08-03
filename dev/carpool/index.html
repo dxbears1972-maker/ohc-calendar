@@ -366,7 +366,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03i（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03j（開発版）</p>
 
 </main>
 
@@ -763,7 +763,7 @@ function lookupDistance() {
 }
 
 /* 候補の一覧。押すと、その道に切り替わります */
-function routeListHtml_() {
+function routeListHtml_(detail) {
   var h = '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
           '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
   for (var i = 0; i < lastRouteList.length; i++) {
@@ -777,6 +777,13 @@ function routeListHtml_() {
       (r.summary ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:1.5em;">' +
                    escapeHtml(r.summary) + '</span>' : '') +
       '</button>';
+    /* ★選んだ道のすぐ下に、その道の明細を出します（2026-08-03j）。
+       　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
+    if (on && detail) {
+      h += '<div style="margin:0 0 10px 10px;padding:8px 12px;' +
+           'border-left:4px solid #2e6b34;background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           detail + '</div>';
+    }
   }
   return h;
 }
@@ -830,9 +837,9 @@ function showRoute_(i) {
            '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>']);
   }
 
-  msg.innerHTML = routeListHtml_() + ul_(li) + btn2 +
-    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>' +
-    '<div id="icLink" style="margin-top:8px;"></div>';
+  var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
+  msg.innerHTML = routeListHtml_(detail) +
+    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
 
   applyIcRoute_(d);
   if (!d.noHw) autoPickRoute(true);
@@ -951,7 +958,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03i（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03j（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
