@@ -242,11 +242,13 @@
     <label style="margin-top:12px;">道の選びかた</label>
     <select id="routePref" onchange="prefChanged()">
       <option value="time">早い道（時間優先・おすすめ）</option>
-      <option value="dist">短い道（距離優先）</option>
+      <option value="dist">短い道（距離優先・下道も比べます）</option>
     </select>
     <p class="note" style="margin-top:4px;">選び直したら、下の
       <b>「地図で走行距離を調べる」</b>をもう一度押してください。
-      距離も、高速に乗り降りするインターも、選んだ道に合わせて入れ直します。</p>
+      距離も、高速に乗り降りするインターも、選んだ道に合わせて入れ直します。<br>
+      <b>短い道</b>を選ぶと、<b>高速を使わない道</b>も含めて比べ、
+      いちばん距離の短いものを選びます。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
@@ -371,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03a（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03b（開発版）</p>
 
 </main>
 
@@ -733,7 +735,8 @@ function lookupDistance() {
         var other = [];
         for (var ci = 0; ci < ch.length; ci++) {
           if (ch[ci].chosen) continue;
-          other.push(ch[ci].km + "km・" + ch[ci].mins + "分" +
+          other.push((ch[ci].noHw ? "【高速なし】" : "") +
+                     ch[ci].km + "km・" + ch[ci].mins + "分" +
                      (ch[ci].summary ? "（" + escapeHtml(ch[ci].summary) + "）" : ""));
         }
         if (other.length) {
@@ -742,7 +745,9 @@ function lookupDistance() {
         }
       }
     } catch (eC) {}
-    msg.innerHTML = (data.pref === "dist" ? "<b>短い道</b>で調べました。<br>" : "") +
+    msg.innerHTML = (data.pref === "dist" ? "<b>短い道</b>で調べました。" : "") +
+      (data.noHw ? "<b>高速を使わない道</b>です。" : "") +
+      (data.pref === "dist" || data.noHw ? "<br>" : "") +
       "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
       (data.summary ? "／おもに <b>" + escapeHtml(data.summary) + "</b> を通る道順" : "") + "。" +
       (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
@@ -887,7 +892,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03a（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03b（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
