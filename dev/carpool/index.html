@@ -373,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03d（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03e（開発版）</p>
 
 </main>
 
@@ -532,6 +532,25 @@ function applyJoined(autoCount) {
    ================================================================== */
 /* 道順の要点（どのICで乗り降りするか、フェリー乗り場はどこか）を出す。
    ふだんは畳んでおいて、押したときだけ開きます。 */
+/* 箇条書きを作ります。長い文章を続けて書くと読みづらいためです（2026-08-03e） */
+function ul_(items) {
+  var h = '<ul style="margin:6px 0 8px 1.1em;padding:0;">';
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i]) continue;
+    h += '<li style="margin:4px 0;">' + items[i] + '</li>';
+  }
+  return h + '</ul>';
+}
+
+/* 高速の乗り降りする場所を、箇条書きの1行にします */
+function tollLi_(t, label) {
+  if (!t) return "";
+  var link = "https://www.google.com/maps/search/?api=1&query=" + t.lat + "," + t.lng;
+  return label + '：' +
+    (t.name ? '<b>' + escapeHtml(t.name) + '</b>　' : '<span style="color:#888;">名前が出ませんでした</span>　') +
+    '<a href="' + link + '" target="_blank" rel="noopener">地図で見る</a>';
+}
+
 /* 高速に乗る場所・降りる場所。名前が分からないときは、地図で開けるようにする */
 function tollHtml(t, label) {
   if (!t) return "";
@@ -640,32 +659,39 @@ function saveRouteMap() {
        そのときは「分かりませんでした」で終わらせず、
        次から自動で入るようにする手順を、その場で出します。
        ------------------------------------------------------------------ */
-    var ic = "";
+    /* 地図の説明も箇条書きにします（2026-08-03e） */
+    var mli = [];
+    mli.push("道の選びかた：<b>" +
+      (data.noHw ? "短い道（高速を使わない道）"
+                 : (data.pref === "dist" ? "短い道（距離優先）" : "早い道（時間優先）")) + "</b>");
+    if (data.km) mli.push("片道 <b>" + escapeHtml(String(data.km)) + "</b>" +
+                          (data.mins ? "（車で約" + escapeHtml(String(data.mins)) + "）" : ""));
     if (data.icIn && data.icOut) {
-      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗り、<b>' +
-           escapeHtml(data.icOut) + '</b> で降りる道順です。';
+      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗り、<b>" +
+               escapeHtml(data.icOut) + "</b> で降ります");
     } else if (data.icOut) {
       var shortOut = String(data.icOut).replace(/(IC|ＩＣ|インターチェンジ)$/, "");
       var guess = data.signHint ? String(data.signHint) : "";
-      ic = '<br>高速：<b>' + escapeHtml(data.icOut) + '</b> で降りる道順です。' +
-           '<br><span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
-           (guess ? '案内には「<b>' + escapeHtml(guess) + '</b>」の標識が出ています（' +
-                    escapeHtml(guess) + 'ICかもしれません）。' : "") +
-           '<br>下の<b>高速料金表</b>のルート名を <b>「' +
-           escapeHtml(guess || "南関") + "⇔" + escapeHtml(shortOut) +
-           '」</b>のように直しておくと、<b>次からは自動で入ります。</b></span>';
+      mli.push("高速：<b>" + escapeHtml(data.icOut) + "</b> で降ります");
+      mli.push('<span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
+        (guess ? "案内には「<b>" + escapeHtml(guess) + "</b>」の標識が出ています。" : "") +
+        "下の<b>高速料金表</b>のルート名を <b>「" + escapeHtml(guess || "南関") + "⇔" +
+        escapeHtml(shortOut) + "」</b>のように直しておくと、<b>次から自動で入ります</b></span>");
     } else if (data.icIn) {
-      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗る道順です。';
+      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗ります");
+    } else if (data.noHw) {
+      mli.push("高速には乗りません");
     }
-    msg.innerHTML = '地図を残しました。' + ic +
-      '<br><a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
-      'style="display:inline-block;margin-top:6px;padding:8px 12px;background:#2e6b34;' +
-      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">🗺 保存した地図を見る</a>' +
-      (data.pdf === false
-        ? '<br>地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる'
-        : '<br><b>A4・1枚のPDF</b>です。地図の下に、日付・行き先・インター名・' +
-          '距離の説明が付いています。そのまま印刷できます。') +
-      '<br>この山行の記録として残ります。履歴にもリンクが付きます。';
+    mli.push(data.pdf === false
+      ? "地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる"
+      : "<b>A4・1枚のPDF</b>です。地図の下に日付・行き先・インター名・距離が付いていて、そのまま印刷できます");
+    mli.push("この山行の記録として残ります（履歴にもリンクが付きます）");
+
+    msg.innerHTML = "地図を残しました。" + ul_(mli) +
+      '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin-top:4px;padding:8px 12px;background:#2e6b34;' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+      '🗺 保存した地図を見る</a>';
   });
 }
 
@@ -726,54 +752,56 @@ function lookupDistance() {
     });
     lastAutoKm = String(data.km);
     saveForm();
-    /* 候補が2つ以上あるときは、選ばなかったほうも見せます。
-       「短い道にすると何km減って、何分よけいにかかるか」が分かるようにです。 */
+    /* ------------------------------------------------------------------
+       結果は箇条書きで出します。（2026-08-03e）
+       だらだらと続く文章だと、どこに何が書いてあるか分からないためです。
+       ------------------------------------------------------------------ */
+    var head = (data.pref === "dist" ? "<b>短い道</b>で調べました" : "<b>早い道</b>で調べました") +
+               (data.noHw ? "（<b>高速を使わない道</b>）" : "") + "。";
+
+    var li = [];
+    li.push("片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）");
+    if (data.summary) li.push("おもに <b>" + escapeHtml(data.summary) + "</b> を通ります");
+    li.push(filled ? "空いていた <b>" + filled + "台</b> に「片道」として入れました（往復ぶんは自動で計算）"
+                   : "すでに入っている欄は、そのままにしています");
+    var t1 = tollLi_(data.tollIn,  "高速に乗るところ");
+    var t2 = tollLi_(data.tollOut, "高速を降りるところ");
+    if (t1) li.push(t1);
+    if (t2) li.push(t2);
+    li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(data.from || "") + "</span>");
+    li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(data.to || "") + "</span>");
+
+    /* 選ばなかった道も並べます。「短くすると何分よけいにかかるか」を見るためです */
     var cmp = "";
     try {
-      var ch = data.choices || [];
-      if (ch.length > 1) {
-        var other = [];
-        for (var ci = 0; ci < ch.length; ci++) {
-          if (ch[ci].chosen) continue;
-          other.push((ch[ci].noHw ? "【高速なし】" : "") +
-                     ch[ci].km + "km・" + ch[ci].mins + "分" +
-                     (ch[ci].summary ? "（" + escapeHtml(ch[ci].summary) + "）" : ""));
-        }
-        if (other.length) {
-          cmp = '<br><span style="color:#5a6b5c;">ほかの道：' +
-                other.join("／") + "</span>";
-        }
+      var ch = data.choices || [], other = [];
+      for (var ci = 0; ci < ch.length; ci++) {
+        if (ch[ci].chosen) continue;
+        other.push((ch[ci].noHw ? "<b>【高速なし】</b>" : "") +
+                   ch[ci].km + "km・" + ch[ci].mins + "分" +
+                   (ch[ci].summary ? "（" + escapeHtml(ch[ci].summary) + "）" : ""));
+      }
+      if (other.length) {
+        cmp = '<div style="color:#5a6b5c;">選ばなかった道</div>' + ul_(other);
       }
     } catch (eC) {}
-    msg.innerHTML = (data.pref === "dist" ? "<b>短い道</b>で調べました。" : "") +
-      (data.noHw ? "<b>高速を使わない道</b>です。" : "") +
-      (data.pref === "dist" || data.noHw ? "<br>" : "") +
-      "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
-      (data.summary ? "／おもに <b>" + escapeHtml(data.summary) + "</b> を通る道順" : "") + "。" +
-      (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
-              : "すでに入っている欄はそのままにしています。") +
-      cmp +
-      (data.mapUrl
-        ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
-          'style="display:inline-block;margin:8px 0;padding:8px 12px;background:#2e6b34;' +
-          'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
-          (data.noHw ? '🗺 地図でこの道順を見る' : '🗺 地図で道順と高速料金を見る') + '</a>' +
-          /* 下道と高速で、書くことが違います（2026-08-03d） */
-          (data.noHw
-            ? '<br><span style="color:#5a6b5c;">地図も<b>高速を使わない道順</b>で開きます。' +
-              '高速に乗らないので、<b>高速料金はいりません。</b></span>'
-            : '<br><span style="color:#5a6b5c;">この地図は、アプリが選んだのと' +
-              '<b>同じインターで乗り降りする道順</b>を開きます。' +
-              '（乗り口・降り口を「経由地」として渡しているためです）</span>' +
-              '<br><span style="color:#8a5a00;">地図に <b>「有料道路あり・¥○○○」</b> と出ます。' +
-              'その金額を下の「高速料金」に入れてください。<br>' +
-              '一度入れて高速ルートを選べば、<b>次から自動で入ります。</b></span>')
-        : "") +
-      "<br><b>実際に走った距離と違うときは、手で直してください。</b>" +
-      "<br>出発地：" + escapeHtml(data.from || "") +
-      "<br>到着地：" + escapeHtml(data.to || "") +
-      tollHtml(data.tollIn,  "高速に乗るところ") +
-      tollHtml(data.tollOut, "高速を降りるところ") +
+
+    var btn2 = "";
+    if (data.mapUrl) {
+      btn2 = '<a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
+        'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
+        'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+        (data.noHw ? '🗺 地図でこの道順を見る' : '🗺 地図で道順と高速料金を見る') + '</a>' +
+        (data.noHw
+          ? ul_(['地図も<b>高速を使わない道順</b>で開きます',
+                 '高速に乗らないので、<b>高速料金はいりません</b>'])
+          : ul_(['アプリと<b>同じインターで乗り降りする道順</b>が開きます',
+                 '地図に出る <b>「有料道路あり・¥○○○」</b> を、下の「高速料金」に入れてください',
+                 '一度入れて高速ルートを選べば、<b>次から自動で入ります</b>']));
+    }
+
+    msg.innerHTML = head + ul_(li) + cmp + btn2 +
+      '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>' +
       routePointsHtml(data.points);
     lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
     lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
@@ -896,7 +924,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03d（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03e（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
