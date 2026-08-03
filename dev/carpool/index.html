@@ -239,16 +239,9 @@
     <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
     <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
            oninput="saveForm()" onchange="autoPickRoute()">
-    <label style="margin-top:12px;">道の選びかた</label>
-    <select id="routePref" onchange="prefChanged()">
-      <option value="time">早い道（時間優先）</option>
-      <option value="dist">短い道（距離優先）</option>
-    </select>
-    <p class="note" style="margin-top:4px;">選び直したら、下の
-      <b>「地図で走行距離を調べる」</b>をもう一度押してください。
-      距離も、高速に乗り降りするインターも、選んだ道に合わせて入れ直します。<br>
-      調べると<b>候補が一覧で出ます</b>ので、実際に走る道を選んでください。
-      ここでの選びかたは、<b>最初にどれを選んでおくか</b>を決めるだけです。</p>
+    <p class="note" style="margin-top:8px;">調べると<b>道の候補が一覧で出ます。</b>
+      実際に走る道を押してください。距離・高速のインター・料金・地図が、
+      その道に合わせて入れ替わります。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
@@ -373,7 +366,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03h（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03i（開発版）</p>
 
 </main>
 
@@ -695,11 +688,9 @@ function saveRouteMap() {
   });
 }
 
-/* いま選ばれている道の選びかた（'time'＝早い道 / 'dist'＝短い道） */
-function routePrefNow_() {
-  var el = document.getElementById("routePref");
-  return (el && el.value === "dist") ? "dist" : "time";
-}
+/* 最初に選んでおく道。時間のいちばん短いものにします。
+   （2026-08-03i：候補から選べるようになったので、選びかたの欄は外しました） */
+function routePrefNow_() { return "time"; }
 
 /* このアプリが自動で入れた距離をおぼえておきます。
    選びかたを変えて調べ直したとき、**自分が入れた数字だけ**を書き替えるためです。
@@ -960,7 +951,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03h（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03i（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
