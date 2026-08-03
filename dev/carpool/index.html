@@ -373,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-03f（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03g（開発版）</p>
 
 </main>
 
@@ -793,8 +793,9 @@ function lookupDistance() {
         'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
         (data.noHw ? '🗺 地図でこの道順を見る' : '🗺 地図で道順と高速料金を見る') + '</a>' +
         (data.noHw
-          ? ul_(['地図も<b>高速を使わない道順</b>で開きます',
-                 '高速に乗らないので、<b>高速料金はいりません</b>'])
+          ? ul_(['地図も<b>アプリと同じ道順</b>で開きます（途中の地点を渡して固定しています）',
+                 '高速に乗らないので、<b>高速料金はいりません</b>',
+                 '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>'])
           : ul_(['アプリと<b>同じインターで乗り降りする道順</b>が開きます',
                  '地図に出る <b>「有料道路あり・¥○○○」</b> を、下の「高速料金」に入れてください',
                  '一度入れて高速ルートを選べば、<b>次から自動で入ります</b>']));
@@ -926,7 +927,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-03f（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03g（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
