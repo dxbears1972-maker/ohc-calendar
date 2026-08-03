@@ -647,7 +647,7 @@ function saveRouteMap() {
   var icNow = icNamesNow_();
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
             icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
-            pref: routePrefNow_() },
+            pref: routePrefNow_(), routeIdx: lastRouteIdx },
           function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
@@ -738,82 +738,100 @@ function lookupDistance() {
        （計算のときに自動で2倍されて、往復になります）。
        すでに距離が入っている車には、いっさい触りません。
        ------------------------------------------------------------------ */
-    var filled = 0;
-    document.querySelectorAll("#cars .car-card").forEach(function (c) {
-      var km = c.querySelector(".car-km");
-      if (!km) return;
-      /* 空いている欄と、**前にこのアプリが入れた数字**だけを入れ替えます。
-         手で直した数字はそのままにします。（2026-08-03） */
-      if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
-      km.value = data.km;
-      var tp = c.querySelector(".car-kmtype");
-      if (tp) tp.value = "one";
-      filled++;
-    });
-    lastAutoKm = String(data.km);
-    saveForm();
     /* ------------------------------------------------------------------
-       結果は箇条書きで出します。（2026-08-03e）
-       だらだらと続く文章だと、どこに何が書いてあるか分からないためです。
+       ★2026-08-03h
+       　候補の道を一覧で出し、**実際に走る道を選んでもらいます。**
+       　「短いが遅い道」と「少し長いが速い道」のどちらが良いかは、
+       　その日の事情で変わるので、機械が決めるものではありません。
        ------------------------------------------------------------------ */
-    var head = (data.pref === "dist" ? "<b>短い道</b>で調べました" : "<b>早い道</b>で調べました") +
-               (data.noHw ? "（<b>高速を使わない道</b>）" : "") + "。";
-
-    var li = [];
-    li.push("片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）");
-    if (data.summary) li.push("おもに <b>" + escapeHtml(data.summary) + "</b> を通ります");
-    li.push(filled ? "空いていた <b>" + filled + "台</b> に「片道」として入れました（往復ぶんは自動で計算）"
-                   : "すでに入っている欄は、そのままにしています");
-    var t1 = tollLi_(data.tollIn,  "高速に乗るところ");
-    var t2 = tollLi_(data.tollOut, "高速を降りるところ");
-    if (t1) li.push(t1);
-    if (t2) li.push(t2);
-    li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(data.from || "") + "</span>");
-    li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(data.to || "") + "</span>");
-
-    /* 選ばなかった道も並べます。「短くすると何分よけいにかかるか」を見るためです */
-    var cmp = "";
-    try {
-      var ch = data.choices || [], other = [];
-      for (var ci = 0; ci < ch.length; ci++) {
-        if (ch[ci].chosen) continue;
-        other.push((ch[ci].noHw ? "<b>【高速なし】</b>" : "") +
-                   ch[ci].km + "km・" + ch[ci].mins + "分" +
-                   (ch[ci].summary ? "（" + escapeHtml(ch[ci].summary) + "）" : ""));
-      }
-      if (other.length) {
-        cmp = '<div style="color:#5a6b5c;">選ばなかった道</div>' + ul_(other);
-      }
-    } catch (eC) {}
-
-    var btn2 = "";
-    if (data.mapUrl) {
-      btn2 = '<a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
-        'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
-        'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
-        (data.noHw ? '🗺 地図でこの道順を見る' : '🗺 地図で道順と高速料金を見る') + '</a>' +
-        (data.noHw
-          ? ul_(['地図も<b>アプリと同じ道順</b>で開きます（途中の地点を渡して固定しています）',
-                 '高速に乗らないので、<b>高速料金はいりません</b>',
-                 '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>'])
-          : ul_(['アプリと<b>同じインターで乗り降りする道順</b>が開きます',
-                 '地図に出る <b>「有料道路あり・¥○○○」</b> を、下の「高速料金」に入れてください',
-                 '一度入れて高速ルートを選べば、<b>次から自動で入ります</b>']));
+    lastRouteList = data.list || [];
+    lastRouteFrom = data.from || "";
+    lastRouteTo   = data.to || "";
+    lastRouteFor  = to;
+    if (!lastRouteList.length) {
+      msg.innerHTML = "<b>道順が見つかりませんでした。</b>";
+      return;
     }
-
-    msg.innerHTML = head + ul_(li) + cmp + btn2 +
-      '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>' +
-      '<div id="icLink" style="margin-top:8px;"></div>';
-    /* ★高速料金との連携（2026-08-03f）。下の applyIcRoute_ が中身を入れます */
-    lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
-    lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
-    /* どの行き先について調べた名前かを覚えておきます。
-       行き先を変えたあとも古い名前を使ってしまうのを防ぐためです。 */
-    lastTollFor = to;
-    applyIcRoute_(data);            /* ★区間から料金表を引く（2026-08-03f） */
-    if (!data.noHw) autoPickRoute(true);   /* 引けなかったときは行き先で探す */
-    document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
+    showRoute_(data.pick || 0);
   });
+}
+
+/* 候補の一覧。押すと、その道に切り替わります */
+function routeListHtml_() {
+  var h = '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
+          '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
+  for (var i = 0; i < lastRouteList.length; i++) {
+    var r = lastRouteList[i], on = (i === lastRouteIdx);
+    h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
+      'style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 11px;' +
+      'border-radius:9px;border:2px solid ' + (on ? '#2e6b34' : '#cfd8cd') + ';' +
+      'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;">' +
+      (on ? '✅ ' : '　') + '<b>' + r.km + 'km</b>・' + r.mins + '分' +
+      (r.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
+      (r.summary ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:1.5em;">' +
+                   escapeHtml(r.summary) + '</span>' : '') +
+      '</button>';
+  }
+  return h;
+}
+
+/* i番目の道に切り替えます */
+function showRoute_(i) {
+  var d = lastRouteList[i];
+  if (!d) return;
+  lastRouteIdx = i;
+  var msg = document.getElementById("distMsg");
+
+  /* 空いている欄と、前にこのアプリが入れた数字だけを入れ替えます。
+     手で直した数字はそのままにします。 */
+  var filled = 0;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var km = c.querySelector(".car-km");
+    if (!km) return;
+    if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
+    km.value = d.km;
+    var tp = c.querySelector(".car-kmtype");
+    if (tp) tp.value = "one";
+    filled++;
+  });
+  lastAutoKm = String(d.km);
+  lastTollIn  = (d.tollIn  && d.tollIn.name)  ? d.tollIn.name  : "";
+  lastTollOut = (d.tollOut && d.tollOut.name) ? d.tollOut.name : "";
+  lastTollFor = lastRouteFor;
+
+  var li = [];
+  li.push("片道 <b>" + d.km + "km</b>（車で約" + d.mins + "分）");
+  if (d.summary) li.push("おもに <b>" + escapeHtml(d.summary) + "</b> を通ります");
+  li.push(filled ? "<b>" + filled + "台</b> に「片道」として入れました（往復ぶんは自動で計算）"
+                 : "各車の距離は、手で直した数字をそのままにしています");
+  var t1 = tollLi_(d.tollIn,  "高速に乗るところ");
+  var t2 = tollLi_(d.tollOut, "高速を降りるところ");
+  if (t1) li.push(t1);
+  if (t2) li.push(t2);
+  if (d.noHw) li.push("<b>高速には乗りません</b>");
+  li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(lastRouteFrom) + "</span>");
+  li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(lastRouteTo) + "</span>");
+
+  var btn2 = "";
+  if (d.mapUrl) {
+    btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+      '🗺 この道順を地図で見る</a>' +
+      ul_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
+           d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
+                  : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
+           '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>']);
+  }
+
+  msg.innerHTML = routeListHtml_() + ul_(li) + btn2 +
+    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>' +
+    '<div id="icLink" style="margin-top:8px;"></div>';
+
+  applyIcRoute_(d);
+  if (!d.noHw) autoPickRoute(true);
+  saveForm();
+  document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
 }
 
 /* ---------- 参加人数 ---------- */
