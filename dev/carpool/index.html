@@ -184,7 +184,7 @@
 </div>
 <script>
 (function(){
-  if (!"https://script.google.com/macros/s/AKfycbx6_ZGgguNeSuIS0WCBjs_nT0Hee0y44wLtfo5Hoa5s8aFxUwOtvRwBvM3zL6ro_c4/exec") {
+  if (!"https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec") {
     var d=document.createElement("div");
     d.style.cssText="background:#fff3cd;color:#664d03;padding:10px;font-size:14px;"+
       "border-bottom:2px solid #ffc107;text-align:center;font-weight:bold;";
@@ -239,6 +239,14 @@
     <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
     <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
            oninput="saveForm()" onchange="autoPickRoute()">
+    <label style="margin-top:12px;">道の選びかた</label>
+    <select id="routePref" onchange="prefChanged()">
+      <option value="time">早い道（時間優先・おすすめ）</option>
+      <option value="dist">短い道（距離優先）</option>
+    </select>
+    <p class="note" style="margin-top:4px;">選び直したら、下の
+      <b>「地図で走行距離を調べる」</b>をもう一度押してください。
+      距離も、高速に乗り降りするインターも、選んだ道に合わせて入れ直します。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
@@ -363,7 +371,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/dev/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-07-30f（開発版）</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-03a（開発版）</p>
 
 </main>
 
@@ -390,7 +398,7 @@ try {
 if (EVENT_ID) LS_FORM = "ohc_carpool_form_" + EVENT_ID;
 
 /* カレンダーのデータ保存先（GAS）。精算結果の記録と料金表の共有に使う */
-var CAL_API = "https://script.google.com/macros/s/AKfycbx6_ZGgguNeSuIS0WCBjs_nT0Hee0y44wLtfo5Hoa5s8aFxUwOtvRwBvM3zL6ro_c4/exec";
+var CAL_API = "https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
 
 /* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う */
 var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/dev/";
@@ -617,7 +625,8 @@ function saveRouteMap() {
               (document.getElementById("hikeName").value || "山行");
   var icNow = icNamesNow_();
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
-            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName },
+            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
+            pref: routePrefNow_() },
           function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
@@ -658,6 +667,26 @@ function saveRouteMap() {
   });
 }
 
+/* いま選ばれている道の選びかた（'time'＝早い道 / 'dist'＝短い道） */
+function routePrefNow_() {
+  var el = document.getElementById("routePref");
+  return (el && el.value === "dist") ? "dist" : "time";
+}
+
+/* このアプリが自動で入れた距離をおぼえておきます。
+   選びかたを変えて調べ直したとき、**自分が入れた数字だけ**を書き替えるためです。
+   手で直した数字には、いっさい触りません。 */
+var lastAutoKm = "";
+
+function prefChanged() {
+  saveForm();
+  var msg = document.getElementById("distMsg");
+  if (msg) {
+    msg.innerHTML = "道の選びかたを変えました。<b>「地図で走行距離を調べる」を" +
+                    "もう一度押してください。</b>";
+  }
+}
+
 function lookupDistance() {
   var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
@@ -669,7 +698,8 @@ function lookupDistance() {
   }
   btn.disabled = true;
   msg.innerHTML = "地図で調べています…";
-  apiPost({ action: "getDistance", from: from, to: to }, function (err, data) {
+  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_() },
+          function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
@@ -683,22 +713,49 @@ function lookupDistance() {
     var filled = 0;
     document.querySelectorAll("#cars .car-card").forEach(function (c) {
       var km = c.querySelector(".car-km");
-      if (!km || km.value !== "") return;
+      if (!km) return;
+      /* 空いている欄と、**前にこのアプリが入れた数字**だけを入れ替えます。
+         手で直した数字はそのままにします。（2026-08-03） */
+      if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
       km.value = data.km;
       var tp = c.querySelector(".car-kmtype");
       if (tp) tp.value = "one";
       filled++;
     });
+    lastAutoKm = String(data.km);
     saveForm();
-    msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
+    /* 候補が2つ以上あるときは、選ばなかったほうも見せます。
+       「短い道にすると何km減って、何分よけいにかかるか」が分かるようにです。 */
+    var cmp = "";
+    try {
+      var ch = data.choices || [];
+      if (ch.length > 1) {
+        var other = [];
+        for (var ci = 0; ci < ch.length; ci++) {
+          if (ch[ci].chosen) continue;
+          other.push(ch[ci].km + "km・" + ch[ci].mins + "分" +
+                     (ch[ci].summary ? "（" + escapeHtml(ch[ci].summary) + "）" : ""));
+        }
+        if (other.length) {
+          cmp = '<br><span style="color:#5a6b5c;">ほかの道：' +
+                other.join("／") + "</span>";
+        }
+      }
+    } catch (eC) {}
+    msg.innerHTML = (data.pref === "dist" ? "<b>短い道</b>で調べました。<br>" : "") +
+      "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
       (data.summary ? "／おもに <b>" + escapeHtml(data.summary) + "</b> を通る道順" : "") + "。" +
       (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
               : "すでに入っている欄はそのままにしています。") +
+      cmp +
       (data.mapUrl
         ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
           'style="display:inline-block;margin:8px 0;padding:8px 12px;background:#2e6b34;' +
           'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
           '🗺 地図で道順と高速料金を見る</a>' +
+          '<br><span style="color:#5a6b5c;">この地図は、アプリが選んだのと' +
+          '<b>同じインターで乗り降りする道順</b>を開きます。' +
+          '（乗り口・降り口を「経由地」として渡しているためです）</span>' +
           '<br><span style="color:#8a5a00;">地図に <b>「有料道路あり・¥○○○」</b> と出ます。' +
           'その金額を下の「高速料金」に入れてください。<br>' +
           '一度入れて高速ルートを選べば、<b>次から自動で入ります。</b></span>'
@@ -830,7 +887,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-07-30f（開発版）（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-03a（開発版）（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1563,6 +1620,10 @@ function getFormData() {
     place: document.getElementById("meetPlace").value,
     dest: document.getElementById("destPlace").value,
     mapUrl: routeMapUrl,
+    /* 道の選びかたと、アプリが入れた距離も覚えます。
+       開き直したときに選び直さなくてよいようにです。（2026-08-03） */
+    pref: routePrefNow_(),
+    autoKm: lastAutoKm,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -1586,6 +1647,11 @@ function applyForm(f) {
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
+  if (f.pref) {
+    var pfEl = document.getElementById("routePref");
+    if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
+  }
+  if (f.autoKm) lastAutoKm = String(f.autoKm);
   routeMapUrl = f.mapUrl || "";
   if (routeMapUrl) {
     var mm = document.getElementById("mapSaveMsg");
