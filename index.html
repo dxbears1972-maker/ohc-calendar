@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-04a';
+var APP_VER = '2026-08-04b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1308,17 +1308,49 @@ function applyData(data){
   render();
 }
 
+/* ------------------------------------------------------------------
+   更新ボタンの文字を、その場で変えます。（2026-08-04）
+   読み込みが速くなり、画面の上に出る知らせが一瞬で消えるようになりました。
+   ボタンは画面の下にあるため、押した本人に結果が見えません。
+   ------------------------------------------------------------------ */
+function reloadBtnText_(msg){
+  var b = $('reloadBtn');
+  if (!b) return;
+  if (window.reloadBtnTimer) clearTimeout(window.reloadBtnTimer);
+  if (msg){
+    b.textContent = msg;
+    window.reloadBtnTimer = setTimeout(function(){
+      b.textContent = '最新の情報に更新する';
+    }, 3000);
+  } else {
+    b.textContent = '最新の情報に更新する';
+  }
+}
+
 function load(){
   var hasCache = state.events.length > 0;
   setStatus(hasCache ? '最新の情報を確認しています…' : '読み込み中…');
+  var rb = $('reloadBtn');
+  if (rb){
+    if (window.reloadBtnTimer) clearTimeout(window.reloadBtnTimer);
+    rb.textContent = '更新しています…';
+  }
   api('GET', null, function(err, data){
     if (err){
       setStatus(hasCache
         ? '通信できませんでした。前回の内容を表示しています。'
         : '読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true);
+      reloadBtnText_('通信できませんでした');
       return;
     }
-    setStatus('');
+    /* 速くなったぶん、終わったことが分かるように数秒だけ知らせます */
+    var nowT = new Date();
+    var hh = ('0' + nowT.getHours()).slice(-2);
+    var mm = ('0' + nowT.getMinutes()).slice(-2);
+    setStatus('最新の内容にしました（' + hh + ':' + mm + '）');
+    reloadBtnText_('✓ 最新の内容にしました（' + hh + ':' + mm + '）');
+    if (window.statusClearTimer) clearTimeout(window.statusClearTimer);
+    window.statusClearTimer = setTimeout(function(){ setStatus(''); }, 3000);
     applyData(data);
     tryGoto();
     /* 作り直しで位置がずれるので、合わせ直す */
