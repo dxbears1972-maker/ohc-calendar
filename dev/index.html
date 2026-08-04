@@ -863,7 +863,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-04b（開発版）';
+var APP_VER = '2026-08-04c（開発版）';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1337,7 +1337,18 @@ function load(){
         : '読み込みに失敗しました。電波の良い場所で「最新の情報に更新する」を押してください。', true);
       return;
     }
-    setStatus('');
+    /* ------------------------------------------------------------------
+       ★2026-08-04c
+       　速くなったぶん、「更新しています…」が一瞬で消えるようになりました。
+       　押しても何も起きていないように見えるので、
+       　終わったことを数秒だけ知らせます。
+       ------------------------------------------------------------------ */
+    var nowT = new Date();
+    var hh = ('0' + nowT.getHours()).slice(-2);
+    var mm = ('0' + nowT.getMinutes()).slice(-2);
+    setStatus('最新の内容にしました（' + hh + ':' + mm + '）');
+    if (window.statusClearTimer) clearTimeout(window.statusClearTimer);
+    window.statusClearTimer = setTimeout(function(){ setStatus(''); }, 3000);
     applyData(data);
     tryGoto();
     /* 作り直しで位置がずれるので、合わせ直す */
