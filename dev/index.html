@@ -3130,7 +3130,19 @@ function isLineBrowser(){
   return (navigator.userAgent || '').indexOf('Line') >= 0;
 }
 
-/* Androidのブラウザが「追加できますよ」と教えてくれたら受け取っておく */
+/* ------------------------------------------------------------------
+   サービスワーカーを登録します。（2026-08-04）
+   これが無いと、EdgeもChromeも「アプリとして入れられる」と判定せず、
+   1押しで入るボタンが出ませんでした。
+   中身は何も保存しない作りなので、版ずれは起きません。
+   ------------------------------------------------------------------ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    try { navigator.serviceWorker.register('sw.js'); } catch(e){}
+  });
+}
+
+/* ブラウザが「追加できますよ」と教えてくれたら受け取っておく */
 window.addEventListener('beforeinstallprompt', function(e){
   try { e.preventDefault(); } catch(err){}
   deferredPrompt = e;
@@ -3143,6 +3155,12 @@ window.addEventListener('appinstalled', function(){
   lsSet(LSK.instHide, 'yes');
   var c = $('installCard'); if (c) c.style.display = 'none';
 });
+
+/* パソコンかどうか。スマホ・タブレットでなければパソコンとみなします */
+function isDesktop_(){
+  var u = (navigator.userAgent || '');
+  return !/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(u);
+}
 
 function hideInstallCard(){
   lsSet(LSK.instHide, 'yes');
@@ -3197,9 +3215,11 @@ function renderInstallCard(){
   if (deferredPrompt){
     /* Android：ボタン1つで終わる */
     html =
-      '<p class="note">下のボタンを押すと、スマホの画面にこのアプリの絵が置かれます。' +
-      'つぎからは、それを押すだけで開けます。</p>' +
-      '<button type="button" class="subbtn" onclick="doInstall()">ホーム画面に置く</button>' +
+      '<p class="note">下のボタンを押すと、' +
+      (isDesktop_() ? 'デスクトップ' : 'スマホの画面') +
+      'にこのアプリの絵が置かれます。つぎからは、それを押すだけで開けます。</p>' +
+      '<button type="button" class="subbtn" onclick="doInstall()">' +
+      (isDesktop_() ? 'このパソコンに置く' : 'ホーム画面に置く') + '</button>' +
       '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
   } else if (isIOSDevice()){
     /* iPhone：自動ではできないので、順番を出す */
@@ -3211,6 +3231,18 @@ function renderInstallCard(){
       '<b>「ホーム画面に追加」</b>を押す</div>' +
       '<div class="instep"><b>3</b> 右上の<b>「追加」</b>を押す</div>' +
       '<p class="note">やらなくても、このまま使えます。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else if (isDesktop_()){
+    /* パソコン：スマホと押す場所が違うので、分けて書きます（2026-08-04） */
+    html =
+      '<p class="note">つぎの順で押すと、デスクトップにこのアプリの絵が置かれます。</p>' +
+      '<div class="instep"><b>1</b> 画面の右上にある<b>「…」</b>を押す</div>' +
+      '<div class="instep"><b>2</b> <b>「アプリ」</b>を選ぶ' +
+      '（Chromeでは「保存して共有」の中にあります）</div>' +
+      '<div class="instep"><b>3</b> ' +
+      '<b>「このサイトをアプリとしてインストール」</b>を押す</div>' +
+      '<p class="note">アドレスバーの右のほうに<b>四角に下向き矢印の印</b>が出ていれば、' +
+      'それを押すだけでも入ります。</p>' +
       '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
   } else {
     /* そのほか（らくらくホンの独自ブラウザなど） */
