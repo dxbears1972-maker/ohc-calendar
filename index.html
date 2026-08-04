@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-07-29o';
+var APP_VER = '2026-08-04a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1079,10 +1079,32 @@ function setStatus(msg, isErr){
 }
 
 /* ---------- 通信 ---------- */
-function api(method, body, cb){
+function api(method, body, cb, tryNo){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);
     return;
+  }
+  /* ------------------------------------------------------------------
+     ★2026-08-04：1回だけ、やり直します。
+
+     サーバー（GAS）は落ちていません。実行の記録を見ると、
+     どれも「完了」していますが、**返事に4〜5秒かかっています。**
+     電波が弱いときや、待っている間に画面を切り替えたときに、
+     返事が届く前に通信が切れて「通信できませんでした」と出ていました。
+
+     一度きりのつまずきがほとんどなので、
+     2秒おいてもう一度だけ試します。それでも駄目なら、今までどおり知らせます。
+     ------------------------------------------------------------------ */
+  tryNo = tryNo || 1;
+  var done = false;
+  function fail(){
+    if (done) return;
+    done = true;
+    if (tryNo < 2){
+      setTimeout(function(){ api(method, body, cb, tryNo + 1); }, 2000);
+      return;
+    }
+    cb(true);
   }
   var xhr = new XMLHttpRequest();
   var url = API_URL;
@@ -1097,18 +1119,22 @@ function api(method, body, cb){
     xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
   }
   xhr.onreadystatechange = function(){
-    if (xhr.readyState !== 4) return;
+    if (xhr.readyState !== 4 || done) return;
     if (xhr.status >= 200 && xhr.status < 300){
       var data = null;
       try { data = JSON.parse(xhr.responseText); } catch(e){}
-      if (data){ cb(null, data); } else { cb(true); }
+      if (data){ done = true; cb(null, data); } else { fail(); }
     } else {
-      cb(true);
+      fail();
     }
   };
+  /* 30秒たっても返事がなければ、待つのをやめてやり直します */
+  xhr.timeout = 30000;
+  xhr.ontimeout = fail;
+  xhr.onerror = fail;
   try {
     xhr.send(method === 'GET' ? null : JSON.stringify(body));
-  } catch(e){ cb(true); }
+  } catch(e){ fail(); }
 }
 
 function applyData(data){
