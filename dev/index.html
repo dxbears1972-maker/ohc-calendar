@@ -3470,6 +3470,14 @@ function pickName(name, code, retry){
         setStatus(name + 'さんとして開いています');
         render();
         renderInstallCard();
+        /* ★名前を選んだ直後は、アイコン設置の案内まで画面を送ります。（2026-08-07）
+           　案内が画面の外にあると、そのまま気づかれずに終わってしまうためです。 */
+        setTimeout(function(){
+          var ic = $('installCard');
+          if (ic && ic.style.display !== 'none'){
+            try { ic.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+          }
+        }, 400);
         return;
       }
       if (data.needCode){
