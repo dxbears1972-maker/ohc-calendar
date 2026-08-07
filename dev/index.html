@@ -1098,7 +1098,7 @@ function setStatus(msg, isErr){
 }
 
 /* ---------- 通信 ---------- */
-function api(method, body, cb, tryNo){
+function api(method, body, cb, tryNo, fresh){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);
     return;
