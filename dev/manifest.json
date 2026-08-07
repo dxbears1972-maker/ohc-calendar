@@ -1,6 +1,6 @@
 {
-  "name": "OHC カレンダー（開発版）",
-  "short_name": "OHC開発",
+  "name": "体験版 カレンダー",
+  "short_name": "体験予定",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

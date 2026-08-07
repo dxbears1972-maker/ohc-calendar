@@ -396,9 +396,8 @@
 <body>
 <div style="position:sticky;top:0;z-index:99999;background:#b3261e;color:#fff;
  font-weight:bold;text-align:center;padding:6px 10px;font-size:15px;line-height:1.5;">
- 開発版です（OHCのみなさんが使うものではありません）<br>
- <span style="font-weight:normal;font-size:13px;">OHC用は
- <a href="https://dxbears1972-maker.github.io/ohc-calendar/" style="color:#fff;text-decoration:underline;">こちら</a></span>
+ 体験版です（ご自由にお試しください。実際の予定ではありません）<br>
+ <span style="font-weight:normal;font-size:13px;">入れた内容は、あとで消しても構いません</span>
 </div>
 <script>
 (function(){
@@ -521,7 +520,7 @@
 
 <header>
   <table><tr>
-    <td><h1 id="appTitle">OHC カレンダー</h1></td>
+    <td><h1 id="appTitle">体験版 カレンダー</h1></td>
     <!-- クラブのLINEグループを開く（「設定」シートにURLがあるときだけ出ます） -->
     <td id="lineCell" style="width:1%; white-space:nowrap; display:none">
       <a id="lineGo" class="hdrbtn" href="#" target="_blank">
@@ -797,13 +796,13 @@ var CLUB = {
   id: 'ohc',
 
   /* 画面の上と、ブラウザのタブに出る名前 */
-  appTitle: 'OHC カレンダー',
+  appTitle: '体験版 カレンダー',
 
   /* ホーム画面のアイコンの下に出る名前（短く。全角6文字くらいまで） */
-  homeTitle: 'OHC予定',
+  homeTitle: '体験予定',
 
   /* LINEで送る文章の先頭に付く見出し（【　】の中身） */
-  shareTag: 'OHC予定',
+  shareTag: '体験予定',
 
   /* 画面の色（ヘッダーの緑） */
   themeColor: '#2e6b34',
@@ -863,7 +862,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-07b（開発版）';
+var APP_VER = '2026-08-07c（体験版）';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
