@@ -1,0 +1,12 @@
+# GAS（Apps Script）の作業ファイル。
+# 公開リポジトリに入れないためのものです。
+# 正本は ◆ハイキングクラブ\03_GASコード\clasp\ にあります。
+.clasp.json
+appsscript.json
+コード.js
+*.gs
+
+# Windows / Googleドライブが勝手に作るもの
+desktop.ini
+Thumbs.db
+.DS_Store
