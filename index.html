@@ -199,8 +199,8 @@
   .attlist b.maybe { color: #b57e00; }
   .attlist b.no { color: #666; }
   .attlist a.attdel {
-    color: #b00020; font-size: 14px; font-weight: bold;
-    text-decoration: none; padding: 0 4px;
+    color: inherit; text-decoration: none;
+    border-bottom: 1px dotted #b00020;
   }
   .refbtn {
     width: 100%; font-size: 18px; font-weight: bold;
@@ -499,6 +499,21 @@
   }
 })();
 </script>
+
+<!-- 退会した方の、いつもの端末を開いたときのブロック画面（2026-08-17〜） -->
+<div id="retiredBlock" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#eef3ee; padding:24px 18px; overflow:auto;">
+  <div style="max-width:420px; margin:10vh auto 0; background:#fff; border-radius:14px; padding:26px 20px; box-shadow:0 2px 10px rgba(0,0,0,.15); text-align:center;">
+    <div style="font-size:40px; margin-bottom:8px;">🔒</div>
+    <div style="font-size:21px; font-weight:bold; color:#b00020; margin-bottom:14px;">
+      退会されているため、ご利用になれません
+    </div>
+    <div style="font-size:16px; line-height:1.8; color:#333; text-align:left;">
+      このアプリは、名簿から外れた方の端末では開けません。<br><br>
+      心当たりがない場合や、ご不明な点がありましたら、
+      クラブの担当者までお問い合わせください。
+    </div>
+  </div>
+</div>
 
 <header>
   <table><tr>
@@ -844,7 +859,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-16a';
+var APP_VER = '2026-08-17b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -894,6 +909,22 @@ function deviceName(){
   if (/iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)) return 'iPad';
   if (/Android/.test(ua)) return 'Android';
   return 'パソコン';
+}
+
+/* ------------------------------------------------------------------
+   退会した方の、いつもの端末を開いたときのブロック画面。
+   サーバーが data.retired を返したときだけ出す（load() から呼ぶ）。
+   すでに手元にある前回の内容（画面の下）はそのままにして、
+   その上にこの画面をかぶせる＝退会する直前に見えていた内容が透けて
+   見えることはない（fixed + z-index で完全に覆う）。
+   ------------------------------------------------------------------ */
+function showRetiredBlock(){
+  var b = $('retiredBlock');
+  if (b) b.style.display = 'block';
+}
+function hideRetiredBlock(){
+  var b = $('retiredBlock');
+  if (b && b.style.display !== 'none') b.style.display = 'none';
 }
 
 function deviceId(){
@@ -1346,6 +1377,18 @@ function load(fresh){
       reloadBtnText_('通信できませんでした');
       return;
     }
+    /* ------------------------------------------------------------------
+       退会した方の、いつもの端末（サーバーが名簿の登録端末で確かめて
+       教えてくれる）。中身は渡ってこないので、ここでブロック画面に
+       切り替えて終わる。手元の控え（前回の内容）はいじらない。
+       ------------------------------------------------------------------ */
+    if (data && data.retired){
+      showRetiredBlock();
+      setStatus('');
+      reloadBtnText_('');
+      return;
+    }
+    hideRetiredBlock();
     /* 速くなったぶん、終わったことが分かるように数秒だけ知らせます */
     var nowT = new Date();
     var hh = ('0' + nowT.getHours()).slice(-2);
@@ -1599,11 +1642,18 @@ function attNamesHtml(arr, evId, isAdmin, emptyText){
   for (var i = 0; i < arr.length; i++){
     var s = esc(arr[i]);
     if (isAdmin){
-      s += '<a href="javascript:void(0)" class="attdel" onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">[取消]</a>';
+      /* ★2026-08-17：「〇〇[取消]」ではなく、名前そのものを押せるようにした。
+         人数が多いと「[取消]」の繰り返しが読みにくく、幅も取っていたため。
+         管理者だけ、名前に薄い点線の下線が付く。 */
+      parts.push('<a href="javascript:void(0)" class="attdel" ' +
+        'onclick="delAnswer(\'' + evId + '\',\'' + s.replace(/'/g, '') + '\')">' + s + '</a>');
+    } else {
+      parts.push(s);
     }
-    parts.push(s);
   }
-  return parts.join('、');
+  /* ★2026-08-17：区切りを全角の「、」から半角の中黒「･」に変更。
+     全角の「・」は「、」と同じ幅なので意味が無く、半角でないと幅は縮まらない。 */
+  return parts.join('･');
 }
 
 function attOf(evId){
