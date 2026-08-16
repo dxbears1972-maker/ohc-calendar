@@ -844,7 +844,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-04c';
+var APP_VER = '2026-08-16a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1079,7 +1079,7 @@ function setStatus(msg, isErr){
 }
 
 /* ---------- 通信 ---------- */
-function api(method, body, cb, tryNo){
+function api(method, body, cb, tryNo, fresh){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);
     return;
@@ -1101,7 +1101,7 @@ function api(method, body, cb, tryNo){
     if (done) return;
     done = true;
     if (tryNo < 2){
-      setTimeout(function(){ api(method, body, cb, tryNo + 1); }, 2000);
+      setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000);
       return;
     }
     cb(true);
@@ -1113,6 +1113,9 @@ function api(method, body, cb, tryNo){
     /* この端末の記号もいっしょに送る。
        サーバーが「この端末は誰のものか」を名簿から答えてくれます。 */
     try { url += '&dev=' + encodeURIComponent(deviceId()); } catch(eD){}
+    /* 「最新の情報に更新する」を押したときは、サーバーにおぼえたものを
+       使わないよう伝えます（シートを手で直したときのため） */
+    if (fresh) url += '&fresh=1';
     xhr.open('GET', url, true);
   } else {
     xhr.open('POST', url, true);
@@ -1327,7 +1330,7 @@ function reloadBtnText_(msg){
   }
 }
 
-function load(){
+function load(fresh){
   var hasCache = state.events.length > 0;
   setStatus(hasCache ? '最新の情報を確認しています…' : '読み込み中…');
   var rb = $('reloadBtn');
@@ -1359,7 +1362,7 @@ function load(){
       scrollToEv(sid);
       setTimeout(function(){ scrollToEv(sid); gotoStick = ''; }, 350);
     }
-  });
+  }, 1, fresh);
 }
 
 /* 精算アプリから戻ってきたとき、その予定の場所を表示する */
@@ -3143,7 +3146,19 @@ function isLineBrowser(){
   return (navigator.userAgent || '').indexOf('Line') >= 0;
 }
 
-/* Androidのブラウザが「追加できますよ」と教えてくれたら受け取っておく */
+/* ------------------------------------------------------------------
+   サービスワーカーを登録します。（2026-08-04）
+   これが無いと、EdgeもChromeも「アプリとして入れられる」と判定せず、
+   1押しで入るボタンが出ませんでした。
+   中身は何も保存しない作りなので、版ずれは起きません。
+   ------------------------------------------------------------------ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){
+    try { navigator.serviceWorker.register('sw.js'); } catch(e){}
+  });
+}
+
+/* ブラウザが「追加できますよ」と教えてくれたら受け取っておく */
 window.addEventListener('beforeinstallprompt', function(e){
   try { e.preventDefault(); } catch(err){}
   deferredPrompt = e;
@@ -3156,6 +3171,12 @@ window.addEventListener('appinstalled', function(){
   lsSet(LSK.instHide, 'yes');
   var c = $('installCard'); if (c) c.style.display = 'none';
 });
+
+/* パソコンかどうか。スマホ・タブレットでなければパソコンとみなします */
+function isDesktop_(){
+  var u = (navigator.userAgent || '');
+  return !/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(u);
+}
 
 function hideInstallCard(){
   lsSet(LSK.instHide, 'yes');
@@ -3208,11 +3229,13 @@ function renderInstallCard(){
 
   var html = '';
   if (deferredPrompt){
-    /* Android：ボタン1つで終わる */
+    /* Android・パソコン共通：ボタン1つで終わる */
     html =
-      '<p class="note">下のボタンを押すと、スマホの画面にこのアプリの絵が置かれます。' +
-      'つぎからは、それを押すだけで開けます。</p>' +
-      '<button type="button" class="subbtn" onclick="doInstall()">ホーム画面に置く</button>' +
+      '<p class="note">下のボタンを押すと、' +
+      (isDesktop_() ? 'デスクトップ' : 'スマホの画面') +
+      'にこのアプリの絵が置かれます。つぎからは、それを押すだけで開けます。</p>' +
+      '<button type="button" class="subbtn" onclick="doInstall()">' +
+      (isDesktop_() ? 'このパソコンに置く' : 'ホーム画面に置く') + '</button>' +
       '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
   } else if (isIOSDevice()){
     /* iPhone：自動ではできないので、順番を出す */
@@ -3224,6 +3247,33 @@ function renderInstallCard(){
       '<b>「ホーム画面に追加」</b>を押す</div>' +
       '<div class="instep"><b>3</b> 右上の<b>「追加」</b>を押す</div>' +
       '<p class="note">やらなくても、このまま使えます。</p>' +
+      '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
+  } else if (isDesktop_()){
+    /* ------------------------------------------------------------------
+       パソコン。ブラウザによって押す場所が違うので、分けて書きます。
+       （2026-08-07：Chromeは「…」ではなく縦の「⋮」で、「アプリ」も無い）
+       ------------------------------------------------------------------ */
+    var isEdge = /Edg\//.test(navigator.userAgent || '');
+    if (isEdge){
+      html =
+        '<p class="note">つぎの順で押すと、デスクトップにこのアプリの絵が置かれます。</p>' +
+        '<div class="instep"><b>1</b> 画面の右上の<b>「…」</b>を押す</div>' +
+        '<div class="instep"><b>2</b> <b>「その他のツール」→「アプリ」</b>を選ぶ</div>' +
+        '<div class="instep"><b>3</b> ' +
+        '<b>「このサイトをアプリとしてインストール」</b>を押す</div>';
+    } else {
+      html =
+        '<p class="note">つぎの順で押すと、デスクトップにこのアプリの絵が置かれます。</p>' +
+        '<div class="instep"><b>1</b> 画面の右上の<b>「⋮」</b>（点が<b>縦</b>に3つ）を押す</div>' +
+        '<div class="instep"><b>2</b> <b>「キャスト、保存、共有」</b>を選ぶ</div>' +
+        '<div class="instep"><b>3</b> <b>「アプリとしてインストール」</b>を押す' +
+        '（「ショートカットを作成」と出ることもあります）</div>';
+    }
+    html +=
+      '<p class="note">アドレスバーの右のほうに<b>四角に下向き矢印の印</b>が' +
+      '出ていれば、それを押すだけでも入ります。</p>' +
+      '<p class="note" style="color:#8a5a00;"><b>シークレット（InPrivate）ウィンドウでは入れられません。</b>' +
+      'ふつうのウィンドウで開き直してください。</p>' +
       '<button type="button" class="cancelbtn" onclick="hideInstallCard()">あとでよい</button>';
   } else {
     /* そのほか（らくらくホンの独自ブラウザなど） */
@@ -3738,7 +3788,7 @@ function init(){
     staffRows = [];
     renderStaffRows();
   };
-  $('reloadBtn').onclick = load;
+  $('reloadBtn').onclick = function(){ load(true); };
   $('cfgBtn').onclick = openCfg;
 
   /* Googleカレンダー連携チェックボックス（この端末に記憶） */
