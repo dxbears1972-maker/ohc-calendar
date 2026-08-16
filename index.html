@@ -859,7 +859,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-17b';
+var APP_VER = '2026-08-17c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1079,6 +1079,24 @@ function lineShareUrl(ev){
   if (ev.memo)  t += 'メモ：' + ev.memo + '\n';
   t += '出欠の回答は、' + CLUB.appTitle + '（ホーム画面のアイコン）から！';
   return 'https://line.me/R/share?text=' + encodeURIComponent(t);
+}
+
+/* ------------------------------------------------------------------
+   「実在のハイキング会員ではない」特別な名前（動作確認・管理用の行）。
+   名乗り・権限（管理者など）の判定はいままでどおり働くが、
+   「代理で回答する人」「係の名前」「電話帳」「お知らせを見た人数」など、
+   “実際に山行へ参加する人”を数える一覧にだけは出さない。（2026-08-17〜）
+   半角・全角どちらの丸カッコで入力されても弾けるよう、両方入れてある。 */
+var NON_MEMBER_NAMES = ['DXベアーズ(保守)', 'DXベアーズ（保守）'];
+function isRealMember_(name){
+  return !!name && NON_MEMBER_NAMES.indexOf(name) < 0;
+}
+function realMembers_(){
+  var out = [];
+  for (var i = 0; i < MEMBERS.length; i++){
+    if (isRealMember_(MEMBERS[i])) out.push(MEMBERS[i]);
+  }
+  return out;
 }
 
 var WEEK = ['日','月','火','水','木','金','土'];
@@ -1744,8 +1762,9 @@ function buildProxyBox(ev){
   if (proxySetupFor === ev.id){
     html += '<div class="psetlbl">代理で回答する人に印を付けてください（この端末に記憶されます）</div>';
     html += '<div id="psetup-' + ev.id + '">';
-    for (var i = 0; i < MEMBERS.length; i++){
-      var m = MEMBERS[i];
+    var proxyMembers = realMembers_();
+    for (var i = 0; i < proxyMembers.length; i++){
+      var m = proxyMembers[i];
       html += '<label class="pchk"><input type="checkbox" value="' + esc(m) + '"' +
         (plist.indexOf(m) >= 0 ? ' checked' : '') + '>' + esc(m) + '</label>';
     }
@@ -1922,10 +1941,11 @@ function renderTelBook(){
   var myn = getName();
   var html = '', n = 0;
   if (isStaff(myn)){
-    for (var i = 0; i < MEMBERS.length; i++){
-      var tl = telLink(MEMBERS[i]);
+    var tbMembers = realMembers_();
+    for (var i = 0; i < tbMembers.length; i++){
+      var tl = telLink(tbMembers[i]);
       if (!tl) continue;
-      html += '<a class="telbtn" href="tel:' + tl + '">' + esc(MEMBERS[i]) + '&nbsp;📞</a> ';
+      html += '<a class="telbtn" href="tel:' + tl + '">' + esc(tbMembers[i]) + '&nbsp;📞</a> ';
       n++;
     }
   }
@@ -1965,15 +1985,16 @@ function renderNotices(){
     /* 幹事だけに、見た人数を1行で。押したときだけ中身が出る */
     if (canWriteNotice){
       var yet = [];
-      for (var m = 0; m < MEMBERS.length; m++){
-        var mid = idOf(MEMBERS[m]), done = false;
+      var ntcMembers = realMembers_();
+      for (var m = 0; m < ntcMembers.length; m++){
+        var mid = idOf(ntcMembers[m]), done = false;
         for (var k = 0; k < n.read.length; k++){
-          if ((mid && n.read[k] === mid) || n.read[k] === MEMBERS[m]) done = true;
+          if ((mid && n.read[k] === mid) || n.read[k] === ntcMembers[m]) done = true;
         }
-        if (!done) yet.push(MEMBERS[m]);
+        if (!done) yet.push(ntcMembers[m]);
       }
       html += '<div class="seen" onclick="toggleSeen(' + i + ')">' +
-              (MEMBERS.length - yet.length) + '／' + MEMBERS.length + '人が見ました' +
+              (ntcMembers.length - yet.length) + '／' + ntcMembers.length + '人が見ました' +
               (yet.length ? '　▸ まだの方' : '') + '</div>';
       html += '<div id="seen' + i + '" style="display:none">';
       if (yet.length){
@@ -2353,7 +2374,7 @@ function renderStaffRows(){
     }
     ropt += '<option value="その他"' + (row.role === 'その他' ? ' selected' : '') + '>その他</option>';
     var nopt = '<option value="">（名前）</option>';
-    var names = MEMBERS.slice();
+    var names = realMembers_();
     if (row.name && names.indexOf(row.name) < 0) names.push(row.name);
     for (var m = 0; m < names.length; m++){
       nopt += '<option value="' + esc(names[m]) + '"' + (row.name === names[m] ? ' selected' : '') + '>' + esc(names[m]) + '</option>';
