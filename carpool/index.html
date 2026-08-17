@@ -1653,9 +1653,14 @@ function fetchPrevSettle(skipForm) {
   apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
     if (err || !data) return;
     /* この山行に「参加」と答えている方を受け取る。
-       下書きが無いときだけ、人数も自動で入れる。 */
+       ★2026-08-17c：人数は、下書きの有無にかかわらず、開くたびに毎回
+       いまの「参加」人数へ合わせ直す（手で強引に変えても、次に開けば戻る）。
+       「参加人数が増えるたびに手作業で直す」を無くすため。実際の欠席・
+       現地合流の調整は、出欠（○△×）のほうをメンテしてもらう運用にする。
+       車の台数・距離・料金など、人数いがいの下書きはこの後もそのまま活かす
+       （skipFormのときはここで終わり、下書きの読み込みへは進まない）。 */
     JOINED = data.joined || [];
-    applyJoined(!skipForm && !data.form);
+    applyJoined(true);
     if (skipForm) return;
     if (data.form) {
       try {
