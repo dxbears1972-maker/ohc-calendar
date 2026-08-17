@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17i</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17j</p>
 
 </main>
 
@@ -1176,7 +1176,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17i（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17j（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1392,7 +1392,7 @@ function refreshAllDropdowns() {
    ------------------------------------------------------------------ */
 function syncFeesFromTable_() {
   var routes = getEtcRoutes();
-  var changed = [];
+  var changed = [], suggest = [];
   document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
     var sel = c.querySelector(".car-route");
     var fee = c.querySelector(".car-etc");
@@ -1403,39 +1403,81 @@ function syncFeesFromTable_() {
     var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
     if (want == null) return;                          /* 料金表に未登録なら触らない */
     if (String(fee.value) === String(want)) return;    /* すでに合っている */
-    /* ★ここが肝（2026-08-17i）。
-       いま入っている金額が料金表のどれかと一致するときだけ直します。
-       　例：日曜の山行なのに平日の1,960円が入っている → 1,370円へ直す
-       料金表に無い金額（手で入れた金額）は、正しいものとして触りません。
-       　例：割引や別ルートで2,500円と入れてある → そのまま */
-    if (fee.value !== "" && !isTableFee_(r, fee.value)) return;
+    var label = (use === "etc")
+                  ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
+                  : "通常料金";
+    /* ★ここが肝（2026-08-17j）。金額の直し方を2段構えにします。
+
+       (1) いま入っている金額が料金表のどれかと一致する
+       　　＝アプリが入れた金額なので、日付に合う金額へ**自動で**直す。
+       　　例：日曜なのに平日の1,960円 → 1,370円へ。
+
+       (2) 料金表に無い金額（手で入れた可能性がある）
+       　　＝**勝手に直さない。** そのかわり
+       　　「料金表では¥1,370です → これにする」ボタンを出す。
+       　　黙って消さず、かつ1回のタップで直せるようにするためです。 */
+    if (fee.value !== "" && !isTableFee_(r, fee.value)) {
+      suggest.push({ no: i + 1, idx: i, name: r.name, use: label,
+                     now: fee.value, want: want });
+      return;
+    }
     var before = fee.value;
     fee.value = want;
     fee.setAttribute("data-auto", String(want));
     var tp = c.querySelector(".car-etctype");
     if (tp) tp.value = "one";                          /* 料金表は片道の金額 */
-    changed.push({ no: i + 1, name: r.name,
-                   use: (use === "etc")
-                          ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
-                          : "通常料金",
+    changed.push({ no: i + 1, name: r.name, use: label,
                    before: before, after: want });
   });
-  if (!changed.length) return;
+  renderFeeSyncMsg_(changed, suggest);
+  if (changed.length) saveForm();
+}
+
+/* 高速料金のお知らせを描きます（自動で直した分と、ボタンでご確認いただく分） */
+function renderFeeSyncMsg_(changed, suggest) {
   var box = document.getElementById("feeSyncMsg");
-  if (box) {
-    var h = '<b>高速料金を、料金表の金額に合わせました。</b><br>';
-    for (var k = 0; k < changed.length; k++) {
-      var g = changed[k];
+  if (!box) return;
+  if (!changed.length && !suggest.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+  var h = "", k, g;
+  if (changed.length) {
+    h += '<b>高速料金を、料金表の金額に合わせました。</b><br>';
+    for (k = 0; k < changed.length; k++) {
+      g = changed[k];
       h += '車' + g.no + '　' + escapeHtml(g.name) + '（' + g.use + '）：' +
            (g.before === "" ? "空欄" : escapeHtml(g.before) + '円') +
            ' → <b>' + yen(g.after) + '</b><br>';
     }
-    h += '<span style="color:#5a6b5c;">違うときは、上の欄を手で直してください。' +
-         '料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
-    box.innerHTML = h;
-    box.style.display = "block";
   }
+  if (suggest.length) {
+    if (h) h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    h += '<b>高速料金が、料金表とちがいます。</b><br>';
+    for (k = 0; k < suggest.length; k++) {
+      g = suggest[k];
+      h += '車' + g.no + '　' + escapeHtml(g.name) + '（' + g.use + '）：' +
+           'いま <b>' + escapeHtml(g.now) + '円</b>／料金表は <b>' + yen(g.want) + '</b>' +
+           ' <button type="button" class="btn-small" style="margin-left:6px;" ' +
+           'onclick="applyFeeSuggest_(' + g.idx + ',' + g.want + ')">' +
+           yen(g.want) + ' にする</button><br>';
+    }
+    h += '<span style="color:#5a6b5c;">いまの金額のままでよければ、そのままにしてください。</span><br>';
+  }
+  h += '<span style="color:#5a6b5c;">料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+  box.innerHTML = h;
+  box.style.display = "block";
+}
+
+/* 「¥○○○ にする」を押したとき */
+function applyFeeSuggest_(i, amount) {
+  var c = document.querySelectorAll("#cars .car-card")[i];
+  if (!c) return;
+  var fee = c.querySelector(".car-etc");
+  if (!fee) return;
+  fee.value = amount;
+  fee.setAttribute("data-auto", String(amount));
+  var tp = c.querySelector(".car-etctype");
+  if (tp) tp.value = "one";
   saveForm();
+  syncFeesFromTable_();   /* お知らせを描き直す（消える） */
 }
 
 /* いま選んでいるルートの名前を、選択欄そのものに覚えさせます */
