@@ -225,12 +225,12 @@
       その道に合わせて入れ替わります。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
+    <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
+      各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
     <p class="note" id="mapSaveMsg" style="margin-top:8px;">
       <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
          style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
     </p>
-    <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
-      各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
   </div>
 
   <!-- 車にかかる費用 -->
@@ -348,7 +348,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17d</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17e</p>
 
 </main>
 
@@ -804,11 +804,18 @@ function lookupDistance() {
   });
 }
 
-/* 候補1つぶんの、中の道の名前（高速を使うときだけ出す。2026-08-17） */
+/* 候補1つぶんの、中の道の名前（高速を使うときだけ出す。2026-08-17）
+   ★2026-08-17b：Googleの汎用サマリー（r.summary）ではなく、
+   　実際に調べた「乗るIC〜降りるIC」（r.tollIn／r.tollOut）を優先して出す。
+   　サマリーだと高速の乗り降りが分からず、候補の見分けがつかなかったため。 */
 function routeCandTag_(r) {
   if (r.noHw) return '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>';
-  if (r.summary) return '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
-                         escapeHtml(r.summary) + '</span>';
+  var inNm  = (r.tollIn  && r.tollIn.name)  ? r.tollIn.name  : '';
+  var outNm = (r.tollOut && r.tollOut.name) ? r.tollOut.name : '';
+  var icTxt = (inNm && outNm) ? (inNm + '〜' + outNm) : (inNm || outNm);
+  var txt = icTxt || r.summary || '';
+  if (txt) return '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
+                   escapeHtml(txt) + '</span>';
   return '';
 }
 
@@ -1042,7 +1049,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17d（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17e（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
