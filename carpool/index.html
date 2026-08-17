@@ -227,9 +227,13 @@
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
       各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
-    <!-- ★道順を調べたあとは、この段落ごと「この道順を地図で見る」ボタンの
-         すぐ下（mapSaveSlot）へ引っ越します。まだ調べていない間だけ、ここに出ます。 -->
-    <div id="mapSaveHome">
+    <!-- ★地図のリンクの置き場。
+         道順がまだ決まっていない間は、ここに隠しておきます（display:none）。
+         道順を調べたら、この段落ごと「この道順を地図で見る」ボタンの
+         すぐ下（mapSaveSlot）へ引っ越して、そこで初めて姿を見せます。
+         どの道か決まっていないのに「地図を残す／見る」が出ていると
+         迷わせてしまうため（2026-08-17g）。 -->
+    <div id="mapSaveHome" style="display:none;">
       <p class="note" id="mapSaveMsg" style="margin-top:8px;">
         <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
            style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
@@ -352,7 +356,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17f</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17g</p>
 
 </main>
 
@@ -1095,7 +1099,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17f（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17g（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
