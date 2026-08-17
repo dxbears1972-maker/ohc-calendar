@@ -227,10 +227,14 @@
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
       各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
-    <p class="note" id="mapSaveMsg" style="margin-top:8px;">
-      <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
-         style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
-    </p>
+    <!-- ★道順を調べたあとは、この段落ごと「この道順を地図で見る」ボタンの
+         すぐ下（mapSaveSlot）へ引っ越します。まだ調べていない間だけ、ここに出ます。 -->
+    <div id="mapSaveHome">
+      <p class="note" id="mapSaveMsg" style="margin-top:8px;">
+        <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
+           style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
+      </p>
+    </div>
   </div>
 
   <!-- 車にかかる費用 -->
@@ -348,7 +352,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17e</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17f</p>
 
 </main>
 
@@ -729,8 +733,12 @@ var lastRouteDetailHtml = "";
 function renderRouteArea_() {
   var msg = document.getElementById("distMsg");
   if (!msg || !lastRouteList.length) return;
+  /* ★「地図をPDFで残す」の段落は、描き直すと消えてしまいます。
+     　 いったん元の置き場へ避難させ、描いたあとにボタンの下へ戻します。 */
+  detachMapSaveArea_();
   msg.innerHTML = routeListHtml_(lastRouteDetailHtml) +
     '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
+  placeMapSaveArea_();
 }
 function lockRoute_() {
   if (!lastRouteList.length || lastRouteIdx < 0) return;
@@ -804,19 +812,54 @@ function lookupDistance() {
   });
 }
 
-/* 候補1つぶんの、中の道の名前（高速を使うときだけ出す。2026-08-17）
-   ★2026-08-17b：Googleの汎用サマリー（r.summary）ではなく、
-   　実際に調べた「乗るIC〜降りるIC」（r.tollIn／r.tollOut）を優先して出す。
-   　サマリーだと高速の乗り降りが分からず、候補の見分けがつかなかったため。 */
-function routeCandTag_(r) {
-  if (r.noHw) return '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>';
+/* ------------------------------------------------------------------
+   候補1つぶんの「どの道を通るか」の一行。（2026-08-17f）
+
+   ★高速を使う道　… 「乗るIC〜降りるIC」を出します。
+   　　　　　　　　　 サーバーが調べたIC名（tollIn／tollOut）を使います。
+   　　　　　　　　　 IC名が取れなかったときだけ、道の名前で代用します。
+   ★高速を使わない道… 「高速なし」だけでは候補の見分けがつかないので、
+   　　　　　　　　　 通る道の名前（県道52号など）も必ず出します。
+   ------------------------------------------------------------------ */
+function routeSubLabel_(r) {
+  if (r.noHw) return String(r.summary || '');
   var inNm  = (r.tollIn  && r.tollIn.name)  ? r.tollIn.name  : '';
   var outNm = (r.tollOut && r.tollOut.name) ? r.tollOut.name : '';
-  var icTxt = (inNm && outNm) ? (inNm + '〜' + outNm) : (inNm || outNm);
-  var txt = icTxt || r.summary || '';
-  if (txt) return '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
-                   escapeHtml(txt) + '</span>';
-  return '';
+  if (inNm && outNm) return inNm + '〜' + outNm;
+  if (inNm || outNm) return (inNm || outNm);
+  return String(r.summary || '');
+}
+
+function routeCandTag_(r) {
+  var head = r.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '';
+  var sub  = routeSubLabel_(r);
+  var line = sub ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
+                   escapeHtml(sub) + '</span>' : '';
+  return head + line;
+}
+
+/* ------------------------------------------------------------------
+   「この道順の地図をPDFで残す」の段落を、緑の「この道順を地図で見る」
+   ボタンのすぐ下へ引っ越します。（2026-08-17f）
+   見る・残す が離れていると分かりにくい、というご指摘への対応です。
+
+   一覧を描き直すと中身ごと消えてしまうので、
+   　①描き直す前に、元の置き場（mapSaveHome）へ避難させる
+   　②描き直したあとに、ボタンの下（mapSaveSlot）へ入れ直す
+   という順で動かします。
+   ------------------------------------------------------------------ */
+function detachMapSaveArea_() {
+  var p = document.getElementById("mapSaveMsg");
+  var home = document.getElementById("mapSaveHome");
+  if (p && home && p.parentNode !== home) home.appendChild(p);
+}
+function placeMapSaveArea_() {
+  var p = document.getElementById("mapSaveMsg");
+  var slot = document.getElementById("mapSaveSlot");
+  if (p && slot && p.parentNode !== slot) {
+    slot.appendChild(p);
+    p.style.marginTop = "2px";
+  }
 }
 
 /* 候補の一覧。押すと、その道に切り替わります（2026-08-17：候補1〜4の番号付き） */
@@ -831,8 +874,8 @@ function routeListHtml_(detail) {
          'border:1px solid #b9d2ba;border-radius:8px;font-size:14px;">' +
          '<span style="color:#2e6b34;font-weight:bold;">✅ 選択中：候補' + (lastRouteIdx + 1) + '</span>　' +
          '<b>' + cur.km + 'km</b>・' + cur.mins + '分' +
-         (cur.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>'
-                   : (cur.summary ? '（' + escapeHtml(cur.summary) + '）' : '')) +
+         (cur.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
+         (routeSubLabel_(cur) ? '（' + escapeHtml(routeSubLabel_(cur)) + '）' : '') +
          '</div>';
   }
 
@@ -883,7 +926,6 @@ function showRoute_(i) {
   if (!d) return;
   lastRouteIdx = i;
   routeLocked = false; /* 選び直している最中なので、確定表示は解いておく */
-  var msg = document.getElementById("distMsg");
 
   /* 空いている欄と、前にこのアプリが入れた数字だけを入れ替えます。
      手で直した数字はそのままにします。 */
@@ -915,22 +957,26 @@ function showRoute_(i) {
   li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(lastRouteFrom) + "</span>");
   li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(lastRouteTo) + "</span>");
 
+  /* ★「この道順を地図で見る」（緑）のすぐ下に、
+     　 「地図をPDFで残す／残した地図を見る」を差し込む場所を用意します。 */
+  var slot = '<div id="mapSaveSlot" style="margin:2px 0 6px;"></div>';
   var btn2 = "";
   if (d.mapUrl) {
     btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
-      'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
+      'style="display:inline-block;margin:4px 0 2px;padding:8px 12px;background:#2e6b34;' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
-      '🗺 この道順を地図で見る</a>' +
+      '🗺 この道順を地図で見る</a>' + slot +
       foot_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
              d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
                     : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
              '所要時間だけは、そのときの渋滞で変わります']);
+  } else {
+    btn2 = slot;
   }
 
   var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
   lastRouteDetailHtml = detail;
-  msg.innerHTML = routeListHtml_(detail) +
-    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
+  renderRouteArea_();
 
   applyIcRoute_(d);
   if (!d.noHw) autoPickRoute(true);
@@ -1049,7 +1095,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17e（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17f（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
