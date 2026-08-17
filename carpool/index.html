@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17j</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17k</p>
 
 </main>
 
@@ -407,6 +407,58 @@ var CAL_API = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNX
 
 /* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う */
 var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
+
+/* ==================================================================
+   このアプリの版。（2026-08-17k）
+
+   ★ここを「版はいくつか」の唯一のよりどころにします。
+   　画面いちばん下の表示も、新しい版が出ていないかの確認も、
+   　すべてこの値を見ます。直すのはここ1か所だけで済みます。
+   ================================================================== */
+var APP_VER = "2026-08-17k";
+
+/* ------------------------------------------------------------------
+   ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
+
+   スマホのブラウザは、いちど読んだページを長くおぼえています。
+   そのため直したはずのものが直っていないように見える、ということが
+   何度も起きました（パソコンの Ctrl+Shift+R にあたる操作が
+   スマホにはありません）。
+
+   そこで、**アプリ自身が「新しい版が出ていますよ」と教える**ようにします。
+   上に帯を出し、押すと確実に最新を読み直します。
+   電波が無いときは何も出ません（黙って失敗します）。
+   ------------------------------------------------------------------ */
+function reloadFresh_() {
+  var ps = location.search.replace(/^\?/, "").split("&").filter(function (x) {
+    return x && x.indexOf("_v=") !== 0;
+  });
+  ps.push("_v=" + (new Date()).getTime());
+  location.replace(location.pathname + "?" + ps.join("&"));
+}
+function showUpdateBanner_(latest) {
+  if (document.getElementById("updBanner")) return;
+  var d = document.createElement("div");
+  d.id = "updBanner";
+  d.style.cssText = "position:sticky;top:0;z-index:9999;background:#ffe9b3;" +
+    "border-bottom:2px solid #e8a000;padding:10px 12px;text-align:center;font-size:15px;";
+  d.innerHTML = '新しい版（' + escapeHtml(latest) + '）が出ています。' +
+    '<button type="button" class="btn-small" style="margin-left:8px;" ' +
+    'onclick="reloadFresh_()">最新にする</button>';
+  document.body.insertBefore(d, document.body.firstChild);
+}
+function checkNewVersion_() {
+  try {
+    fetch(location.pathname + "?_chk=" + (new Date()).getTime(), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var m = t.match(/var\s+APP_VER\s*=\s*"([^"]+)"/);
+        if (!m) return;
+        if (m[1] && m[1] !== APP_VER) showUpdateBanner_(m[1]);
+      })["catch"](function () {});
+  } catch (e) {}
+}
+
 var carCount = 0;
 var lastResultText = "";
 var lastResultData = null;
@@ -1176,7 +1228,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17j（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 " + APP_VER + "（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -2524,6 +2576,13 @@ function draftHasInput_() {
     syncFeesFromTable_();
   });
   holiNote_();
+  /* 画面いちばん下の版を、APP_VER から入れ直す（表示のずれを無くすため） */
+  try {
+    var vl0 = document.getElementById("verLine");
+    if (vl0) vl0.textContent = "版 " + APP_VER;
+  } catch (eV0) {}
+  /* ★新しい版が出ていないか確認する（出ていれば上に帯を出す） */
+  checkNewVersion_();
 })();
 </script>
 </body>
