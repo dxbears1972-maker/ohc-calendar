@@ -244,9 +244,10 @@
       その道に合わせて入れ替わります。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
-    <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
-            onclick="saveRouteMap()">🗺 この道順の地図をPDFで残す</button>
-    <p class="note" id="mapSaveMsg" style="display:none;"></p>
+    <p class="note" id="mapSaveMsg" style="margin-top:8px;">
+      <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
+         style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
+    </p>
     <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
       各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
   </div>
@@ -535,6 +536,31 @@ function ul_(items) {
   return h + '</ul>';
 }
 
+/* 箇条書きではなく、小さめの文字の※注記にします（2026-08-17）。
+   地図リンクのすぐ下に付く補足の3行など、本文ほど重要ではない説明に使います。 */
+function foot_(items) {
+  var h = '<div style="margin:6px 0 4px;font-size:12px;color:#7a8a7a;line-height:1.7;">';
+  var n = 1;
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i]) continue;
+    h += '<div>※' + (n++) + ' ' + items[i] + '</div>';
+  }
+  return h + '</div>';
+}
+
+/* 「地図をPDFで残す」小リンクと「残した地図を見る」リンクを、1か所にまとめます（2026-08-17）。
+   以前は大きな別ボタンでしたが、見る・作る が離れていて分かりにくいためです。 */
+function mapSaveAreaHtml_(url) {
+  if (url) {
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" style="font-size:14px;">' +
+           '🗺 この山行で残した地図を見る</a>　' +
+           '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
+           'style="font-size:13px;color:#5a6b5c;">（地図を作り直す）</a>';
+  }
+  return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
+         'style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>';
+}
+
 /* 高速の乗り降りする場所を、箇条書きの1行にします */
 function tollLi_(t, label) {
   if (!t) return "";
@@ -623,15 +649,16 @@ function icNamesNow_() {
   return { a: a, b: b, routeName: nm };
 }
 
+var mapSaveBusy_ = false;
+
 function saveRouteMap() {
+  if (mapSaveBusy_) return;
   var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var msg  = document.getElementById("mapSaveMsg");
-  var btn  = document.getElementById("mapSaveBtn");
-  msg.style.display = "block";
   if (!from || !to) { msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>"; return; }
 
-  btn.disabled = true;
+  mapSaveBusy_ = true;
   msg.innerHTML = "地図を作っています…<br>" +
     "<b>10秒ほどかかります。</b>そのまま下の入力を続けてかまいません。<br>" +
     "できあがると、ここにリンクが出ます。";
@@ -642,11 +669,13 @@ function saveRouteMap() {
             icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
             pref: routePrefNow_(), routeIdx: lastRouteIdx },
           function (err, data) {
-    btn.disabled = false;
+    mapSaveBusy_ = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
     routeMapUrl = data.url;
     saveForm();
+    /* 地図を残した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
+    lockRoute_();
     /* ------------------------------------------------------------------
        Googleは高速の「入口」に名前を付けないことがあります（2026/7/30に確認）。
        そのときは「分かりませんでした」で終わらせず、
@@ -701,6 +730,31 @@ var lastAutoKm = "";
 var lastRouteList = [], lastRouteIdx = -1;
 var lastRouteFrom = "", lastRouteTo = "", lastRouteFor = "";
 
+/* ------------------------------------------------------------------
+   ルートの確定（2026-08-17）
+   「計算する」を押した・地図をPDFで残した、のどちらかをしたら、
+   もう選び直している途中ではないはずなので、候補の一覧を閉じて
+   選んだ道だけを表示します。「別の道に変更する」で、いつでも開き直せます。
+   ------------------------------------------------------------------ */
+var routeLocked = false;
+var lastRouteDetailHtml = "";
+
+function renderRouteArea_() {
+  var msg = document.getElementById("distMsg");
+  if (!msg || !lastRouteList.length) return;
+  msg.innerHTML = routeListHtml_(lastRouteDetailHtml) +
+    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
+}
+function lockRoute_() {
+  if (!lastRouteList.length || lastRouteIdx < 0) return;
+  routeLocked = true;
+  renderRouteArea_();
+}
+function unlockRoute_() {
+  routeLocked = false;
+  renderRouteArea_();
+}
+
 function prefChanged() {
   saveForm();
   /* すでに候補があるなら、聞き直さずにその中から選び直します（2026-08-03h） */
@@ -754,6 +808,7 @@ function lookupDistance() {
     lastRouteFrom = data.from || "";
     lastRouteTo   = data.to || "";
     lastRouteFor  = to;
+    routeLocked   = false; /* 新しく調べ直したので、確定は解く */
     if (!lastRouteList.length) {
       msg.innerHTML = "<b>道順が見つかりませんでした。</b>";
       return;
@@ -762,20 +817,60 @@ function lookupDistance() {
   });
 }
 
-/* 候補の一覧。押すと、その道に切り替わります */
+/* 候補1つぶんの、中の道の名前（高速を使うときだけ出す。2026-08-17） */
+function routeCandTag_(r) {
+  if (r.noHw) return '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>';
+  if (r.summary) return '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
+                         escapeHtml(r.summary) + '</span>';
+  return '';
+}
+
+/* 候補の一覧。押すと、その道に切り替わります（2026-08-17：候補1〜4の番号付き） */
 function routeListHtml_(detail) {
-  var h = '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
-          '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
+  var cur = lastRouteList[lastRouteIdx];
+  var h = '';
+
+  /* ★いま選んでいる道が、一目で分かるように上に出します
+     （「選択しているルートがもっとよくわかるように」2026-08-17） */
+  if (cur) {
+    h += '<div style="margin:0 0 8px;padding:8px 11px;background:#eaf2ea;' +
+         'border:1px solid #b9d2ba;border-radius:8px;font-size:14px;">' +
+         '<span style="color:#2e6b34;font-weight:bold;">✅ 選択中：候補' + (lastRouteIdx + 1) + '</span>　' +
+         '<b>' + cur.km + 'km</b>・' + cur.mins + '分' +
+         (cur.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>'
+                   : (cur.summary ? '（' + escapeHtml(cur.summary) + '）' : '')) +
+         '</div>';
+  }
+
+  /* ★計算する／地図を残す、をしたあとは、選び直しの一覧は畳んで
+     選んだ道だけを見せます（2026-08-17） */
+  if (routeLocked) {
+    h += '<div style="margin:0 0 4px;color:#2e6b34;font-weight:bold;">' +
+         'この道順で確定しています' +
+         '　<a href="javascript:void(0)" onclick="unlockRoute_()" ' +
+         'style="font-weight:normal;font-size:13px;">（別の道に変更する）</a></div>';
+    if (detail) {
+      h += '<div style="margin:0 0 10px 0;padding:8px 12px;' +
+           'border-left:4px solid #2e6b34;background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           detail + '</div>';
+    }
+    return h;
+  }
+
+  h += '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
+       '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
   for (var i = 0; i < lastRouteList.length; i++) {
     var r = lastRouteList[i], on = (i === lastRouteIdx);
     h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
       'style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 11px;' +
       'border-radius:9px;border:2px solid ' + (on ? '#2e6b34' : '#cfd8cd') + ';' +
-      'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;">' +
-      (on ? '✅ ' : '　') + '<b>' + r.km + 'km</b>・' + r.mins + '分' +
-      (r.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
-      (r.summary ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:1.5em;">' +
-                   escapeHtml(r.summary) + '</span>' : '') +
+      'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;' +
+      (on ? '' : 'color:#7a857a;') + '">' +
+      '<span style="display:inline-block;background:' + (on ? '#2e6b34' : '#9aa89a') + ';' +
+      'color:#fff;font-size:12px;font-weight:bold;border-radius:5px;padding:1px 7px;' +
+      'margin-right:6px;">候補' + (i + 1) + '</span>' +
+      (on ? '✅ ' : '') + '<b style="color:' + (on ? '#1f3a20' : '#7a857a') + ';">' + r.km + 'km</b>・' + r.mins + '分' +
+      routeCandTag_(r) +
       '</button>';
     /* ★選んだ道のすぐ下に、その道の明細を出します（2026-08-03j）。
        　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
@@ -793,6 +888,7 @@ function showRoute_(i) {
   var d = lastRouteList[i];
   if (!d) return;
   lastRouteIdx = i;
+  routeLocked = false; /* 選び直している最中なので、確定表示は解いておく */
   var msg = document.getElementById("distMsg");
 
   /* 空いている欄と、前にこのアプリが入れた数字だけを入れ替えます。
@@ -831,13 +927,14 @@ function showRoute_(i) {
       'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
       '🗺 この道順を地図で見る</a>' +
-      ul_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
-           d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
-                  : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
-           '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>']);
+      foot_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
+             d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
+                    : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
+             '所要時間だけは、そのときの渋滞で変わります']);
   }
 
   var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
+  lastRouteDetailHtml = detail;
   msg.innerHTML = routeListHtml_(detail) +
     '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
 
@@ -1587,6 +1684,9 @@ function calc(noScroll) {
   resultDiv.style.display = "block";
   if (!noScroll) resultDiv.scrollIntoView({ behavior: "smooth" });
 
+  /* 計算した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
+  lockRoute_();
+
   /* ---------- コピー用テキスト ---------- */
   var t = "【マイカー精算】" + (dateStr ? dateStr + " " : "") + (hikeName ? hikeName : "") + "\n";
   if (meetPlace || meetTime) t += "集合：" + (meetTime ? meetTime + " " : "") + meetPlace + "\n";
@@ -1844,11 +1944,7 @@ function applyForm(f) {
   routeMapUrl = f.mapUrl || "";
   if (routeMapUrl) {
     var mm = document.getElementById("mapSaveMsg");
-    if (mm) {
-      mm.style.display = "block";
-      mm.innerHTML = '<a href="' + escapeHtml(routeMapUrl) + '" target="_blank" rel="noopener">' +
-                     '🗺 この山行で残した地図を見る</a>';
-    }
+    if (mm) mm.innerHTML = mapSaveAreaHtml_(routeMapUrl);
   }
   document.getElementById("meetTime").value = f.time || "";
   if (f.n) { nPeople = f.n; document.getElementById("nDisp").textContent = nPeople; }
