@@ -245,6 +245,10 @@
   <div class="card">
     <h2>2. 車にかかる費用</h2>
     <p class="note">ドライバーが立替え、参加者全員で等分してドライバーに戻します。無い費用は空欄でOKです。</p>
+    <!-- 高速料金を料金表に合わせ直したときの、お知らせの場所（2026-08-17h）。
+         金額を黙って書き換えないための表示。ふだんは出ません。 -->
+    <p class="note" id="feeSyncMsg" style="display:none;background:#fff8e6;
+       border:1px solid #e8c46a;border-radius:8px;padding:9px 11px;margin-bottom:10px;"></p>
     <div id="cars"></div>
     <button type="button" class="btn btn-sub" onclick="addCar()">＋ 車を追加する</button>
   </div>
@@ -356,7 +360,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17g</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17h</p>
 
 </main>
 
@@ -1099,7 +1103,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17g（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17h（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1114,6 +1118,9 @@ function fetchRoutes() {
       lsSet(LS_ETC, data.routes);
       rebuildEtcRows(data.routes);
       refreshAllDropdowns();
+      /* みんなの料金表が届いた（＝金額が直っていることがある）ので、
+         区間を選んでいる車の金額を合わせ直す（2026-08-17h） */
+      syncFeesFromTable_();
     }
   });
 }
@@ -1174,6 +1181,10 @@ function addCar(data) {
     if (data.kmType) div.querySelector(".car-kmtype").value = data.kmType;
     setIf(div, ".car-etc", data.etc);
     if (data.etcType) div.querySelector(".car-etctype").value = data.etcType;
+    /* ★ETCの有無を戻します。（2026-08-17h）
+       これまで保存していなかったため、開き直すと必ず「ETCあり」に
+       戻ってしまい、金額（通常料金で入れた額など）と食い違っていました。 */
+    if (data.etcUse) div.querySelector(".car-etcuse").value = data.etcUse;
     setIf(div, ".car-ferry", data.ferry);
     if (data.ferryType) div.querySelector(".car-ferrytype").value = data.ferryType;
     setIf(div, ".car-park", data.park);
@@ -1268,8 +1279,78 @@ function refreshAllDropdowns() {
       idx = parseInt(wantIdx, 10);
     }
     sel.value = (idx >= 0) ? String(idx) : "";
-    rememberRouteName_(sel);
+    if (idx >= 0) {
+      rememberRouteName_(sel);
+    } else {
+      /* ------------------------------------------------------------------
+         ★見つからなくても、覚えていた名前は消さないこと。（2026-08-17h）
+
+         料金表はサーバーから少し遅れて届きます。届く前にここを通ると
+         表が空なので必ず見つからず、これまではそこで名前を消していました。
+         その結果、**その端末で初めて開いたときだけ高速ルートの選択が
+         戻らず、金額だけが残る**という状態になっていました。
+         名前を残しておけば、料金表が届いたあとにもう一度ここを通ったとき、
+         ちゃんと選び直せます。
+         ------------------------------------------------------------------ */
+      sel.dataset.routeName = wantName;
+      sel.dataset.routeIdx  = wantIdx;
+    }
   });
+}
+
+/* ------------------------------------------------------------------
+   料金表から選んだ区間の金額を、料金表と合わせ直します。（2026-08-17h）
+
+   「高速ルート（料金表から選ぶ）」で区間を選んでいるのに、高速料金の欄に
+   別の金額が入っていることがありました。原因は2つあります。
+
+   　①ETCあり／なしを保存していなかったので、開き直すと必ず「ETCあり」に
+   　　戻り、通常料金で入れた金額と食い違ってしまう
+   　②料金表はみんなで共有していて、あとから金額が直されることがある
+
+   区間を選んでいる以上、金額は料金表に従うのが筋なので、ここで合わせます。
+   ただし**黙って書き換えると精算の金額が勝手に変わってしまう**ので、
+   直したときは必ず画面に出してお知らせします。
+   「使わない／下に直接入力」を選んでいる車は、手入力とみなして触りません。
+   ------------------------------------------------------------------ */
+function syncFeesFromTable_() {
+  var routes = getEtcRoutes();
+  var changed = [];
+  document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
+    var sel = c.querySelector(".car-route");
+    var fee = c.querySelector(".car-etc");
+    if (!sel || !fee || sel.value === "") return;      /* 直接入力の車は触らない */
+    var r = routes[parseInt(sel.value, 10)];
+    if (!r) return;
+    var use = c.querySelector(".car-etcuse").value;
+    var want = (use === "etc") ? r.etc : r.normal;
+    if (want == null) return;                          /* 料金表に未登録なら触らない */
+    if (String(fee.value) === String(want)) return;    /* すでに合っている */
+    var before = fee.value;
+    fee.value = want;
+    fee.setAttribute("data-auto", String(want));
+    var tp = c.querySelector(".car-etctype");
+    if (tp) tp.value = "one";                          /* 料金表は片道の金額 */
+    changed.push({ no: i + 1, name: r.name,
+                   use: (use === "etc") ? "ETC料金" : "通常料金",
+                   before: before, after: want });
+  });
+  if (!changed.length) return;
+  var box = document.getElementById("feeSyncMsg");
+  if (box) {
+    var h = '<b>高速料金を、料金表の金額に合わせました。</b><br>';
+    for (var k = 0; k < changed.length; k++) {
+      var g = changed[k];
+      h += '車' + g.no + '　' + escapeHtml(g.name) + '（' + g.use + '）：' +
+           (g.before === "" ? "空欄" : escapeHtml(g.before) + '円') +
+           ' → <b>' + yen(g.after) + '</b><br>';
+    }
+    h += '<span style="color:#5a6b5c;">違うときは、上の欄を手で直してください。' +
+         '料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+    box.innerHTML = h;
+    box.style.display = "block";
+  }
+  saveForm();
 }
 
 /* いま選んでいるルートの名前を、選択欄そのものに覚えさせます */
@@ -1933,6 +2014,10 @@ function getFormData() {
       kmType: c.querySelector(".car-kmtype").value,
       etc: c.querySelector(".car-etc").value,
       etcType: c.querySelector(".car-etctype").value,
+      /* ★ETCあり／なしも残します。（2026-08-17h）
+         残していなかったので、開き直すと必ず「ETCあり」に戻り、
+         金額と食い違って見えていました。 */
+      etcUse: c.querySelector(".car-etcuse").value,
       ferry: c.querySelector(".car-ferry").value,
       ferryType: c.querySelector(".car-ferrytype").value,
       park: c.querySelector(".car-park").value,
@@ -2075,6 +2160,9 @@ function fetchPrevSettle(skipForm) {
         document.getElementById("cars").innerHTML = "";
         carCount = 0;
         if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
+        /* ★料金表から選んだ区間の金額を、料金表と合わせ直す（2026-08-17h）。
+           古い精算にはETCあり／なしが保存されていないため、ここで食い違いが出る。 */
+        syncFeesFromTable_();
         /* 保存されていた精算の n は古いことがある（その後に参加者が増えた場合）。
            いまの生きた人数で入れ直す。人数いがいの下書きはそのまま活かす。 */
         var liveN = JOINED.length || EVENT_N;
