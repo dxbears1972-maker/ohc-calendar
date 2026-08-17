@@ -860,7 +860,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-17d';
+var APP_VER = '2026-08-17e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1883,11 +1883,15 @@ function renderList(){
 
     /* 表題行の右端に常時表示するアイコン
        （車＝マイカー精算、¥＝精算結果〔ある時だけ〕、カレンダー＝Googleカレンダーに追加） */
+    /* ★2026-08-17：不具合②の修正。この時点で分かっている「参加」人数（att.yes.length）を
+       &n= としてマイカー精算アプリに渡す。精算アプリ側は、まだ何も入力・保存されていない
+       ときだけこれを初期値として使う（手で直した人数や、すでに保存済みの精算は上書きしない）。 */
     var icons =
       '<a href="' + CARPOOL_URL + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
-        '&place=' + encodeURIComponent(ev.place || '') + '" title="マイカー精算">' + CAR_ICON + '</a>';
+        '&place=' + encodeURIComponent(ev.place || '') +
+        '&n=' + att.yes.length + '" title="マイカー精算">' + CAR_ICON + '</a>';
     if (ev.settle){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
