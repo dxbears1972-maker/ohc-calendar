@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17u</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17v</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17u";
+var APP_VER = "2026-08-17v";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1633,7 +1633,7 @@ function routeIdxByIc_() {
 
 function syncFeesFromTable_() {
   var routes = getEtcRoutes();
-  var changed = [], suggest = [], missing = [];
+  var changed = [], suggest = [], missing = [], noHwLeft = [];
   var destNow = document.getElementById("destPlace").value;
   /* ------------------------------------------------------------------
      ★実際に走った区間が、料金表にまだ無いとき。（2026-08-17u）
@@ -1661,6 +1661,28 @@ function syncFeesFromTable_() {
     var label = (use === "etc")
                   ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
                   : "通常料金";
+
+    /* ------------------------------------------------------------------
+       ★高速に乗らない道を選んでいるのに、高速料金が残っているとき。
+       　（2026-08-17v　只隈さんのご指摘）
+
+       候補3（高速なし・県道52号）を選んでいるのに、
+       「高速道路」のチェックが入ったまま、区間「杷木⇔南関」と
+       ¥1,370 が残っていた。
+       applyIcRoute_ は手で入れた金額を守るために外さない作りなので、
+       **残ること自体は正しい。けれど黙っているのは間違い。**
+       残っていることを伝えて、1タップで外せるようにします。
+       ------------------------------------------------------------------ */
+    var dNow = lastRouteList[lastRouteIdx];
+    if (dNow && dNow.noHw) {
+      var chkE = c.querySelector(".chk-etc");
+      if (chkE && chkE.checked && (fee.value !== "" || chosen)) {
+        noHwLeft.push({ no: i + 1, idx: i, now: fee.value,
+                        name: chosen && routes[parseInt(sel.value, 10)]
+                                ? routes[parseInt(sel.value, 10)].name : "" });
+      }
+      return;   /* 高速を使わない道なので、料金表との照合はしません */
+    }
 
     /* ★実際の区間が料金表に無いとき（2026-08-17u）。
        　比べる相手がいないので、他の判定はせず、作るよう案内します。 */
@@ -1741,19 +1763,60 @@ function syncFeesFromTable_() {
     changed.push({ no: i + 1, name: r.name, use: label,
                    before: before, after: want });
   });
-  renderFeeSyncMsg_(changed, suggest, missing);
+  renderFeeSyncMsg_(changed, suggest, missing, noHwLeft);
   if (changed.length) saveForm();
 }
 
+/* 「高速料金を外す」を押したとき（2026-08-17v）。
+   高速道路のチェック・区間・金額を、その車だけまとめて空にします。 */
+function clearEtcForCar_(i) {
+  var c = document.querySelectorAll("#cars .car-card")[i];
+  if (!c) return;
+  var chk = c.querySelector(".chk-etc");
+  if (chk && chk.checked) { chk.checked = false; toggleOpt(chk, "blk-etc"); }
+  var fee = c.querySelector(".car-etc");
+  if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
+  var sel = c.querySelector(".car-route");
+  if (sel) { sel.value = ""; rememberRouteName_(sel); }
+  saveForm();
+  /* ★明細の文言（「◯台は高速料金が入ったままです」）も書き直します。
+     　showRoute_ を呼ぶと autoPickRoute で区間が入り直してしまうので、
+     　明細だけを作り直す applyIcRoute_ を直接呼びます。 */
+  try {
+    var dNow2 = lastRouteList[lastRouteIdx];
+    if (dNow2) applyIcRoute_(dNow2);
+  } catch (eC) {}
+  syncFeesFromTable_();
+}
+
 /* 高速料金のお知らせを描きます（自動で直した分と、ボタンでご確認いただく分） */
-function renderFeeSyncMsg_(changed, suggest, missing) {
+function renderFeeSyncMsg_(changed, suggest, missing, noHwLeft) {
   missing = missing || [];
+  noHwLeft = noHwLeft || [];
   var box = document.getElementById("feeSyncMsg");
   if (!box) return;
-  if (!changed.length && !suggest.length && !missing.length) {
+  if (!changed.length && !suggest.length && !missing.length && !noHwLeft.length) {
     box.style.display = "none"; box.innerHTML = ""; return;
   }
   var h = "", k, g;
+  /* ★高速に乗らない道なのに、高速料金が残っているとき（2026-08-17v） */
+  if (noHwLeft.length) {
+    h += '<b>この道は<span style="color:#8a5a00;">高速に乗りません</span>が、' +
+         '高速料金が入ったままです。</b><br>';
+    for (k = 0; k < noHwLeft.length; k++) {
+      g = noHwLeft[k];
+      h += '車' + g.no + '：' +
+           (g.name ? ('区間 <b>' + escapeHtml(g.name) + '</b>／') : '') +
+           '<b>' + escapeHtml(g.now === "" ? "金額は空欄" : g.now + '円') + '</b>' +
+           ' <button type="button" class="btn-small" style="margin-left:6px;" ' +
+           'onclick="clearEtcForCar_(' + g.idx + ')">高速料金を外す</button><br>';
+    }
+    h += '<span style="color:#5a6b5c;">実際は高速に乗った、というときは' +
+         'そのままにしてください。</span>';
+    if (changed.length || suggest.length || missing.length) {
+      h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    }
+  }
   /* ★実際に走った区間が料金表に無いとき（2026-08-17u） */
   if (missing.length) {
     var pair = missing[0].pair;
@@ -1969,20 +2032,25 @@ function applyIcRoute_(data) {
 
   /* --- 高速を使わない道のとき --- */
   if (data.noHw) {
-    var off = 0;
+    var off = 0, left = 0;
     cars.forEach(function (c) {
       var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc");
       if (!chk || !chk.checked) return;
       /* 手で入れた金額には触りません。空か、アプリが入れた値のときだけ外します */
-      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) { left++; return; }
       chk.checked = false; toggleOpt(chk, "blk-etc");
       if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
       var sel = c.querySelector(".car-route"); if (sel) sel.value = "";
       off++;
     });
-    box.innerHTML = ul_(["高速に乗らないので、<b>高速料金はかかりません</b>",
-      off ? "「高速道路」のチェックを <b>" + off + "台</b> 分はずしました"
-          : "「高速道路」にチェックの入った車はありません"]);
+    /* ★2026-08-17v　外さなかった車がいるのに
+       　「チェックの入った車はありません」と書いていたのは誤り。
+       　残っている台数をそのまま書きます（下に外すボタンも出ます）。 */
+    var li0 = ["高速に乗らないので、<b>高速料金はかかりません</b>"];
+    if (off)  li0.push("「高速道路」のチェックを <b>" + off + "台</b> 分はずしました");
+    if (left) li0.push("<b>" + left + "台</b> は高速料金が入ったままです（下でご確認ください）");
+    if (!off && !left) li0.push("「高速道路」にチェックの入った車はありません");
+    box.innerHTML = ul_(li0);
     saveForm();
     return;
   }
