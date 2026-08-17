@@ -1919,6 +1919,18 @@ function fetchPrevSettle(skipForm) {
         document.getElementById("cars").innerHTML = "";
         carCount = 0;
         if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
+        /* ★2026-08-17b：不具合②の追加修正。
+           保存されていた前回の精算は、そのときの参加人数（f.n）を持っている。
+           しかしその後に「参加」を押した人が増えていることがあり、
+           そのままだと古い人数を黙って使ってしまう（8/30杵島岳で実際に発生した現象）。
+           予定を開いた「いま」の生きた人数（JOINED、取れなければEVENT_N）で、
+           保存されていたnを上書きする。車の台数・距離・料金など、
+           人数いがいの下書きはそのまま活かす。 */
+        var liveN = JOINED.length || EVENT_N;
+        if (liveN > 0 && liveN !== nPeople) {
+          nPeople = liveN;
+          document.getElementById("nDisp").textContent = nPeople;
+        }
         saveForm();
         /* 前回の入力を読み込み、計算結果も表示する。ただし画面は入力の先頭のまま
            （結果へ自動でスクロールしない）。修正したら「計算する」を押す */
