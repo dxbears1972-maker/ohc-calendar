@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17p</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17q</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17p";
+var APP_VER = "2026-08-17q";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -619,13 +619,66 @@ function foot_(items) {
 var MAP_BTN_CSS =
   'display:inline-block;padding:9px 14px;border-radius:9px;text-decoration:none;' +
   'font-weight:bold;font-size:15px;border:2px solid #2e6b34;';
+
+/* ------------------------------------------------------------------
+   ★どの道で作った地図かを覚えておきます。（2026-08-17q）
+
+   地図のPDFは「いま選んでいる候補の道」で作られます。
+   ところが、そのあと**別の候補に切り替えても同じPDFのまま**だったため、
+   「候補2（南関IC〜甘木IC）を選んでいるのに、PDFは南関⇔杷木」
+   という食い違いが起きていました（只隈さんのご指摘）。
+
+   そこで、作ったときの道の特徴（距離・乗り降りのIC）を覚えておき、
+   いま選んでいる道と違うときは、はっきりそう言います。
+   ------------------------------------------------------------------ */
+var routeMapKey = "", routeMapLabel = "";
+
+/* いま選んでいる候補の「見分け札」。距離とICが同じなら同じ道とみなします。 */
+function routeKeyNow_() {
+  var d = lastRouteList[lastRouteIdx];
+  if (!d) return "";
+  return [d.km,
+          (d.tollIn && d.tollIn.name) || "",
+          (d.tollOut && d.tollOut.name) || "",
+          d.noHw ? "1" : "0"].join("|");
+}
+/* 画面に出すための、その道の呼び名 */
+function routeLabelOf_(d) {
+  if (!d) return "";
+  var a = (d.tollIn && d.tollIn.name) || "", b = (d.tollOut && d.tollOut.name) || "";
+  if (a && b) return a + "〜" + b;
+  if (d.noHw) return "高速なし" + (d.summary ? "（" + d.summary + "）" : "");
+  return a || b || d.summary || "";
+}
+function routeLabelNow_() { return routeLabelOf_(lastRouteList[lastRouteIdx]); }
+
+/* 残してある地図が、いま選んでいる道のものかどうか */
+function mapMatchesNow_() {
+  if (!routeMapUrl) return false;
+  var now = routeKeyNow_();
+  if (!now) return true;          /* まだ道を選んでいない＝比べられないので黙る */
+  if (!routeMapKey) return true;  /* 古い精算＝どの道か記録が無いので黙る */
+  return routeMapKey === now;
+}
+
 function mapSaveAreaHtml_(url) {
-  if (url) {
+  if (url && mapMatchesNow_()) {
     return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
            'style="' + MAP_BTN_CSS + 'background:#fff;color:#2e6b34;">' +
            '🗺 地図を見る（PDF）</a>' +
            '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
            'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
+  }
+  if (url) {
+    /* 残してある地図が、いま選んでいる道と違うとき */
+    return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
+           'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:#2e6b34;">' +
+           '🗺 この道順で地図を作る</a>' +
+           '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
+           'いま残っている地図は <b>' + escapeHtml(routeMapLabel || "別の道") +
+           '</b> のものです。' +
+           '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
+           'style="color:#5a6b5c;">（その地図を見る）</a></div>';
   }
   return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
          'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:#2e6b34;">' +
@@ -763,6 +816,9 @@ function saveRouteMap() {
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
     routeMapUrl = data.url;
+    /* ★どの道で作った地図かを覚える（2026-08-17q） */
+    routeMapKey = routeKeyNow_();
+    routeMapLabel = routeLabelNow_();
     saveForm();
     /* 地図を残した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
     lockRoute_();
@@ -1080,6 +1136,12 @@ function showRoute_(i) {
 
   var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
   lastRouteDetailHtml = detail;
+  /* ★候補を切り替えたら、地図のボタンも作り直します（2026-08-17q）。
+     　残してある地図が別の道のものなら、そう表示するためです。 */
+  try {
+    var msEl = document.getElementById("mapSaveMsg");
+    if (msEl) msEl.innerHTML = mapSaveAreaHtml_(routeMapUrl);
+  } catch (eMs) {}
   renderRouteArea_();
 
   applyIcRoute_(d);
@@ -2372,6 +2434,9 @@ function getFormData() {
     tollIn: lastTollIn,
     tollOut: lastTollOut,
     tollFor: lastTollFor,
+    /* ★地図のPDFを、どの道で作ったか（2026-08-17q） */
+    mapKey: routeMapKey,
+    mapLabel: routeMapLabel,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -2413,6 +2478,9 @@ function applyForm(f) {
   if (f.tollIn != null)  lastTollIn  = String(f.tollIn);
   if (f.tollOut != null) lastTollOut = String(f.tollOut);
   if (f.tollFor != null) lastTollFor = String(f.tollFor);
+  /* ★地図をどの道で作ったか（2026-08-17q） */
+  routeMapKey   = (f.mapKey   != null) ? String(f.mapKey)   : "";
+  routeMapLabel = (f.mapLabel != null) ? String(f.mapLabel) : "";
   routeMapUrl = f.mapUrl || "";
   if (routeMapUrl) {
     var mm = document.getElementById("mapSaveMsg");
