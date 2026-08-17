@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17m</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17n</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17m";
+var APP_VER = "2026-08-17n";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1442,37 +1442,98 @@ function refreshAllDropdowns() {
    直したときは必ず画面に出してお知らせします。
    「使わない／下に直接入力」を選んでいる車は、手入力とみなして触りません。
    ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   行き先が一致する料金表の行を**すべて**返します。（2026-08-17n）
+
+   ★1つだけ返す `findRouteByDest` は、行き先が同じ区間が2つ以上あると
+   　先に見つかったほうを返してしまいます。
+   　実際、英彦山には「八女⇔杷木」と「杷木⇔南関」の両方が登録されており、
+   　行き先だけで決めて**まったく別の区間（八女⇔杷木 1,060円）を
+   　当ててしまう**事故が起きました。
+   　迷ったときは決めない、という判断をするために全部返します。
+   ------------------------------------------------------------------ */
+function findRoutesByDest_(dest) {
+  var d = normDest(dest), out = [];
+  if (!d) return out;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var rd = normDest(routes[i].dest);
+    if (!rd) continue;
+    if (rd === d || rd.indexOf(d) >= 0 || d.indexOf(rd) >= 0) out.push(i);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   いま調べた道の「乗ったIC〜降りたIC」から、料金表の行を決めます。
+   これがいちばん確かな手がかりです。分からなければ -1。
+   ------------------------------------------------------------------ */
+function routeIdxByIc_() {
+  var nowTo = document.getElementById("destPlace").value
+                .replace(/^[\s　]+|[\s　]+$/g, "");
+  /* 行き先が変わっていたら、前に調べたIC名は別の山のものなので使わない */
+  if (!lastTollFor || lastTollFor !== nowTo) return -1;
+  if (!lastTollIn || !lastTollOut) return -1;
+  return findRouteByIcPair_(lastTollIn, lastTollOut);
+}
+
 function syncFeesFromTable_() {
   var routes = getEtcRoutes();
   var changed = [], suggest = [];
   var destNow = document.getElementById("destPlace").value;
+  /* ★区間を決める手がかりは、この順で強い（2026-08-17n）
+     　①実際に走った道のIC（南関IC〜杷木IC）… いちばん確か
+     　②行き先。ただし**候補が1つだけのとき**に限る。
+     　　2つ以上あるときは決められないので、何も言わない。 */
+  var icIdx = routeIdxByIc_();
   document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
     var sel = c.querySelector(".car-route");
     var fee = c.querySelector(".car-etc");
     if (!sel || !fee) return;
     var chosen = (sel.value !== "");
-    /* ------------------------------------------------------------------
-       ★2026-08-17m　区間が選ばれていない車も見るようにしました。
-
-       古い版が作った「この端末の下書き」には、**高速ルートが空のまま
-       金額だけ**残っているものがあります（版g以前の不具合）。
-       下書きはいちど作られるとずっと残るので、そのままでは
-       いつまでも直りません。
-       そこで、区間が選ばれていないときは**行き先から料金表を探し**、
-       金額がちがえばお知らせします。
-       ★ただし勝手には直しません。ボタンを押したときだけ直します。
-       ------------------------------------------------------------------ */
-    var ri = chosen ? parseInt(sel.value, 10) : findRouteByDest(destNow);
-    if (ri < 0 || !routes[ri]) return;
-    if (!chosen && fee.value === "") return;   /* 金額も空なら、何も言わない */
-    var r = routes[ri];
     var use = c.querySelector(".car-etcuse").value;
-    var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
-    if (want == null) return;                          /* 料金表に未登録なら触らない */
-    if (String(fee.value) === String(want)) return;    /* すでに合っている */
     var label = (use === "etc")
                   ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
                   : "通常料金";
+
+    /* ★選ばれている区間が、実際に走った道と食い違っていないか。
+       　（誤って別の区間を選んでしまったときに気づけるように） */
+    if (chosen && icIdx >= 0 && icIdx !== parseInt(sel.value, 10)) {
+      var rc = routes[icIdx];
+      var wantC = routeFeeFor_(rc, use);
+      if (rc && wantC != null) {
+        suggest.push({ no: i + 1, idx: i, routeIdx: icIdx, name: rc.name, use: label,
+                       now: fee.value, want: wantC, needRoute: false,
+                       wrongRoute: routes[parseInt(sel.value, 10)]
+                                     ? routes[parseInt(sel.value, 10)].name : "",
+                       icPair: lastTollIn + "〜" + lastTollOut });
+        return;
+      }
+    }
+
+    var ri;
+    if (chosen) {
+      ri = parseInt(sel.value, 10);
+    } else {
+      /* ------------------------------------------------------------------
+         区間が選ばれていない車（古い下書きなど）。
+         ICで決まればそれ、決まらなければ行き先。
+         ★行き先の候補が2つ以上あるときは、**当てずっぽうにしない。**
+         ------------------------------------------------------------------ */
+      if (icIdx >= 0) {
+        ri = icIdx;
+      } else {
+        var cand = findRoutesByDest_(destNow);
+        if (cand.length !== 1) return;   /* 決められないので黙る */
+        ri = cand[0];
+      }
+    }
+    if (ri < 0 || !routes[ri]) return;
+    if (!chosen && fee.value === "") return;   /* 金額も空なら、何も言わない */
+    var r = routes[ri];
+    var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
+    if (want == null) return;                          /* 料金表に未登録なら触らない */
+    if (String(fee.value) === String(want)) return;    /* すでに合っている */
     /* 区間が選ばれていない車は、必ず「ボタンで確認」にします */
     if (!chosen) {
       suggest.push({ no: i + 1, idx: i, routeIdx: ri, name: r.name, use: label,
@@ -1526,14 +1587,23 @@ function renderFeeSyncMsg_(changed, suggest) {
     h += '<b>高速料金が、料金表とちがいます。</b><br>';
     for (k = 0; k < suggest.length; k++) {
       g = suggest[k];
-      h += '車' + g.no + '　' +
-           (g.needRoute
-              ? ('行き先から <b>' + escapeHtml(g.name) + '</b> が使えます（' + g.use + '）：')
-              : (escapeHtml(g.name) + '（' + g.use + '）：')) +
-           'いま <b>' + escapeHtml(g.now) + '円</b>／料金表は <b>' + yen(g.want) + '</b>' +
+      var head;
+      if (g.wrongRoute) {
+        /* 選ばれている区間が、実際に走った道と違うとき */
+        head = '実際に走った道は <b>' + escapeHtml(g.icPair) + '</b> です。' +
+               '選ばれている区間 <b>' + escapeHtml(g.wrongRoute) + '</b> とちがいます。<br>' +
+               '　→ <b>' + escapeHtml(g.name) + '</b>（' + g.use + '）：';
+      } else if (g.needRoute) {
+        head = '行き先から <b>' + escapeHtml(g.name) + '</b> が使えます（' + g.use + '）：';
+      } else {
+        head = escapeHtml(g.name) + '（' + g.use + '）：';
+      }
+      h += '車' + g.no + '　' + head +
+           'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b>' +
+           '／料金表は <b>' + yen(g.want) + '</b>' +
            ' <button type="button" class="btn-small" style="margin-left:6px;" ' +
            'onclick="applyFeeSuggest_(' + g.idx + ',' + g.want + ',' + g.routeIdx + ')">' +
-           yen(g.want) + ' にする</button><br>';
+           'この区間にする</button><br>';
     }
     h += '<span style="color:#5a6b5c;">いまの金額のままでよければ、そのままにしてください。</span><br>';
   }
@@ -1547,9 +1617,11 @@ function renderFeeSyncMsg_(changed, suggest) {
 function applyFeeSuggest_(i, amount, routeIdx) {
   var c = document.querySelectorAll("#cars .car-card")[i];
   if (!c) return;
+  /* ★区間も入れ直します。空のときだけでなく、
+     　まちがった区間が選ばれているときも入れ替えます（2026-08-17n）。 */
   if (routeIdx != null && routeIdx >= 0) {
     var sel = c.querySelector(".car-route");
-    if (sel && sel.value === "") {
+    if (sel) {
       var chk = c.querySelector(".chk-etc");
       if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
       sel.value = String(routeIdx);
@@ -2261,6 +2333,11 @@ function getFormData() {
     /* ★休日料金（土日祝）かどうかも覚えます。
        祝日は日付から自動で分からないので、残しておかないと開くたびに消えます。 */
     holiRate: isHolidayRate_(),
+    /* ★実際に走った道の「乗ったIC・降りたIC」も覚えます（2026-08-17n）。
+       開き直したときに、選ばれている区間が正しいかを確かめる手がかりになります。 */
+    tollIn: lastTollIn,
+    tollOut: lastTollOut,
+    tollFor: lastTollFor,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -2297,6 +2374,11 @@ function applyForm(f) {
     if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
   }
   if (f.autoKm) lastAutoKm = String(f.autoKm);
+  /* ★前に調べた「乗ったIC・降りたIC」を戻す（2026-08-17n）。
+     これがあると、開いた直後から区間の食い違いに気づける。 */
+  if (f.tollIn != null)  lastTollIn  = String(f.tollIn);
+  if (f.tollOut != null) lastTollOut = String(f.tollOut);
+  if (f.tollFor != null) lastTollFor = String(f.tollFor);
   routeMapUrl = f.mapUrl || "";
   if (routeMapUrl) {
     var mm = document.getElementById("mapSaveMsg");
