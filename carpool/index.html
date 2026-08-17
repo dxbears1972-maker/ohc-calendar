@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17s</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17t</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17s";
+var APP_VER = "2026-08-17t";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -669,14 +669,27 @@ function rememberMapRoute_() {
    　PDFは候補1（南関⇔杷木・105.7km）の地図でした。
    　→ **分からないものは分からないと言う。** 推測でラベルを付けない。
    ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   記録が「信用できるか」を、いま選んでいる道と見くらべて決めます。（2026-08-17t）
+
+   ★版rが、古い精算に対して autoKm から距離だけの記録を書き込んでしまいました。
+   　その距離は地図を作った道のものとは限らないので、
+   　**距離だけの記録は、高速を使う道に対しては信用しません。**
+   　（本当に地図を作ったときの記録なら、高速の道なら乗り降りのICも入っています）
+   ------------------------------------------------------------------ */
 function mapKnown_() {
-  return !!(routeMapIn || routeMapOut || (routeMapKm != null && !isNaN(routeMapKm)));
+  var d = lastRouteList[lastRouteIdx];
+  if (routeMapIn || routeMapOut) return true;          /* ICの記録があれば確か */
+  if (routeMapKm == null || isNaN(routeMapKm)) return false;
+  /* 距離だけの記録。いまの道が高速を使うなら、その記録は当てにならない */
+  if (d && !d.noHw && ((d.tollIn && d.tollIn.name) || (d.tollOut && d.tollOut.name))) return false;
+  return true;
 }
 function mapMatchesNow_() {
   if (!routeMapUrl) return false;
   var d = lastRouteList[lastRouteIdx];
   if (!d) return true;                       /* まだ道を選んでいない＝比べられない */
-  if (!mapKnown_()) return true;             /* 記録が無い。別に注意書きを出す */
+  if (!mapKnown_()) return true;             /* 記録が無い／当てにならない。注意書きを出す */
   var a = (d.tollIn && d.tollIn.name) || "", b = (d.tollOut && d.tollOut.name) || "";
   if (routeMapIn && routeMapOut && a && b) {
     return (routeMapIn === a && routeMapOut === b);
@@ -734,6 +747,11 @@ function mapSaveAreaHtml_(url) {
 var mapViewed_ = false;
 function onMapViewed_() {
   mapViewed_ = true;
+  /* ★「押した」ことを控えに残します（2026-08-17t）。
+     　アプリとして開いていると、地図を見て戻ったときにページが
+     　読み直されることがあります。JSの変数だけで覚えていると、
+     　**そのときボタンがまた消えてしまいます**（実際に起きました）。 */
+  try { saveForm(); } catch (eV) {}
   placeMapSaveArea_();
 }
 function mapAreaShouldShow_() {
@@ -2474,6 +2492,9 @@ function getFormData() {
     mapIn: routeMapIn,
     mapOut: routeMapOut,
     mapLabel: routeMapLabel,
+    /* ★「この道順を地図で見る」を押したか（2026-08-17t）。
+       読み直してもボタンが消えないようにするため。 */
+    mapViewed: mapViewed_,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -2524,6 +2545,7 @@ function applyForm(f) {
      ------------------------------------------------------------------ */
   routeMapKm = null; routeMapIn = ""; routeMapOut = ""; routeMapLabel = "";
   routeMapUrl = f.mapUrl || "";
+  if (f.mapViewed) mapViewed_ = true;   /* 一度押していれば、読み直しても出す */
   if (f.mapKm != null && f.mapKm !== "") {
     routeMapKm  = Number(f.mapKm);
     routeMapIn  = String(f.mapIn  || "");
