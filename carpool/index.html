@@ -208,6 +208,16 @@
         <input type="time" id="meetTime">
       </div>
     </div>
+    <!-- ★高速料金の休日割引（2026-08-17i）。
+         土日なら自動でチェックが入ります。祝日のときだけ手で入れてください。 -->
+    <div style="margin-top:12px;background:#f2f7f2;border-radius:8px;padding:9px 11px;">
+      <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:bold;">
+        <input type="checkbox" id="holiRate" onchange="holiChanged()" style="width:20px;height:20px;">
+        休日料金（土日・祝日）
+      </label>
+      <p class="note" id="holiNote" style="margin:4px 0 0;"></p>
+    </div>
+
     <label style="text-align:center; margin-top:16px;">参加人数（運転手も含む）</label>
     <div class="stepper">
       <button type="button" onclick="changeN(-1)">−</button>
@@ -360,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17h</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17i</p>
 
 </main>
 
@@ -1008,16 +1018,75 @@ function getEtcRoutes() {
     var name = tr.querySelector(".etc-name").value.trim();
     var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
     var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
-    if (name && (!isNaN(etc) || !isNaN(normal))) {
+    var holiEl = tr.querySelector(".etc-holi");
+    var holi = holiEl ? parseInt(holiEl.value, 10) : NaN;
+    if (name && (!isNaN(etc) || !isNaN(normal) || !isNaN(holi))) {
       routes.push({
         name: name,
         etc: isNaN(etc) ? null : etc,
         normal: isNaN(normal) ? null : normal,
+        etcHoli: isNaN(holi) ? null : holi,
         dest: (tr.querySelector(".etc-dest") ? tr.querySelector(".etc-dest").value.trim() : "")
       });
     }
   });
   return routes;
+}
+
+/* ------------------------------------------------------------------
+   その山行日が「休日料金」の日かどうか。（2026-08-17i）
+
+   ETCの休日割引があるため、同じ区間でも平日と土日祝で金額が違います。
+   土日はカレンダーから自動で分かりますが、**祝日は自動では分かりません。**
+   そこで「休日料金（土日・祝日）」のチェックを画面に出し、
+   土日なら自動でチェックを付け、祝日のときは手で付けていただきます。
+   ------------------------------------------------------------------ */
+function isHolidayRate_() {
+  var el = document.getElementById("holiRate");
+  return !!(el && el.checked);
+}
+/* 山行日が土日なら、休日料金のチェックを自動で付けます。
+   手で変えたあとは、日付を変えたときだけ付け直します。 */
+function syncHolidayByDate_() {
+  var el = document.getElementById("holiRate");
+  var d = document.getElementById("hikeDate").value;
+  if (!el || !d) return;
+  var p = d.split("-");
+  var w = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
+  el.checked = (w === 0 || w === 6);
+  holiNote_();
+}
+function holiNote_() {
+  var n = document.getElementById("holiNote");
+  if (!n) return;
+  n.textContent = isHolidayRate_()
+    ? "休日料金（ETCの休日割引）で計算します。"
+    : "平日料金で計算します。祝日のときはチェックを入れてください。";
+}
+/* チェックを手で変えたとき */
+function holiChanged() {
+  holiNote_();
+  syncFeesFromTable_();
+  saveForm();
+}
+/* いまの日付・ETCの有無に合う、料金表の金額を返します */
+function routeFeeFor_(r, use) {
+  if (!r) return null;
+  if (use !== "etc") return (r.normal == null ? null : r.normal);
+  if (isHolidayRate_()) {
+    /* 土日祝の金額が未登録なら、平日の金額で代用します */
+    return (r.etcHoli != null) ? r.etcHoli : (r.etc == null ? null : r.etc);
+  }
+  return (r.etc == null ? null : r.etc);
+}
+/* その金額が「料金表に載っている金額」かどうか。
+   載っていれば、アプリが入れた金額とみなして日付に合わせ直します。
+   載っていなければ、手で入れた金額とみなして触りません。 */
+function isTableFee_(r, v) {
+  if (v === "" || v == null) return false;
+  var n = parseInt(v, 10);
+  if (isNaN(n)) return false;
+  return (r.etc === n) || (r.normal === n) || (r.etcHoli === n);
 }
 /* ------------------------------------------------------------------
    プルダウンに並ぶのは「名前と金額が入っている行」だけです。
@@ -1030,7 +1099,9 @@ function etcRowsInOrder() {
     var name = tr.querySelector(".etc-name").value.trim();
     var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
     var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
-    if (name && (!isNaN(etc) || !isNaN(normal))) out.push(tr);
+    var holiEl = tr.querySelector(".etc-holi");
+    var holi = holiEl ? parseInt(holiEl.value, 10) : NaN;
+    if (name && (!isNaN(etc) || !isNaN(normal) || !isNaN(holi))) out.push(tr);
   });
   return out;
 }
@@ -1052,14 +1123,15 @@ function saveEtc() {
     });
   }, 1000);
 }
-function addEtcRow(name, etcFee, normalFee, dest) {
+function addEtcRow(name, etcFee, normalFee, dest, holiFee) {
   var box = document.getElementById("etcRows");
   var div = document.createElement("div");
   div.className = "etc-row";
   div.innerHTML =
     '<input type="text" class="etc-name" placeholder="ルート名　例：南関⇔鳥栖" onchange="saveEtc()">' +
     '<div class="etc-fees">' +
-    '<div><span class="fee-label">ETC片道(円)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">ETC片道(平日)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">ETC片道(土日祝)</span><input type="number" class="etc-holi" placeholder="0" onchange="saveEtc()"></div>' +
     '<div><span class="fee-label">通常片道(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
     '<button type="button" class="btn-small" onclick="this.closest(\'.etc-row\').remove(); saveEtc();">削除</button>' +
     '</div>' +
@@ -1067,6 +1139,7 @@ function addEtcRow(name, etcFee, normalFee, dest) {
       'onchange="saveEtc()" style="margin-top:6px;font-size:14px;">';
   div.querySelector(".etc-name").value = name || "";
   if (etcFee != null) div.querySelector(".etc-fee").value = etcFee;
+  if (holiFee != null) div.querySelector(".etc-holi").value = holiFee;
   if (normalFee != null) div.querySelector(".etc-normal").value = normalFee;
   div.querySelector(".etc-dest").value = dest || "";
   box.appendChild(div);
@@ -1075,7 +1148,7 @@ function rebuildEtcRows(routes) {
   var box = document.getElementById("etcRows");
   box.innerHTML = "";
   if (routes && routes.length) {
-    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal, r.dest); });
+    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal, r.dest, r.etcHoli); });
   } else {
     addEtcRow();
   }
@@ -1086,9 +1159,9 @@ function loadEtc() {
     saved.forEach(function (r) {
       /* 旧形式（fee）からの移行：feeはETC料金として扱う */
       if (r.fee != null && r.etc == null) {
-        addEtcRow(r.name, r.fee, null, r.dest);
+        addEtcRow(r.name, r.fee, null, r.dest, r.etcHoli);
       } else {
-        addEtcRow(r.name, r.etc, r.normal, r.dest);
+        addEtcRow(r.name, r.etc, r.normal, r.dest, r.etcHoli);
       }
     });
   } else {
@@ -1103,7 +1176,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17h（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17i（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1263,8 +1336,12 @@ function refreshAllDropdowns() {
     routes.forEach(function (r, i) {
       var op = document.createElement("option");
       op.value = String(i);
+      /* ★いまの山行日に使う金額を先に出します（2026-08-17i）。
+         　どれが使われるのか、選ぶ前に分かるようにするためです。 */
+      var nowFee = routeFeeFor_(r, "etc");
       op.textContent = r.name +
-        "（ETC " + (r.etc != null ? yen(r.etc) : "未登録") +
+        "（ETC" + (isHolidayRate_() ? "土日祝 " : "平日 ") +
+        (nowFee != null ? yen(nowFee) : "未登録") +
         "／通常 " + (r.normal != null ? yen(r.normal) : "未登録") + "）";
       sel.appendChild(op);
     });
@@ -1323,16 +1400,24 @@ function syncFeesFromTable_() {
     var r = routes[parseInt(sel.value, 10)];
     if (!r) return;
     var use = c.querySelector(".car-etcuse").value;
-    var want = (use === "etc") ? r.etc : r.normal;
+    var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
     if (want == null) return;                          /* 料金表に未登録なら触らない */
     if (String(fee.value) === String(want)) return;    /* すでに合っている */
+    /* ★ここが肝（2026-08-17i）。
+       いま入っている金額が料金表のどれかと一致するときだけ直します。
+       　例：日曜の山行なのに平日の1,960円が入っている → 1,370円へ直す
+       料金表に無い金額（手で入れた金額）は、正しいものとして触りません。
+       　例：割引や別ルートで2,500円と入れてある → そのまま */
+    if (fee.value !== "" && !isTableFee_(r, fee.value)) return;
     var before = fee.value;
     fee.value = want;
     fee.setAttribute("data-auto", String(want));
     var tp = c.querySelector(".car-etctype");
     if (tp) tp.value = "one";                          /* 料金表は片道の金額 */
     changed.push({ no: i + 1, name: r.name,
-                   use: (use === "etc") ? "ETC料金" : "通常料金",
+                   use: (use === "etc")
+                          ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
+                          : "通常料金",
                    before: before, after: want });
   });
   if (!changed.length) return;
@@ -1622,9 +1707,12 @@ function routeSelected(el) {
   var r = routes[parseInt(idx, 10)];
   if (!r) return;
   var use = card.querySelector(".car-etcuse").value;
-  var fee = (use === "etc") ? r.etc : r.normal;
+  /* ★山行日（平日／土日祝）に合う金額を選びます（2026-08-17i） */
+  var fee = routeFeeFor_(r, use);
   if (fee == null) {
-    alert("このルートの" + (use === "etc" ? "ETC料金" : "通常料金") + "が料金表に未登録です。料金表に入力するか、下に直接入力してください。");
+    alert("このルートの" +
+      (use === "etc" ? ("ETC料金（" + (isHolidayRate_() ? "土日祝" : "平日") + "）") : "通常料金") +
+      "が料金表に未登録です。料金表に入力するか、下に直接入力してください。");
     card.querySelector(".car-etc").value = "";
     return;
   }
@@ -2042,6 +2130,9 @@ function getFormData() {
        開き直したときに選び直さなくてよいようにです。（2026-08-03） */
     pref: routePrefNow_(),
     autoKm: lastAutoKm,
+    /* ★休日料金（土日祝）かどうかも覚えます。
+       祝日は日付から自動で分からないので、残しておかないと開くたびに消えます。 */
+    holiRate: isHolidayRate_(),
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -2062,6 +2153,14 @@ function saveForm() {
 function applyForm(f) {
   if (!f) return false;
   if (f.date) document.getElementById("hikeDate").value = f.date;
+  /* ★休日料金（土日祝）の設定を戻します。（2026-08-17i）
+     保存されていない古い精算は、山行日の曜日から決め直します。 */
+  if (f.holiRate != null) {
+    document.getElementById("holiRate").checked = !!f.holiRate;
+    holiNote_();
+  } else {
+    syncHolidayByDate_();
+  }
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
@@ -2207,6 +2306,7 @@ function clearForm() {
   togglePerson();
   setToday();
   updateYoubi();
+  syncHolidayByDate_();
   nPeople = 4;
   document.getElementById("nDisp").textContent = nPeople;
   document.getElementById("cars").innerHTML = "";
@@ -2373,6 +2473,15 @@ function draftHasInput_() {
   var m = document.querySelector("main");
   m.addEventListener("input", function () { saveForm(); updateYoubi(); });
   m.addEventListener("change", function () { saveForm(); updateYoubi(); });
+  /* ★山行日を変えたら、土日かどうかを見て休日料金のチェックを付け直し、
+     　高速料金も日付に合う金額へ入れ替えます。（2026-08-17i） */
+  var dEl = document.getElementById("hikeDate");
+  if (dEl) dEl.addEventListener("change", function () {
+    syncHolidayByDate_();
+    refreshAllDropdowns();
+    syncFeesFromTable_();
+  });
+  holiNote_();
 })();
 </script>
 </body>
