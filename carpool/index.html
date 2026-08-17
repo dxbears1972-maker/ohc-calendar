@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17t</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17u</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17t";
+var APP_VER = "2026-08-17u";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1199,6 +1199,11 @@ function showRoute_(i) {
 
   applyIcRoute_(d);
   if (!d.noHw) autoPickRoute(true);
+  /* ★候補を切り替えたら、高速料金の照合もやり直します（2026-08-17u）。
+     　走る道が変われば通る区間も変わるので、
+     　「その区間が料金表にあるか」「金額が合っているか」を見直す必要があります。
+     　ここを呼んでいなかったため、候補を切り替えても何も言いませんでした。 */
+  try { syncFeesFromTable_(); } catch (eSy) {}
   saveForm();
   document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
 }
@@ -1628,8 +1633,20 @@ function routeIdxByIc_() {
 
 function syncFeesFromTable_() {
   var routes = getEtcRoutes();
-  var changed = [], suggest = [];
+  var changed = [], suggest = [], missing = [];
   var destNow = document.getElementById("destPlace").value;
+  /* ------------------------------------------------------------------
+     ★実際に走った区間が、料金表にまだ無いとき。（2026-08-17u）
+
+     只隈さんのご指摘。候補2（南関IC〜甘木IC）を選んでいるのに、
+     料金表に「南関⇔甘木」が無いため、**別の区間「杷木⇔南関」の
+     ¥1,370 がそのまま入りっぱなし**になっていた。
+     区間が無いなら「無いので作ってください、金額を入れてください」と
+     はっきり言うべき、というのがご指摘の趣旨。
+     ------------------------------------------------------------------ */
+  var destTrim = String(destNow).replace(/^[\s　]+|[\s　]+$/g, "");
+  var icPairKnown = !!(lastTollFor && lastTollFor === destTrim && lastTollIn && lastTollOut);
+  var icPairNm = icPairKnown ? icPairName_() : "";
   /* ★区間を決める手がかりは、この順で強い（2026-08-17n）
      　①実際に走った道のIC（南関IC〜杷木IC）… いちばん確か
      　②行き先。ただし**候補が1つだけのとき**に限る。
@@ -1644,6 +1661,18 @@ function syncFeesFromTable_() {
     var label = (use === "etc")
                   ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
                   : "通常料金";
+
+    /* ★実際の区間が料金表に無いとき（2026-08-17u）。
+       　比べる相手がいないので、他の判定はせず、作るよう案内します。 */
+    if (icPairKnown && icPairNm && icIdx < 0) {
+      if (chosen || fee.value !== "") {
+        missing.push({ no: i + 1, pair: icPairNm,
+                       curName: chosen && routes[parseInt(sel.value, 10)]
+                                  ? routes[parseInt(sel.value, 10)].name : "",
+                       now: fee.value });
+      }
+      return;
+    }
 
     /* ★選ばれている区間が、実際に走った道と食い違っていないか。
        　（誤って別の区間を選んでしまったときに気づけるように） */
@@ -1712,16 +1741,42 @@ function syncFeesFromTable_() {
     changed.push({ no: i + 1, name: r.name, use: label,
                    before: before, after: want });
   });
-  renderFeeSyncMsg_(changed, suggest);
+  renderFeeSyncMsg_(changed, suggest, missing);
   if (changed.length) saveForm();
 }
 
 /* 高速料金のお知らせを描きます（自動で直した分と、ボタンでご確認いただく分） */
-function renderFeeSyncMsg_(changed, suggest) {
+function renderFeeSyncMsg_(changed, suggest, missing) {
+  missing = missing || [];
   var box = document.getElementById("feeSyncMsg");
   if (!box) return;
-  if (!changed.length && !suggest.length) { box.style.display = "none"; box.innerHTML = ""; return; }
+  if (!changed.length && !suggest.length && !missing.length) {
+    box.style.display = "none"; box.innerHTML = ""; return;
+  }
   var h = "", k, g;
+  /* ★実際に走った区間が料金表に無いとき（2026-08-17u） */
+  if (missing.length) {
+    var pair = missing[0].pair;
+    h += '<b>実際に走った区間 <span style="color:#8a5a00;">' + escapeHtml(pair) +
+         '</span> が、料金表にありません。</b><br>' +
+         '<button type="button" class="btn-small" style="margin:6px 0;" ' +
+         'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(pair) + '」を足す</button><br>';
+    for (k = 0; k < missing.length; k++) {
+      g = missing[k];
+      h += '車' + g.no + '：';
+      if (g.curName) {
+        h += 'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b> が入っていますが、' +
+             'これは <b>' + escapeHtml(g.curName) + '</b> の金額です。<br>';
+      } else {
+        h += 'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b> が入っています。<br>';
+      }
+    }
+    h += '<span style="color:#5a6b5c;">金額が分かるときは、足したあと料金表に入れてください。' +
+         'その場で分からないときは、上の「高速料金」に直接入れてもかまいません。</span>';
+    if (changed.length || suggest.length) {
+      h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    }
+  }
   if (changed.length) {
     h += '<b>高速料金を、料金表の金額に合わせました。</b><br>';
     for (k = 0; k < changed.length; k++) {
@@ -1756,7 +1811,9 @@ function renderFeeSyncMsg_(changed, suggest) {
     }
     h += '<span style="color:#5a6b5c;">いまの金額のままでよければ、そのままにしてください。</span><br>';
   }
-  h += '<span style="color:#5a6b5c;">料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+  if (changed.length || suggest.length) {
+    h += '<span style="color:#5a6b5c;">料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+  }
   box.innerHTML = h;
   box.style.display = "block";
 }
