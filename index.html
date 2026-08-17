@@ -198,6 +198,7 @@
   .attlist b.yes { color: #2e6b34; }
   .attlist b.maybe { color: #b57e00; }
   .attlist b.no { color: #666; }
+  .attlist b.pending { color: #b00020; }
   .attlist a.attdel {
     color: inherit; text-decoration: none;
     border-bottom: 1px dotted #b00020;
@@ -859,7 +860,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-17c';
+var APP_VER = '2026-08-17d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1686,6 +1687,22 @@ function attOf(evId){
   r.yes.sort(byMember_);
   r.maybe.sort(byMember_);
   r.no.sort(byMember_);
+  /* ------------------------------------------------------------------
+     ★2026-08-17：まだボタンを押していない人（○△×のどれも送っていない人）。
+     参加人数が多い予定ほど、押していない人を目で探すのが大変になるため。
+     「実在のハイキング会員」の中で、この予定にまだ何も答えていない人を出す
+     （DXベアーズ(保守)は含めない。退会した人も名簿から外れているので含まれない）。
+     ------------------------------------------------------------------ */
+  var answered = {};
+  for (var p = 0; p < r.yes.length; p++)   answered[r.yes[p]]   = true;
+  for (var q = 0; q < r.maybe.length; q++) answered[r.maybe[q]] = true;
+  for (var s = 0; s < r.no.length; s++)    answered[r.no[s]]    = true;
+  r.pending = [];
+  var rmAll = realMembers_();
+  for (var m = 0; m < rmAll.length; m++){
+    if (!answered[rmAll[m]]) r.pending.push(rmAll[m]);
+  }
+  r.pending.sort(byMember_);
   return r;
 }
 
@@ -1903,6 +1920,10 @@ function renderList(){
         '<b class="yes">参加 ' + att.yes.length + '人</b>：' + attNamesHtml(att.yes, ev.id, isAdmin, 'まだいません') + '<br>' +
         '<b class="maybe">未定 ' + att.maybe.length + '人</b>：' + attNamesHtml(att.maybe, ev.id, isAdmin, '－') + '<br>' +
         '<b class="no">不参加 ' + att.no.length + '人</b>：' + attNamesHtml(att.no, ev.id, isAdmin, '－') +
+        (att.pending.length ?
+          ('<br><b class="pending">未回答 ' + att.pending.length + '人</b>：' +
+            attNamesHtml(att.pending, ev.id, false, '') )
+          : '') +
       '</div>' +
       (canDel ?
         '<div class="evdel">' +
