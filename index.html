@@ -860,7 +860,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-17e';
+var APP_VER = '2026-08-17f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1907,7 +1907,12 @@ function renderList(){
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
       (isCancel && ev.cancelNote ? '<div class="cancelnote">' + esc(ev.cancelNote) + '</div>' : '') +
       (files ? '<div class="filelinks">' + files + '</div>' : '') +
-      (ev.settle ? '<pre class="settle" id="settle-' + ev.id + '" style="display:none">' + esc(ev.settle) + '</pre>' : '') +
+      /* ★2026-08-17：精算の明細を開いたとき、その山行で残した道順の地図（PDF）も
+         　いっしょに開けるようにしました。地図のURLは settleForm の中に入っています。 */
+      (ev.settle ? '<div id="settle-' + ev.id + '" style="display:none">' +
+                     settleMapLink_(ev) +
+                     '<pre class="settle">' + esc(ev.settle) + '</pre>' +
+                   '</div>' : '') +
       (locked ?
         (isCancel
           ? '<div class="lockedmsg">この山行は中止になりました</div>'
@@ -2280,6 +2285,25 @@ function answer(evId, st){
 function toggleSettle(evId){
   var el = $('settle-' + evId);
   if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+}
+
+/* ------------------------------------------------------------------
+   精算の明細に付ける「道順の地図（PDF）」のボタン。（2026-08-17）
+
+   マイカー精算アプリで「地図をPDFで残す」を押すと、そのPDFのURLが
+   精算の入力内容（settleForm）の中に mapUrl として保存されています。
+   ここではそれを取り出して、計画表・報告書と同じ形のボタンにします。
+   地図を残していない山行では、何も出しません。
+   ------------------------------------------------------------------ */
+function settleMapLink_(ev){
+  try {
+    if (!ev || !ev.settleForm) return '';
+    var f = JSON.parse(ev.settleForm);
+    var u = f && f.mapUrl ? String(f.mapUrl) : '';
+    if (!u || u.indexOf('http') !== 0) return '';
+    return '<div class="filelinks"><a class="filebtn" href="' + esc(u) +
+           '" target="_blank" rel="noopener">🗺 この山行の道順の地図</a></div>';
+  } catch (e) { return ''; }
 }
 
 function delAnswer(evId, name){

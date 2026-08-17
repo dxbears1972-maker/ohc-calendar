@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17n</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17p</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17n";
+var APP_VER = "2026-08-17p";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -609,17 +609,46 @@ function foot_(items) {
   return h + '</div>';
 }
 
-/* 「地図をPDFで残す」小リンクと「残した地図を見る」リンクを、1か所にまとめます（2026-08-17）。
-   以前は大きな別ボタンでしたが、見る・作る が離れていて分かりにくいためです。 */
+/* ------------------------------------------------------------------
+   地図のPDFの「見る」「残す」を、押しやすいアイコンボタンにします。
+   （2026-08-17p　文字のリンクは細くて押しにくい、というご指摘）
+
+   ・まだ残していないとき … 「🗺 地図をPDFで残す」ボタン
+   ・すでに残してあるとき … 「🗺 地図を見る」ボタン ＋ 小さく「作り直す」
+   ------------------------------------------------------------------ */
+var MAP_BTN_CSS =
+  'display:inline-block;padding:9px 14px;border-radius:9px;text-decoration:none;' +
+  'font-weight:bold;font-size:15px;border:2px solid #2e6b34;';
 function mapSaveAreaHtml_(url) {
   if (url) {
-    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" style="font-size:14px;">' +
-           '🗺 この山行で残した地図を見る</a>　' +
+    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
+           'style="' + MAP_BTN_CSS + 'background:#fff;color:#2e6b34;">' +
+           '🗺 地図を見る（PDF）</a>' +
            '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
-           'style="font-size:13px;color:#5a6b5c;">（地図を作り直す）</a>';
+           'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
   }
   return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
-         'style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>';
+         'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:#2e6b34;">' +
+         '🗺 地図をPDFで残す</a>';
+}
+
+/* ------------------------------------------------------------------
+   ★地図のボタンを出すタイミング。（2026-08-17p）
+
+   「この道順を地図で見る」（緑）を押して道を確かめてから、
+   その地図を残すかどうかを決める——という順番なので、
+   **緑を押すまではボタンを出しません。** 画面がすっきりします。
+
+   ただし、**すでに地図を残してある山行**（過去の精算を開いたとき）は、
+   すぐ見られるように最初から出します。
+   ------------------------------------------------------------------ */
+var mapViewed_ = false;
+function onMapViewed_() {
+  mapViewed_ = true;
+  placeMapSaveArea_();
+}
+function mapAreaShouldShow_() {
+  return mapViewed_ || !!routeMapUrl;
 }
 
 /* 高速の乗り降りする場所を、箇条書きの1行にします */
@@ -926,9 +955,13 @@ function detachMapSaveArea_() {
 function placeMapSaveArea_() {
   var p = document.getElementById("mapSaveMsg");
   var slot = document.getElementById("mapSaveSlot");
-  if (p && slot && p.parentNode !== slot) {
+  if (!p || !slot) return;
+  /* ★「この道順を地図で見る」を押すまでは出しません（2026-08-17p）。
+     　すでに残してある地図があるときだけ、最初から出します。 */
+  if (!mapAreaShouldShow_()) { detachMapSaveArea_(); return; }
+  if (p.parentNode !== slot) {
     slot.appendChild(p);
-    p.style.marginTop = "2px";
+    p.style.marginTop = "6px";
   }
 }
 
@@ -1033,6 +1066,7 @@ function showRoute_(i) {
   var btn2 = "";
   if (d.mapUrl) {
     btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
+      'onclick="onMapViewed_()" ' +
       'style="display:inline-block;margin:4px 0 2px;padding:8px 12px;background:#2e6b34;' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
       '🗺 この道順を地図で見る</a>' + slot +
@@ -2581,6 +2615,13 @@ function draftHasInput_() {
 (function init() {
   setToday();
   loadSettings();
+  /* ★地図のボタンは mapSaveAreaHtml_ ひとつから作ります（2026-08-17p）。
+     　HTMLに直接書いておくと見た目がずれるので、ここで作り直します。
+     　このあと精算を読み込めば、地図があるときの表示に置きかわります。 */
+  try {
+    var ms0 = document.getElementById("mapSaveMsg");
+    if (ms0) ms0.innerHTML = mapSaveAreaHtml_("");
+  } catch (eM0) {}
   loadEtc();
   renderHist();
   /* 先に参加者を用意しておく。こうすると、車の欄が最初から
