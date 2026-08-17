@@ -860,7 +860,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-17f';
+var APP_VER = '2026-08-18a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2301,8 +2301,33 @@ function settleMapLink_(ev){
     var f = JSON.parse(ev.settleForm);
     var u = f && f.mapUrl ? String(f.mapUrl) : '';
     if (!u || u.indexOf('http') !== 0) return '';
-    return '<div class="filelinks"><a class="filebtn" href="' + esc(u) +
-           '" target="_blank" rel="noopener">🗺 この山行の道順の地図</a></div>';
+
+    /* ------------------------------------------------------------------
+       ★2026-08-18　その地図が「どの道」のものかを、ボタンに書きます。
+
+       地図のPDFは「作ったときに選んでいた道」で作られます。
+       そのあと別の道で精算しても、作り直さないかぎり地図は前のままです。
+       実際、4番目の候補（高速なし・片道103.2km）で精算したのに、
+       地図は 南関IC〜甘木IC（98.2km）のものだった、ということが起きました。
+       **どの道の地図かを書いておけば、開く前に分かります。**
+       ------------------------------------------------------------------ */
+    var label = f.mapLabel ? String(f.mapLabel) : '';
+    var mapKm = (f.mapKm != null && f.mapKm !== '') ? Number(f.mapKm) : null;
+    var runKm = (f.autoKm != null && f.autoKm !== '') ? Number(f.autoKm) : null;
+    /* 精算した道のりと地図の道のりが違うか（0.5kmまでは同じ道とみなす） */
+    var differs = (mapKm != null && runKm != null && !isNaN(mapKm) && !isNaN(runKm) &&
+                   Math.abs(mapKm - runKm) > 0.5);
+
+    var h = '<div class="filelinks"><a class="filebtn" href="' + esc(u) +
+            '" target="_blank" rel="noopener">🗺 この山行の道順の地図' +
+            (label ? '（' + esc(label) + '）' : '') + '</a></div>';
+    if (differs) {
+      h += '<div style="color:#8a5a00;font-size:13px;margin-top:4px;">' +
+           '※ この地図は<b>片道 ' + esc(String(mapKm)) + 'km</b> の道のものです。' +
+           'この精算は<b>片道 ' + esc(String(runKm)) + 'km</b> なので、' +
+           '<b>別の道の地図</b>です。</div>';
+    }
+    return h;
   } catch (e) { return ''; }
 }
 
