@@ -370,7 +370,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17r</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17s</p>
 
 </main>
 
@@ -415,7 +415,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-17r";
+var APP_VER = "2026-08-17s";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -662,18 +662,21 @@ function rememberMapRoute_() {
    　　Googleの計算は日によって少し動くので、**0.5kmまでは同じ道**とみなす
    　　（実測：同じ道が 105.7km → 105.6km に変わっていた）。
 
-   ★**古い精算には地図の記録がありません。** けれど片道の距離（autoKm）は
-   　残っているので、そこから「その距離の道で作った地図」とみなします。
-   　これをしないと、只隈さんの7/26の精算のように
-   　「候補2を選んでいるのに候補1の地図がそのまま出る」状態を見逃します。
-   　（版qでは「記録が無ければ黙る」としていたため、実際に見逃していました）
+   ★**古い精算には、地図をどの道で作ったかの記録がありません。**
+   　版rでは片道の距離（autoKm）から推し量ろうとしましたが、**これは誤り**でした。
+   　autoKm は「最後に選んでいた候補」の距離であって、地図を作った道とは限りません。
+   　実際、只隈さんの7/26の精算は autoKm が 98.2km なのに、
+   　PDFは候補1（南関⇔杷木・105.7km）の地図でした。
+   　→ **分からないものは分からないと言う。** 推測でラベルを付けない。
    ------------------------------------------------------------------ */
+function mapKnown_() {
+  return !!(routeMapIn || routeMapOut || (routeMapKm != null && !isNaN(routeMapKm)));
+}
 function mapMatchesNow_() {
   if (!routeMapUrl) return false;
   var d = lastRouteList[lastRouteIdx];
   if (!d) return true;                       /* まだ道を選んでいない＝比べられない */
-  /* 手がかりが何も無いときだけ、黙って通します */
-  if (!routeMapIn && !routeMapOut && (routeMapKm == null || isNaN(routeMapKm))) return true;
+  if (!mapKnown_()) return true;             /* 記録が無い。別に注意書きを出す */
   var a = (d.tollIn && d.tollIn.name) || "", b = (d.tollOut && d.tollOut.name) || "";
   if (routeMapIn && routeMapOut && a && b) {
     return (routeMapIn === a && routeMapOut === b);
@@ -686,11 +689,21 @@ function mapMatchesNow_() {
 
 function mapSaveAreaHtml_(url) {
   if (url && mapMatchesNow_()) {
-    return '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
-           'style="' + MAP_BTN_CSS + 'background:#fff;color:#2e6b34;">' +
-           '🗺 地図を見る（PDF）</a>' +
-           '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
-           'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
+    var h = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
+            'style="' + MAP_BTN_CSS + 'background:#fff;color:#2e6b34;">' +
+            '🗺 地図を見る（PDF）</a>' +
+            '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
+            'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
+    /* ★どの道で作った地図か記録が無いときは、はっきりそう書きます（2026-08-17s）。
+       　推測で「この道の地図です」と書くと、まちがった案内になるためです。 */
+    if (!mapKnown_()) {
+      h += '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
+           'この地図が<b>どの道順で作ったものかは記録がありません</b>' +
+           '（古い精算のため）。いまの道順で<a href="javascript:void(0)" ' +
+           'onclick="saveRouteMap()" style="color:#2e6b34;font-weight:bold;">作り直す</a>と、' +
+           '次からはっきり分かります。</div>';
+    }
+    return h;
   }
   if (url) {
     /* 残してある地図が、いま選んでいる道と違うとき */
@@ -2520,9 +2533,10 @@ function applyForm(f) {
     routeMapKm  = mk[0] ? Number(mk[0]) : null;
     routeMapIn  = mk[1] || "";
     routeMapOut = mk[2] || "";
-  } else if (routeMapUrl && f.autoKm) {
-    routeMapKm = Number(f.autoKm);
   }
+  /* ★autoKm からの推測はしません（2026-08-17s）。
+     　autoKm は「最後に選んでいた候補」の距離で、地図を作った道とは限らないためです。
+     　分からないときは分からないままにして、画面でそう伝えます。 */
   routeMapLabel = (f.mapLabel != null && f.mapLabel !== "")
                     ? String(f.mapLabel)
                     : ((routeMapIn && routeMapOut) ? (routeMapIn + "〜" + routeMapOut)
