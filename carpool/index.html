@@ -220,9 +220,6 @@
     <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
     <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
            oninput="saveForm()" onchange="autoPickRoute()">
-    <p class="note" style="margin-top:8px;">調べると<b>道の候補が一覧で出ます。</b>
-      実際に走る道を押してください。距離・高速のインター・料金・地図が、
-      その道に合わせて入れ替わります。</p>
     <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
             onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
     <button type="button" class="btn btn-sub" id="mapSaveBtn" style="margin-top:8px;"
@@ -347,7 +344,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-17a</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-08-17c</p>
 
 </main>
 
@@ -372,7 +369,6 @@ try {
   if (mP) { try { EVENT_PLACE = decodeURIComponent(mP[1]); } catch (e) { EVENT_PLACE = mP[1]; } }
   /* ★2026-08-17：不具合②の修正。カレンダー側で出欠「参加」の人数を数えて
      &n= で渡してもらい、精算アプリを開いた瞬間の初期値にする。
-     サーバーに聞きに行く（fetchPrevSettle）より早く、電波が悪くても効く。
      すでに保存された精算（下書き／サーバー保存分）があるときは、
      そちらを優先し、この値では上書きしない（手で直した人数を守るため）。 */
   var mN = q0.match(/[?&]n=([^&]+)/); if (mN) EVENT_N = parseInt(mN[1], 10) || 0;
@@ -512,25 +508,6 @@ function applyJoined(autoCount) {
    ================================================================== */
 /* 道順の要点（どのICで乗り降りするか、フェリー乗り場はどこか）を出す。
    ふだんは畳んでおいて、押したときだけ開きます。 */
-/* 箇条書きを作ります。長い文章を続けて書くと読みづらいためです（2026-08-03e） */
-function ul_(items) {
-  var h = '<ul style="margin:6px 0 8px 1.1em;padding:0;">';
-  for (var i = 0; i < items.length; i++) {
-    if (!items[i]) continue;
-    h += '<li style="margin:4px 0;">' + items[i] + '</li>';
-  }
-  return h + '</ul>';
-}
-
-/* 高速の乗り降りする場所を、箇条書きの1行にします */
-function tollLi_(t, label) {
-  if (!t) return "";
-  var link = "https://www.google.com/maps/search/?api=1&query=" + t.lat + "," + t.lng;
-  return label + '：' +
-    (t.name ? '<b>' + escapeHtml(t.name) + '</b>　' : '<span style="color:#888;">名前が出ませんでした</span>　') +
-    '<a href="' + link + '" target="_blank" rel="noopener">地図で見る</a>';
-}
-
 /* 高速に乗る場所・降りる場所。名前が分からないときは、地図で開けるようにする */
 function tollHtml(t, label) {
   if (!t) return "";
@@ -626,8 +603,7 @@ function saveRouteMap() {
               (document.getElementById("hikeName").value || "山行");
   var icNow = icNamesNow_();
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
-            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
-            pref: routePrefNow_(), routeIdx: lastRouteIdx },
+            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName },
           function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
@@ -639,73 +615,33 @@ function saveRouteMap() {
        そのときは「分かりませんでした」で終わらせず、
        次から自動で入るようにする手順を、その場で出します。
        ------------------------------------------------------------------ */
-    /* 地図の説明も箇条書きにします（2026-08-03e） */
-    var mli = [];
-    mli.push("道の選びかた：<b>" +
-      (data.noHw ? "短い道（高速を使わない道）"
-                 : (data.pref === "dist" ? "短い道（距離優先）" : "早い道（時間優先）")) + "</b>");
-    if (data.km) mli.push("片道 <b>" + escapeHtml(String(data.km)) + "</b>" +
-                          (data.mins ? "（車で約" + escapeHtml(String(data.mins)) + "）" : ""));
+    var ic = "";
     if (data.icIn && data.icOut) {
-      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗り、<b>" +
-               escapeHtml(data.icOut) + "</b> で降ります");
+      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗り、<b>' +
+           escapeHtml(data.icOut) + '</b> で降りる道順です。';
     } else if (data.icOut) {
       var shortOut = String(data.icOut).replace(/(IC|ＩＣ|インターチェンジ)$/, "");
       var guess = data.signHint ? String(data.signHint) : "";
-      mli.push("高速：<b>" + escapeHtml(data.icOut) + "</b> で降ります");
-      mli.push('<span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
-        (guess ? "案内には「<b>" + escapeHtml(guess) + "</b>」の標識が出ています。" : "") +
-        "下の<b>高速料金表</b>のルート名を <b>「" + escapeHtml(guess || "南関") + "⇔" +
-        escapeHtml(shortOut) + "」</b>のように直しておくと、<b>次から自動で入ります</b></span>");
+      ic = '<br>高速：<b>' + escapeHtml(data.icOut) + '</b> で降りる道順です。' +
+           '<br><span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
+           (guess ? '案内には「<b>' + escapeHtml(guess) + '</b>」の標識が出ています（' +
+                    escapeHtml(guess) + 'ICかもしれません）。' : "") +
+           '<br>下の<b>高速料金表</b>のルート名を <b>「' +
+           escapeHtml(guess || "南関") + "⇔" + escapeHtml(shortOut) +
+           '」</b>のように直しておくと、<b>次からは自動で入ります。</b></span>';
     } else if (data.icIn) {
-      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗ります");
-    } else if (data.noHw) {
-      mli.push("高速には乗りません");
+      ic = '<br>高速：<b>' + escapeHtml(data.icIn) + '</b> で乗る道順です。';
     }
-    mli.push(data.pdf === false
-      ? "地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる"
-      : "<b>A4・1枚のPDF</b>です。地図の下に日付・行き先・インター名・距離が付いていて、そのまま印刷できます");
-    mli.push("この山行の記録として残ります（履歴にもリンクが付きます）");
-
-    msg.innerHTML = "地図を残しました。" + ul_(mli) +
-      '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
-      'style="display:inline-block;margin-top:4px;padding:8px 12px;background:#2e6b34;' +
-      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
-      '🗺 保存した地図を見る</a>';
+    msg.innerHTML = '地図を残しました。' + ic +
+      '<br><a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin-top:6px;padding:8px 12px;background:#2e6b34;' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">🗺 保存した地図を見る</a>' +
+      (data.pdf === false
+        ? '<br>地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる'
+        : '<br><b>A4・1枚のPDF</b>です。地図の下に、日付・行き先・インター名・' +
+          '距離の説明が付いています。そのまま印刷できます。') +
+      '<br>この山行の記録として残ります。履歴にもリンクが付きます。';
   });
-}
-
-/* 最初に選んでおく道。時間のいちばん短いものにします。
-   （2026-08-03i：候補から選べるようになったので、選びかたの欄は外しました） */
-function routePrefNow_() { return "time"; }
-
-/* このアプリが自動で入れた距離をおぼえておきます。
-   選びかたを変えて調べ直したとき、**自分が入れた数字だけ**を書き替えるためです。
-   手で直した数字には、いっさい触りません。 */
-var lastAutoKm = "";
-
-/* 候補の道の一覧と、いま選んでいる番号（2026-08-03h） */
-var lastRouteList = [], lastRouteIdx = -1;
-var lastRouteFrom = "", lastRouteTo = "", lastRouteFor = "";
-
-function prefChanged() {
-  saveForm();
-  /* すでに候補があるなら、聞き直さずにその中から選び直します（2026-08-03h） */
-  var nowTo = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
-  if (lastRouteList.length && lastRouteFor === nowTo) {
-    var dist = (routePrefNow_() === "dist"), pk = 0, best = -1;
-    for (var i = 0; i < lastRouteList.length; i++) {
-      var v = dist ? lastRouteList[i].km : lastRouteList[i].mins;
-      if (best < 0 || v < best) { best = v; pk = i; }
-    }
-    showRoute_(pk);
-    return;
-  }
-  var msg = document.getElementById("distMsg");
-  if (msg) {
-    msg.innerHTML = "道の選びかたを変えました。<b>「地図で走行距離を調べる」を" +
-                    "もう一度押してください。</b>";
-  }
 }
 
 function lookupDistance() {
@@ -719,8 +655,7 @@ function lookupDistance() {
   }
   btn.disabled = true;
   msg.innerHTML = "地図で調べています…";
-  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_() },
-          function (err, data) {
+  apiPost({ action: "getDistance", from: from, to: to }, function (err, data) {
     btn.disabled = false;
     if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
     if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
@@ -731,107 +666,43 @@ function lookupDistance() {
        （計算のときに自動で2倍されて、往復になります）。
        すでに距離が入っている車には、いっさい触りません。
        ------------------------------------------------------------------ */
-    /* ------------------------------------------------------------------
-       ★2026-08-03h
-       　候補の道を一覧で出し、**実際に走る道を選んでもらいます。**
-       　「短いが遅い道」と「少し長いが速い道」のどちらが良いかは、
-       　その日の事情で変わるので、機械が決めるものではありません。
-       ------------------------------------------------------------------ */
-    lastRouteList = data.list || [];
-    lastRouteFrom = data.from || "";
-    lastRouteTo   = data.to || "";
-    lastRouteFor  = to;
-    if (!lastRouteList.length) {
-      msg.innerHTML = "<b>道順が見つかりませんでした。</b>";
-      return;
-    }
-    showRoute_(data.pick || 0);
+    var filled = 0;
+    document.querySelectorAll("#cars .car-card").forEach(function (c) {
+      var km = c.querySelector(".car-km");
+      if (!km || km.value !== "") return;
+      km.value = data.km;
+      var tp = c.querySelector(".car-kmtype");
+      if (tp) tp.value = "one";
+      filled++;
+    });
+    saveForm();
+    msg.innerHTML = "片道 <b>" + data.km + "km</b>（車で約" + data.mins + "分）" +
+      (data.summary ? "／おもに <b>" + escapeHtml(data.summary) + "</b> を通る道順" : "") + "。" +
+      (filled ? "空いていた " + filled + " 台に「片道」として入れました。往復ぶんは自動で計算します。"
+              : "すでに入っている欄はそのままにしています。") +
+      (data.mapUrl
+        ? '<br><a href="' + escapeHtml(data.mapUrl) + '" target="_blank" rel="noopener" ' +
+          'style="display:inline-block;margin:8px 0;padding:8px 12px;background:#2e6b34;' +
+          'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+          '🗺 地図で道順と高速料金を見る</a>' +
+          '<br><span style="color:#8a5a00;">地図に <b>「有料道路あり・¥○○○」</b> と出ます。' +
+          'その金額を下の「高速料金」に入れてください。<br>' +
+          '一度入れて高速ルートを選べば、<b>次から自動で入ります。</b></span>'
+        : "") +
+      "<br><b>実際に走った距離と違うときは、手で直してください。</b>" +
+      "<br>出発地：" + escapeHtml(data.from || "") +
+      "<br>到着地：" + escapeHtml(data.to || "") +
+      tollHtml(data.tollIn,  "高速に乗るところ") +
+      tollHtml(data.tollOut, "高速を降りるところ") +
+      routePointsHtml(data.points);
+    lastTollIn  = (data.tollIn  && data.tollIn.name)  ? data.tollIn.name  : "";
+    lastTollOut = (data.tollOut && data.tollOut.name) ? data.tollOut.name : "";
+    /* どの行き先について調べた名前かを覚えておきます。
+       行き先を変えたあとも古い名前を使ってしまうのを防ぐためです。 */
+    lastTollFor = to;
+    autoPickRoute();
+    document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
   });
-}
-
-/* 候補の一覧。押すと、その道に切り替わります */
-function routeListHtml_(detail) {
-  var h = '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
-          '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
-  for (var i = 0; i < lastRouteList.length; i++) {
-    var r = lastRouteList[i], on = (i === lastRouteIdx);
-    h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
-      'style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 11px;' +
-      'border-radius:9px;border:2px solid ' + (on ? '#2e6b34' : '#cfd8cd') + ';' +
-      'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;">' +
-      (on ? '✅ ' : '　') + '<b>' + r.km + 'km</b>・' + r.mins + '分' +
-      (r.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
-      (r.summary ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:1.5em;">' +
-                   escapeHtml(r.summary) + '</span>' : '') +
-      '</button>';
-    /* ★選んだ道のすぐ下に、その道の明細を出します（2026-08-03j）。
-       　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
-    if (on && detail) {
-      h += '<div style="margin:0 0 10px 10px;padding:8px 12px;' +
-           'border-left:4px solid #2e6b34;background:#f7faf7;border-radius:0 8px 8px 0;">' +
-           detail + '</div>';
-    }
-  }
-  return h;
-}
-
-/* i番目の道に切り替えます */
-function showRoute_(i) {
-  var d = lastRouteList[i];
-  if (!d) return;
-  lastRouteIdx = i;
-  var msg = document.getElementById("distMsg");
-
-  /* 空いている欄と、前にこのアプリが入れた数字だけを入れ替えます。
-     手で直した数字はそのままにします。 */
-  var filled = 0;
-  document.querySelectorAll("#cars .car-card").forEach(function (c) {
-    var km = c.querySelector(".car-km");
-    if (!km) return;
-    if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
-    km.value = d.km;
-    var tp = c.querySelector(".car-kmtype");
-    if (tp) tp.value = "one";
-    filled++;
-  });
-  lastAutoKm = String(d.km);
-  lastTollIn  = (d.tollIn  && d.tollIn.name)  ? d.tollIn.name  : "";
-  lastTollOut = (d.tollOut && d.tollOut.name) ? d.tollOut.name : "";
-  lastTollFor = lastRouteFor;
-
-  var li = [];
-  li.push("片道 <b>" + d.km + "km</b>（車で約" + d.mins + "分）");
-  if (d.summary) li.push("おもに <b>" + escapeHtml(d.summary) + "</b> を通ります");
-  li.push(filled ? "<b>" + filled + "台</b> に「片道」として入れました（往復ぶんは自動で計算）"
-                 : "各車の距離は、手で直した数字をそのままにしています");
-  var t1 = tollLi_(d.tollIn,  "高速に乗るところ");
-  var t2 = tollLi_(d.tollOut, "高速を降りるところ");
-  if (t1) li.push(t1);
-  if (t2) li.push(t2);
-  if (d.noHw) li.push("<b>高速には乗りません</b>");
-  li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(lastRouteFrom) + "</span>");
-  li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(lastRouteTo) + "</span>");
-
-  var btn2 = "";
-  if (d.mapUrl) {
-    btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
-      'style="display:inline-block;margin:4px 0 6px;padding:8px 12px;background:#2e6b34;' +
-      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
-      '🗺 この道順を地図で見る</a>' +
-      ul_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
-           d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
-                  : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
-           '<span style="color:#5a6b5c;">所要時間だけは、そのときの渋滞で変わります</span>']);
-  }
-
-  var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
-  msg.innerHTML = routeListHtml_(detail) +
-    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
-
-  applyIcRoute_(d);
-  if (!d.noHw) autoPickRoute(true);
-  saveForm();
-  document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
 }
 
 /* ---------- 参加人数 ---------- */
@@ -945,7 +816,7 @@ function fetchRoutes() {
        貼り替えとデプロイができているかを、目で確かめられるように。 */
     try {
       var vl = document.getElementById("verLine");
-      if (vl && data.gasver) vl.textContent = "版 2026-08-17a（サーバー " + data.gasver + "）";
+      if (vl && data.gasver) vl.textContent = "版 2026-08-17c（サーバー " + data.gasver + "）";
     } catch (eV) {}
     if (!data.routes) return;
     var local = getEtcRoutes();
@@ -1179,124 +1050,6 @@ function autoPickRoute(quiet) {
 
 /* 地図で調べたときのIC名を覚えておく（料金表の名前づけに使う） */
 var lastTollIn = "", lastTollOut = "", lastTollFor = "";
-
-/* ==================================================================
-   高速の区間と、料金表をつなぐ　2026-08-03f
-   ------------------------------------------------------------------
-   これまでは「高速道路にチェック → ルートを選ぶ → 金額を入れる」を
-   手でやっていました。地図を調べれば、どのインターで乗り降りするかは
-   分かっているので、そこから料金表を引いて自動で入れます。
-   ================================================================== */
-/* 「杷木IC」→「杷木」。名前をくらべやすくします */
-function icShort_(v) {
-  return String(v || "").replace(/^[\s　]+|[\s　]+$/g, "")
-                        .replace(/(IC|ＩＣ|インターチェンジ)$/, "");
-}
-
-/* いまの区間の名前。例：「南関⇔杷木」 */
-function icPairName_() {
-  var a = icShort_(lastTollIn), b = icShort_(lastTollOut);
-  return (a && b) ? (a + "⇔" + b) : "";
-}
-
-/* 料金表から、この区間の行をさがします。
-   「杷木⇔南関」と「南関⇔杷木」は同じ区間なので、順番は見ません。 */
-function findRouteByIcPair_(a, b) {
-  a = icShort_(a); b = icShort_(b);
-  if (!a || !b) return -1;
-  var routes = getEtcRoutes();
-  for (var i = 0; i < routes.length; i++) {
-    var p = String(routes[i].name).split(/[⇔↔〜～~\-–—]/);
-    if (p.length < 2) continue;
-    var x = icShort_(p[0]), y = icShort_(p[1]);
-    if (!x || !y) continue;
-    if ((x === a && y === b) || (x === b && y === a)) return i;
-  }
-  return -1;
-}
-
-/* 料金表にこの区間を足して、金額を入れてもらう */
-function addIcRoute_() {
-  var nm = icPairName_();
-  if (!nm) return;
-  addEtcRow(nm, "", "", document.getElementById("destPlace").value.trim());
-  saveEtc();
-  var box = document.getElementById("etcRows");
-  if (box) {
-    var d = box.closest("details");
-    if (d) d.open = true;
-    var rows = box.querySelectorAll(".etc-row");
-    var last = rows[rows.length - 1];
-    if (last) {
-      last.scrollIntoView({ behavior: "smooth", block: "center" });
-      var f = last.querySelector(".etc-fee");
-      if (f) setTimeout(function () { f.focus(); }, 400);
-    }
-  }
-}
-
-/* 調べた結果に合わせて、各車の高速料金の欄を整えます */
-function applyIcRoute_(data) {
-  var box = document.getElementById("icLink");
-  if (!box) return;
-  var cars = document.querySelectorAll("#cars .car-card");
-
-  /* --- 高速を使わない道のとき --- */
-  if (data.noHw) {
-    var off = 0;
-    cars.forEach(function (c) {
-      var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc");
-      if (!chk || !chk.checked) return;
-      /* 手で入れた金額には触りません。空か、アプリが入れた値のときだけ外します */
-      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
-      chk.checked = false; toggleOpt(chk, "blk-etc");
-      if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
-      var sel = c.querySelector(".car-route"); if (sel) sel.value = "";
-      off++;
-    });
-    box.innerHTML = ul_(["高速に乗らないので、<b>高速料金はかかりません</b>",
-      off ? "「高速道路」のチェックを <b>" + off + "台</b> 分はずしました"
-          : "「高速道路」にチェックの入った車はありません"]);
-    saveForm();
-    return;
-  }
-
-  /* --- 高速を使う道のとき --- */
-  var nm = icPairName_();
-  if (!nm) { box.innerHTML = ""; return; }
-  var idx = findRouteByIcPair_(lastTollIn, lastTollOut);
-
-  if (idx < 0) {
-    box.innerHTML =
-      '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
-      '<button type="button" class="btn btn-sub" style="margin-top:6px;" ' +
-      'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>' +
-      '<div style="color:#5a6b5c;font-size:14px;margin-top:4px;">' +
-      '金額を1回入れれば、<b>次から自動で入ります。</b></div>';
-    return;
-  }
-
-  var routes = getEtcRoutes(), n = 0;
-  cars.forEach(function (c) {
-    var fee = c.querySelector(".car-etc");
-    /* 手で入れた金額には触りません */
-    if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
-    var chk = c.querySelector(".chk-etc");
-    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
-    var sel = c.querySelector(".car-route");
-    if (!sel) return;
-    sel.value = String(idx);
-    routeSelected(sel);
-    if (fee) fee.setAttribute("data-auto", fee.value);
-    n++;
-  });
-  box.innerHTML = ul_([
-    "区間：<b>" + escapeHtml(nm) + "</b>",
-    n ? "料金表の <b>" + escapeHtml(routes[idx].name) + "</b> から、<b>" + n +
-        "台</b> 分の高速料金を入れました"
-      : "各車の高速料金は、すでに入っているのでそのままにしています"]);
-  saveForm();
-}
 
 /* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
 function feeChanged(el) {
@@ -1796,10 +1549,6 @@ function getFormData() {
     place: document.getElementById("meetPlace").value,
     dest: document.getElementById("destPlace").value,
     mapUrl: routeMapUrl,
-    /* 道の選びかたと、アプリが入れた距離も覚えます。
-       開き直したときに選び直さなくてよいようにです。（2026-08-03） */
-    pref: routePrefNow_(),
-    autoKm: lastAutoKm,
     time: document.getElementById("meetTime").value,
     n: nPeople,
     cars: cars,
@@ -1823,11 +1572,6 @@ function applyForm(f) {
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
-  if (f.pref) {
-    var pfEl = document.getElementById("routePref");
-    if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
-  }
-  if (f.autoKm) lastAutoKm = String(f.autoKm);
   routeMapUrl = f.mapUrl || "";
   if (routeMapUrl) {
     var mm = document.getElementById("mapSaveMsg");
@@ -1919,13 +1663,10 @@ function fetchPrevSettle(skipForm) {
         document.getElementById("cars").innerHTML = "";
         carCount = 0;
         if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
-        /* ★2026-08-17b：不具合②の追加修正。
-           保存されていた前回の精算は、そのときの参加人数（f.n）を持っている。
-           しかしその後に「参加」を押した人が増えていることがあり、
-           そのままだと古い人数を黙って使ってしまう（8/30杵島岳で実際に発生した現象）。
-           予定を開いた「いま」の生きた人数（JOINED、取れなければEVENT_N）で、
-           保存されていたnを上書きする。車の台数・距離・料金など、
-           人数いがいの下書きはそのまま活かす。 */
+        /* ★2026-08-17b：不具合②の追加修正。保存されていた前回の精算のnが
+           古いままだと、その後に増えた「参加」人数を無視してしまう
+           （8/30杵島岳で実際に発生）。予定を開いた「いま」の生きた人数
+           （JOINED、取れなければEVENT_N）で、保存されていたnを上書きする。 */
         var liveN = JOINED.length || EVENT_N;
         if (liveN > 0 && liveN !== nPeople) {
           nPeople = liveN;
@@ -2079,9 +1820,7 @@ function draftHasInput_() {
       if (tmm) document.getElementById("meetTime").value = ("0" + tmm[1]).slice(-2) + ":" + tmm[2];
     }
     /* ★2026-08-17：不具合②の修正。カレンダーから渡された人数を、
-       まずここで初期値として入れる（fetchPrevSettleの返事を待たない）。
-       この直後にfetchPrevSettleが「保存済みの精算」を見つけたときは、
-       そちらの人数を優先し、ここでは上書きしない（applyJoinedの中で判定）。 */
+       まずここで初期値として入れる（fetchPrevSettleの返事を待たない）。 */
     if (EVENT_N > 0) {
       nPeople = EVENT_N;
       document.getElementById("nDisp").textContent = nPeople;
