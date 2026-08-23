@@ -711,6 +711,22 @@
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
 
+  <!-- ★2026-08-23：4けたの確認番号を決めていただくお誘い。
+       　いま会員の皆さんの確認番号がほぼ空欄で、機種変更のたびに管理者が
+       　名簿を触ることになっていたため、ご本人に決めていただけるようにした。
+       　押しつけにならないよう、閉じたら二度と出さない。 -->
+  <div class="card" id="codeTip" style="display:none; background:#fff3e0; border:2px solid #e8a000">
+    <p style="font-size:17px; font-weight:bold; color:#8a5a00; margin-bottom:6px">
+      機種変更やスマホの故障に備えて</p>
+    <p class="note" style="color:#8a5a00">
+      <b>4けたの数字</b>を決めておくと、新しいスマホやパソコンでも
+      <b>ご自分で名乗れます。</b><br>
+      決めていないと、そのときクラブの管理者にお願いすることになります。<br>
+      1分で終わります。お誕生日の月日がおすすめです（4月12日なら 0412）。</p>
+    <button type="button" class="subbtn" onclick="codeTipGo()">4けたの数字を決める</button>
+    <button type="button" class="cancelbtn" onclick="codeTipLater()">あとで（もう出しません）</button>
+  </div>
+
   <!-- 設定（めったに使わないものは、ここにまとめる） -->
   <p style="text-align:center; margin-top:14px">
     <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
@@ -914,7 +930,8 @@ var LSK = {
   device:    'device_'    + CLUB.id,   /* この端末を見分けるための記号 */
   claimed:   'claimed_'   + CLUB.id,   /* この端末で登録済みの名前 */
   mid:       'mid_'       + CLUB.id,   /* この端末の持ち主の会員ID（名字が変わっても追える） */
-  instHide:  'instHide_'  + CLUB.id    /* ホーム画面の案内を閉じたか */
+  instHide:  'instHide_'  + CLUB.id,   /* ホーム画面の案内を閉じたか */
+  codeTip:   'codeTip_'   + CLUB.id    /* 4けたのお誘いを閉じたか（2026-08-23） */
 };
 
 /* この端末を見分けるための記号を作る（初回だけ）。
@@ -3220,6 +3237,37 @@ function pickFile(fileId){
   });
 }
 
+/* ------------------------------------------------------------------
+   ★2026-08-23　4けたの確認番号を決めていただくお誘い
+
+   これまで専用URLで2台目が登録できていたため、確認番号を決める必要が無く、
+   名簿の「確認番号」欄がほぼ全員空欄になっていた。その状態で端末が変わると、
+   ご本人では戻せず、毎回クラブの管理者が名簿を触ることになる。
+   そこで、ふだんの画面からも決められるようにした。
+
+   ・この端末で自分の名前を登録している方にだけ出す
+   ・「あとで」を押したら二度と出さない（この端末に記憶する）
+   ・番号を決めたら、それ以降は出ない
+   ------------------------------------------------------------------ */
+function renderCodeTip(){
+  var el = $('codeTip');
+  if (!el) return;
+  var show = !!myName && (lsGet(LSK.claimed) === myName) && !lsGet(LSK.codeTip);
+  el.style.display = show ? 'block' : 'none';
+}
+
+function codeTipGo(){
+  lsSet(LSK.codeTip, '1');
+  renderCodeTip();
+  openCfg();
+  askSetCode();
+}
+
+function codeTipLater(){
+  lsSet(LSK.codeTip, '1');
+  renderCodeTip();
+}
+
 /* ---------- 名前の表示 ---------- */
 function updateWho(){
   /* 名前は表示するだけ。押しても何も起きない。
@@ -3746,6 +3794,8 @@ function submitSetCode(){
               'パソコン（または新しいスマホ）でこのアプリを開き、\n' +
               '「' + myName + '」を選んで、いま決めた4けたの数字を入れてください。\n\n' +
               '※数字は忘れないようにしてください');
+        lsSet(LSK.codeTip, '1');
+        renderCodeTip();
         closeCodeForm();
         closeCfg();
         return;
@@ -3761,6 +3811,7 @@ function changeName(){
   myName = '';
   lsSet(LSK.name, '');
   lsSet(LSK.mid, '');
+  lsSet(LSK.codeTip, '');
   closeCfg();
   updateWho();
   showNamePick();
@@ -3866,6 +3917,7 @@ function init(){
   updateWho();
   if (!myName) showNamePick();
   renderInstallCard();
+  renderCodeTip();
 
   /* 専用URL（?key=）で開いている方も、その名前をこの端末のものとして
      登録しておく。こうしておかないと、ほかの人が名前選択の画面で
