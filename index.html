@@ -814,6 +814,22 @@ var CLUB = {
   /* マイカー精算アプリのURL */
   carpoolUrl: 'https://dxbears1972-maker.github.io/ohc-calendar/carpool/',
 
+  /* ★2026-08-23：専用URL（?key=…／?name=…）で名乗れるようにするか。
+     　false ＝ 使わない。どのクラブでも
+     　　　　　 1台目＝お名前を選ぶだけ／2台目＝お名前＋4けたの確認番号、に統一する。
+     　true  ＝ これまでどおり専用URLでも名乗れる（OHCの古いやり方）。
+
+     ▼なぜ false にしたか（2026-08-23に操作ログで確認）
+     　専用URLで開くと viaKey を付けて端末を登録しに行くため、
+     　サーバー側の「確認番号が未設定の人は別の端末から名乗れない」という
+     　チェックを丸ごと飛ばしていた。実際、8/22に竹田さんが一度拒否されたあと
+     　15分後に「はじめての端末」として3台目が登録されている。
+     　その結果、2台以上お使いの方（上口・竹田・松田・宮本）の確認番号が
+     　全員空欄のままになり、忘れたときの救済ができない状態だった。
+
+     ▼戻したいときは、この1行を true にするだけ。 */
+  useKeyUrl: false,
+
   /* 管理者の名前（どの予定でも削除でき、出欠の回答も取り消せる） */
   adminName: '只隈',
 
@@ -3771,18 +3787,25 @@ function init(){
       if (rg){ gotoId = rg; }
     }
     lsSet(LSK.gotoId, '');
-    var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
-    if (mk && KEYS[mk[1]]){
-      lsSet(LSK.name, KEYS[mk[1]]);
-      cameFromKey = true;
-    } else {
-      /* 旧形式 ?name=○○ にも当面対応 */
-      var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
-      if (mm){
-        var qn = '';
-        try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
-        qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
-        if (qn) lsSet(LSK.name, qn);
+    /* ★CLUB.useKeyUrl が false のときは、?key= も ?name= も見ません。
+       　お名前は「名前を選んでください」の画面から選んでいただきます。
+       　?goto=（予定へ移動）はこれまでどおり効きます。 */
+    if (CLUB.useKeyUrl){
+      var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
+      if (mk && KEYS[mk[1]]){
+        lsSet(LSK.name, KEYS[mk[1]]);
+        cameFromKey = true;
+      } else {
+        /* 旧形式 ?name=○○ にも当面対応
+           ★これは「名前を打てば誰にでもなれる」いちばん古い抜け道。
+           　useKeyUrl を true に戻すときも、ここは戻さないほうが安全。 */
+        var mm = q ? q.match(/[?&]name=([^&]+)/) : null;
+        if (mm){
+          var qn = '';
+          try { qn = decodeURIComponent(mm[1]); } catch(e){ qn = mm[1]; }
+          qn = qn.replace(/\+/g, ' ').replace(/^\s+|\s+$/g, '');
+          if (qn) lsSet(LSK.name, qn);
+        }
       }
     }
   } catch(e){}
