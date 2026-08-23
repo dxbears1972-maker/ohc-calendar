@@ -1413,6 +1413,10 @@ function addCar(data) {
     '<div class="car-head"><span class="car-title">車 ' + carCount + '</span>' +
     '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
     '<label>ドライバー名</label>' + carNameFieldHtml() +
+    /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
+    '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
+      'background:#fff3e0;border:2px solid #e8a000;border-radius:8px;' +
+      'color:#8a5a00;font-size:14px;"></div>' +
     '<label>走行距離（km）</label>' +
     '<div style="display:flex;gap:8px;">' +
     '<input type="number" class="car-km" placeholder="例：90" min="0" step="0.1" style="flex:2;min-width:0;">' +
@@ -1523,7 +1527,37 @@ function renumberCars() {
     c.querySelector(".car-title").textContent = "車 " + (i + 1);
   });
   refreshPayerDropdown();
+  checkDrivers_();
 }
+
+/* ==================================================================
+   ★2026-08-23　ドライバーが「不参加」になったときに知らせる
+
+   これまで：出欠から参加者を受け取り直しても、すでに入っているドライバー名は
+   　　　　　そのまま残っていました。その方が「不参加」に変えても、
+   　　　　　画面には何も出ないため、気づかないまま精算していました。
+   これから：いま「参加」と答えている方の一覧に無い名前が入っていたら、
+   　　　　　その車の欄に橙色で知らせます。名前は消しません
+   　　　　　（助っ人・退会された方など、わざと手入力している場合があるため）。
+   ================================================================== */
+function checkDrivers_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var w = c.querySelector(".drv-warn");
+    var f = c.querySelector(".car-name");
+    if (!w || !f) return;
+    var nm = (f.value || "").trim();
+    /* 出欠から参加者を受け取れていないとき（手入力の場合）は何も出さない */
+    if (!JOINED.length || !nm) { w.style.display = "none"; return; }
+    if (JOINED.indexOf(nm) >= 0) { w.style.display = "none"; return; }
+    w.innerHTML = "<b>" + escapeHtml(nm) + "さんは、いま「参加」と答えていません。</b><br>" +
+      "不参加になった方がドライバーのままになっていないか確かめて、" +
+      "選び直してください。<br>" +
+      "<span style=\"font-size:13px;\">※ 助っ人や退会された方など、名簿に無い方を" +
+      "わざと入れている場合は、このままで構いません。</span>";
+    w.style.display = "block";
+  });
+}
+
 function refreshAllDropdowns() {
   var routes = getEtcRoutes();
   document.querySelectorAll(".car-route").forEach(function (sel) {
