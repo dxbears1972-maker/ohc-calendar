@@ -3225,22 +3225,29 @@ function openCfg(){
     (isAdmin_(myName) && CONTACTS.length === 0) ? 'block' : 'none';
 
   /* 「べつの端末でも使う」を出してよいかを決める。
-     ★2026-08-23：会員の皆さん全員に「ご自分専用のURL」（?key=…）をお配りする方式に
-     　変わったため、4けたの数字を決めていただく必要が無くなりました。ボタンは出しません。
-     　しくみ自体（askSetCode / submitSetCode）は下にそのまま残してあります。
-     　方式を戻すときは、次の1行をもとの条件に書きかえるだけで戻ります。
-     　もとの条件：!!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName) */
-  var canSet = false;
-  $('setCodeBtn').style.display = 'none';
+     ★2026-08-23：どのクラブでも同じやり方に統一しました。
+     　　1台目 … お名前を選ぶだけ
+     　　2台目 … お名前を選んだあと、4けたの確認番号を入れる
+     　専用URL（?key=…）はOHCだけの古いやり方なので、案内には出しません。
+     　幹事・管理者も会員と同じ扱いにするため、isStaff の除外をやめました
+     　（もとの条件：!!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName)）。
+     ・この端末で名前を登録していない方は、ここでは設定できない */
+  var canSet = !!myName && (lsGet(LSK.claimed) === myName);
+  $('setCodeBtn').style.display = canSet ? 'block' : 'none';
 
   if (!myName){
     $('setCodeNote').innerHTML = 'まだお名前が選ばれていません。';
+  } else if (!canSet) {
+    $('setCodeNote').innerHTML =
+      'この端末では、べつの端末を追加する設定ができません。<br>' +
+      'ふだんお使いの端末から行ってください。';
   } else {
     $('setCodeNote').innerHTML =
-      'LINEで届いている<b>ご自分専用のURL</b>から開けば、スマホでもパソコンでも' +
-      '同じお名前で使えます。<b>4けたの数字を決めていただく必要はありません。</b><br>' +
-      '専用のURLが分からないときは、クラブの管理者または幹事におたずねください。<br>' +
-      '<b>ご自分専用のURLは、ほかの方には絶対に教えないでください。</b>';
+      'いま使っているこの端末のほかに、パソコンや新しいスマホでも' +
+      '同じお名前で使いたいときに押してください。4けたの数字を決めていただきます。<br>' +
+      '2台目では、お名前を選んだあとにこの4けたを入れると使えるようになります。<br>' +
+      '1台だけで使う方は、押す必要はありません。<br>' +
+      '<b>4けたの数字は、ほかの方には教えないでください。</b>';
   }
   $('setCodeNote').style.display = 'block';
 
