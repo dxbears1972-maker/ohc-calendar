@@ -902,7 +902,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-24c';
+var APP_VER = '2026-08-24d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1234,6 +1234,9 @@ function api(method, body, cb, tryNo, fresh){
 }
 
 function applyData(data){
+  /* ★2026-08-24　LINEの残り通数（幹事・管理者にだけ届きます） */
+  if (data && typeof data.lineLeft !== 'undefined') lineLeft = data.lineLeft;
+  if (data && typeof data.lineMode !== 'undefined') lineMode = data.lineMode;
   state.events = data.events || [];
   state.attendance = data.attendance || [];
   if (data.notices) state.notices = data.notices;
@@ -1832,10 +1835,21 @@ function lineToPending(evId){
             'まだ出欠のご回答をいただいていません。\n' +
             'お手数ですが、ご回答をお願いします。\n' +
             location.href.split('?')[0] + '?goto=' + evId;
-  if (!confirm('未回答の ' + names.length + '人へ、LINEで催促を送ります。\n\n' +
-               names.join('、') + '\n\n' +
-               '※LINEのお知らせに登録されている方にだけ届きます。\n' +
-               'よろしいですか？')) return;
+  /* ★2026-08-24　押す前に、通数のことが分かるようにします。
+     　クラブの公式アカウントから送るぶんは、送った人数ぶんだけ
+     　無料枠（月200通）を使うためです。 */
+  var msgQ = '未回答の ' + names.length + '人へ、LINEで催促を送ります。\n\n' +
+             names.join('、') + '\n\n' +
+             '■ 使う通数：' + names.length + '通' +
+             (lineLeft !== null && lineLeft !== undefined
+               ? '（今月あと ' + lineLeft + '通 送れます）' : '') + '\n' +
+             (lineMode === 'test'
+               ? '■ いまは動作確認中のため、実際には確認用の方にしか届きません\n' : '') +
+             '\n※LINEのお知らせに登録されている方にだけ届きます。\n' +
+             '※通数を使いたくないときは「やめる」を押して、\n' +
+             '　予定の「LINEで知らせる」からご自分のLINEで送ってください（0通です）。\n\n' +
+             'よろしいですか？';
+  if (!confirm(msgQ)) return;
   setStatus('送っています…');
   post({ action: 'linePushMembers', name: myName, names: names, text: msg },
     '', function(data){
@@ -3640,6 +3654,8 @@ var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全�
 var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
 var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが判定） */
 var lineGroupUrl = '';       /* クラブのLINEグループを開くURL（「設定」シート） */
+var lineLeft = null;         /* 今月あと何通送れるか（幹事・管理者だけ受け取る。2026-08-24） */
+var lineMode = '';           /* off / test / on（同上） */
 var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
 var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
 var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
