@@ -645,6 +645,16 @@
     <div id="staffRows"></div>
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
+    <!-- ★2026-08-24：出欠をとる相手。空欄＝全員（これまでどおり） -->
+    <label>出欠をとる相手</label>
+    <select id="addTarget">
+      <option value="">全員（クラブの皆さん）</option>
+      <option value="幹事・管理者">幹事・管理者だけ</option>
+      <option value="係のみ">係に名前がある人だけ</option>
+    </select>
+    <p class="note">「全員」以外にすると、対象でない方には<b>出欠のボタンが出ません</b>
+      （予定そのものは見えます）。メールとLINEのお知らせも、対象の方にだけ届きます。</p>
+
     <label>計画表（あれば）</label>
     <table class="row3"><tr>
       <td><input type="text" id="addPlan" placeholder="「参照」から選ぶかURLを貼る"></td>
@@ -1731,12 +1741,101 @@ function attOf(evId){
   for (var q = 0; q < r.maybe.length; q++) answered[r.maybe[q]] = true;
   for (var s = 0; s < r.no.length; s++)    answered[r.no[s]]    = true;
   r.pending = [];
-  var rmAll = realMembers_();
+  /* ★2026-08-24　母数は「この予定の対象の方」だけ。
+     　幹部だけの予定で、会員19人が未回答と出てしまわないように。 */
+  var rmAll = targetMembersOf_(evId);
   for (var m = 0; m < rmAll.length; m++){
     if (!answered[rmAll[m]]) r.pending.push(rmAll[m]);
   }
   r.pending.sort(byMember_);
   return r;
+}
+
+/* ==================================================================
+   ★2026-08-24　予定ごとの「出欠をとる相手」
+
+   　空欄　　　　… 全員（これまでどおり）
+   　幹事・管理者… 名簿の役割が管理者・幹事の方だけ
+   　係のみ　　　… その予定の「係」の欄に名字が出てくる方だけ
+
+   幹部だけの打合せで、会員全員に出欠を求めてしまうのを防ぐためです。
+   対象でない方にも予定は見えます（消えると「予定が無くなった」と
+   心配されるため）。出欠のボタンだけ出しません。
+   ================================================================== */
+function eventOf_(evId){
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId) return state.events[i];
+  }
+  return null;
+}
+
+function targetMembersOf_(evId){
+  var all = realMembers_();
+  var ev = eventOf_(evId);
+  var t = ev ? String(ev.target || '') : '';
+  if (!t) return all;
+  var out = [];
+  if (t === '幹事・管理者'){
+    for (var j = 0; j < all.length; j++) if (isStaff(all[j])) out.push(all[j]);
+    return out;
+  }
+  var st = ev ? String(ev.staff || '') : '';
+  for (var k = 0; k < all.length; k++) if (st.indexOf(all[k]) >= 0) out.push(all[k]);
+  return out;
+}
+
+function targetLabel_(t){
+  if (t === '幹事・管理者') return '幹事・管理者の方';
+  if (t === '係のみ') return '係の方';
+  return '';
+}
+
+/* その方が、この予定の出欠を答える相手かどうか */
+function isTargetOf_(ev, name){
+  var t = ev ? String(ev.target || '') : '';
+  if (!t) return true;
+  if (!name) return true;
+  if (t === '幹事・管理者') return isStaff(name);
+  return String(ev.staff || '').indexOf(name) >= 0;
+}
+
+/* ------------------------------------------------------------------
+   ★2026-08-24　未回答の方へ、クラブのLINE公式アカウントから直接お送りする。
+
+   これまでは「LINEで知らせる」で自分のLINEを開き、相手を一人ずつ
+   選んで送っていました。名簿にLINEIDが入るようになったので、
+   **ボタン1回**で、その予定の未回答の方にだけ届きます。
+
+   通数は「送った人数ぶん」です。群へ流すと群にいる人数ぶん使うので、
+   こちらのほうがずっと少なくて済みます。
+   ------------------------------------------------------------------ */
+function lineToPending(evId){
+  var ev = eventOf_(evId);
+  if (!ev) return;
+  var att = attOf(evId);
+  var names = att.pending || [];
+  if (!names.length) return;
+  var msg = '【' + CLUB.shareTag + '】出欠のお願い\n' +
+            '■ ' + ev.title + '\n' +
+            '　' + fmtDate(ev.date) + (ev.time ? '　' + ev.time : '') +
+            (ev.place ? '\n場所：' + ev.place : '') + '\n\n' +
+            'まだ出欠のご回答をいただいていません。\n' +
+            'お手数ですが、ご回答をお願いします。\n' +
+            location.href.split('?')[0] + '?goto=' + evId;
+  if (!confirm('未回答の ' + names.length + '人へ、LINEで催促を送ります。\n\n' +
+               names.join('、') + '\n\n' +
+               '※LINEのお知らせに登録されている方にだけ届きます。\n' +
+               'よろしいですか？')) return;
+  setStatus('送っています…');
+  post({ action: 'linePushMembers', name: myName, names: names, text: msg },
+    '', function(data){
+      if (!data){ setStatus('送れませんでした。電波の良い場所でお試しください。', true); return; }
+      var t = String(data.sent || 0) + '人に送りました';
+      if (data.miss && data.miss.length) t += '（LINE未登録：' + data.miss.join('、') + '）';
+      if (data.reason) t += '　' + data.reason;
+      setStatus(t);
+      alert(t);
+    });
 }
 
 function statusOfName(evId, name){
@@ -1950,6 +2049,10 @@ function renderList(){
         (isCancel
           ? '<div class="lockedmsg">この山行は中止になりました</div>'
           : '<div class="lockedmsg">🔒 出欠は締め切りました（変更できません）</div>')
+      : (myn !== '' && !isTargetOf_(ev, myn)) ?
+        /* ★2026-08-24　対象でない方。予定は見えますが、出欠のボタンは出しません */
+        '<div class="lockedmsg">この予定は<b>' + esc(targetLabel_(ev.target)) +
+          '</b>が対象です（出欠のご回答は要りません）</div>'
       :
         '<div class="attbtns">' +
           '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
@@ -1967,6 +2070,12 @@ function renderList(){
             attNamesHtml(att.pending, ev.id, false, '') )
           : '') +
       '</div>' +
+      /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
+         　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
+      (att.pending.length && myn !== '' && isStaff(myn) && !locked ?
+        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="lineToPending(\'' +
+          ev.id + '\')">📨 未回答の ' + att.pending.length +
+          '人へLINEで催促する</a></div>' : '') +
       (canDel ?
         '<div class="evdel">' +
           '<a href="javascript:void(0)" class="lock" onclick="askCancel(\'' + ev.id + '\',' +
@@ -2777,6 +2886,7 @@ function submitAdd(){
       id: tid, date: dates[ti], title: title, time: time,
       place: $('addPlace').value, memo: $('addMemo').value,
       staff: serializeStaff(), owner: name, ownerId: idOf(name),
+      target: $('addTarget').value,
       plan: plan, report: report, lineGroup: lineGroup,
       locked: '', settle: '', cancelled: '', cancelNote: ''
     });
@@ -2789,6 +2899,7 @@ function submitAdd(){
     time: time,
     place: $('addPlace').value,
     staff: serializeStaff(),
+    target: $('addTarget').value,
     memo: $('addMemo').value,
     plan: plan,
     report: report,
