@@ -902,7 +902,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-24b';
+var APP_VER = '2026-08-24c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1774,13 +1774,21 @@ function targetMembersOf_(evId){
   var ev = eventOf_(evId);
   var t = ev ? String(ev.target || '') : '';
   if (!t) return all;
+  /* ★2026-08-24　その予定を登録した方は、どの対象でも必ず含めます。
+     　段取りをする本人なのに、出欠を答えられない・数に入らない、
+     　という状態を作らないためです。 */
+  var own = ev ? String(ev.owner || '') : '';
   var out = [];
   if (t === '幹事・管理者'){
-    for (var j = 0; j < all.length; j++) if (isStaff(all[j])) out.push(all[j]);
+    for (var j = 0; j < all.length; j++){
+      if (isStaff(all[j]) || all[j] === own) out.push(all[j]);
+    }
     return out;
   }
   var st = ev ? String(ev.staff || '') : '';
-  for (var k = 0; k < all.length; k++) if (st.indexOf(all[k]) >= 0) out.push(all[k]);
+  for (var k = 0; k < all.length; k++){
+    if (st.indexOf(all[k]) >= 0 || all[k] === own) out.push(all[k]);
+  }
   return out;
 }
 
@@ -1795,6 +1803,8 @@ function isTargetOf_(ev, name){
   var t = ev ? String(ev.target || '') : '';
   if (!t) return true;
   if (!name) return true;
+  /* 登録した本人は、どの対象でも答えられます */
+  if (String(ev.owner || '') === name) return true;
   if (t === '幹事・管理者') return isStaff(name);
   return String(ev.staff || '').indexOf(name) >= 0;
 }
@@ -2018,12 +2028,18 @@ function renderList(){
     /* ★2026-08-17：不具合②の修正。この時点で分かっている「参加」人数（att.yes.length）を
        &n= としてマイカー精算アプリに渡す。精算アプリ側は、まだ何も入力・保存されていない
        ときだけこれを初期値として使う（手で直した人数や、すでに保存済みの精算は上書きしない）。 */
-    var icons =
-      '<a href="' + CARPOOL_URL + '?event=' + ev.id +
+    /* ★2026-08-24　マイカー精算（車のアイコン）は、一般会員には出しません。
+       　精算をするのは幹事・管理者と、その予定を登録した方・係の方だけで、
+       　手順書①（メンバー用）にも精算の説明はありません。
+       　会員の皆さんの画面から、使わないボタンを減らすためです。 */
+    var canSettle_ = (myn !== '') &&
+                     (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn));
+    var icons = canSettle_ ?
+      ('<a href="' + CARPOOL_URL + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
         '&place=' + encodeURIComponent(ev.place || '') +
-        '&n=' + att.yes.length + '" title="マイカー精算">' + CAR_ICON + '</a>';
+        '&n=' + att.yes.length + '" title="マイカー精算">' + CAR_ICON + '</a>') : '';
     if (ev.settle){
       icons += '<a href="javascript:void(0)" onclick="toggleSettle(\'' + ev.id + '\')" title="精算結果">' + SETTLE_ICON + '</a>';
     }
