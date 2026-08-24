@@ -565,7 +565,7 @@
   <!-- 登録・お知らせのあとに出る「LINEで知らせる」 -->
   <div class="card" id="shareCard" style="display:none">
     <h2>LINEのグループに知らせますか？</h2>
-    <p class="note">押すとLINEが開きます。<b>送り先のグループを選んで</b>送信してください。<br>
+    <p class="note" id="shareNote">押すとLINEが開きます。<b>送り先のグループを選んで</b>送信してください。<br>
       いくら送っても費用はかかりません。あとから知らせることもできます。</p>
     <div id="sharePrev" class="unreadlist"></div>
     <a class="bigbtn" id="shareGo" href="#">LINEで知らせる</a>
@@ -902,7 +902,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-24d';
+var APP_VER = '2026-08-24e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1847,7 +1847,8 @@ function lineToPending(evId){
                ? '■ いまは動作確認中のため、実際には確認用の方にしか届きません\n' : '') +
              '\n※LINEのお知らせに登録されている方にだけ届きます。\n' +
              '※通数を使いたくないときは「やめる」を押して、\n' +
-             '　予定の「LINEで知らせる」からご自分のLINEで送ってください（0通です）。\n\n' +
+             '　予定の「LINEで知らせる」をお使いください（0通です）。\n' +
+             '　スマホなら「LINEで知らせる」、パソコンなら「文だけコピーする」です。\n\n' +
              'よろしいですか？';
   if (!confirm(msgQ)) return;
   setStatus('送っています…');
@@ -4084,6 +4085,22 @@ function init(){
 
   /* 管理者と幹事だけ「まとめて登録」ボタンを表示 */
   if (isStaff(myName)) $('showImport').style.display = 'block';
+  /* ★2026-08-24　パソコンには LINE アプリが無いので、「LINEで知らせる」を押しても
+     　LINEのホームページが開くだけで、何も送れません（実際に起きました）。
+     　パソコンのときは、はっきりそう書いて「文だけコピーする」へ誘導します。 */
+  try {
+    var isPhone_ = /iPhone|iPad|iPod|Android/.test(navigator.userAgent || '');
+    var sn = $('shareNote');
+    if (sn && !isPhone_){
+      sn.innerHTML =
+        '<b>パソコンでは「LINEで知らせる」は使えません。</b>' +
+        'LINEのホームページが開くだけで、何も送れません。<br>' +
+        '下の<b>「文だけコピーする」</b>を押して、LINEに貼り付けてください。<br>' +
+        'スマホから開けば「LINEで知らせる」がそのまま使えます。';
+      var sg = $('shareGo');
+      if (sg){ sg.style.background = '#bbb'; sg.style.borderColor = '#bbb'; }
+    }
+  } catch(eS){}
   $('shareCopy').onclick = function(){ copyText(shareText); };
   $('shareClose').onclick = closeShare;
   $('shareGo').onclick = function(){ setTimeout(closeShare, 1200); };
