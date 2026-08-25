@@ -902,7 +902,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-24g';
+var APP_VER = '2026-08-25a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1015,6 +1015,11 @@ var ADMINS     = [CLUB.adminName];
 var ADMIN_NAME = CLUB.adminName;
 var EDITORS    = CLUB.editors;
 var MEMBERS    = CLUB.members;
+/* ★2026-08-25　名字 → LINEのお知らせに登録済みか（true/false）。
+   　サーバー（GAS）が幹事・管理者にだけ返します。ふつうの会員では空のまま。
+   　空のときは「分からない」あつかいにして、警告を出しません。 */
+var MEMBER_LINE = {};
+var MEMBER_LINE_KNOWN = false;
 var KEYS       = CLUB.keys;
 
 /* 名字 → ひらがなの読み（名前選択の「あ行・か行…」に使う）
@@ -1135,6 +1140,35 @@ var NON_MEMBER_NAMES = ['DXベアーズ(保守)', 'DXベアーズ（保守）'];
 function isRealMember_(name){
   return !!name && NON_MEMBER_NAMES.indexOf(name) < 0;
 }
+/* ★2026-08-25　この方々のうち、LINEのお知らせに登録していない方を返す。
+   　分からないとき（サーバーが古い／幹事・管理者でない）は null を返し、
+   　呼び出し側は警告を出さない。「たぶん届かない」と書いて外すのが一番わるいため。 */
+function lineMissing_(names){
+  if (!MEMBER_LINE_KNOWN) return null;
+  var out = [];
+  for (var i = 0; i < names.length; i++){
+    if (!MEMBER_LINE[names[i]]) out.push(names[i]);
+  }
+  return out;
+}
+
+/* ★2026-08-25　対象（空＝全員／幹事・管理者／係のみ）から、対象の方の名前を出す。
+   　予定を登録する前にも使うので、予定そのものが無くても計算できるようにしてある。 */
+function targetNamesFor_(target, staffStr, owner){
+  var all = realMembers_();
+  var t = String(target || '');
+  if (!t) return all;
+  var out = [];
+  for (var i = 0; i < all.length; i++){
+    if (t === '幹事・管理者'){
+      if (isStaff(all[i]) || all[i] === owner) out.push(all[i]);
+    } else {
+      if (String(staffStr || '').indexOf(all[i]) >= 0 || all[i] === owner) out.push(all[i]);
+    }
+  }
+  return out;
+}
+
 function realMembers_(){
   var out = [];
   for (var i = 0; i < MEMBERS.length; i++){
@@ -1270,6 +1304,14 @@ function applyData(data){
     if (data.yomis){
       for (var yi = 0; yi < MEMBERS.length; yi++){
         MEMBER_YOMI[MEMBERS[yi]] = data.yomis[yi] || '';
+      }
+    }
+    /* ★2026-08-25　誰がLINEのお知らせに登録済みかの対応表 */
+    MEMBER_LINE = {}; MEMBER_LINE_KNOWN = false;
+    if (data.lineOks && data.lineOks.length){
+      MEMBER_LINE_KNOWN = true;
+      for (var li = 0; li < MEMBERS.length; li++){
+        MEMBER_LINE[MEMBERS[li]] = !!data.lineOks[li];
       }
     }
     /* 名字 → 会員ID の対応表も作り直す */
@@ -1781,18 +1823,10 @@ function targetMembersOf_(evId){
      　段取りをする本人なのに、出欠を答えられない・数に入らない、
      　という状態を作らないためです。 */
   var own = ev ? String(ev.owner || '') : '';
-  var out = [];
-  if (t === '幹事・管理者'){
-    for (var j = 0; j < all.length; j++){
-      if (isStaff(all[j]) || all[j] === own) out.push(all[j]);
-    }
-    return out;
-  }
-  var st = ev ? String(ev.staff || '') : '';
-  for (var k = 0; k < all.length; k++){
-    if (st.indexOf(all[k]) >= 0 || all[k] === own) out.push(all[k]);
-  }
-  return out;
+  var st  = ev ? String(ev.staff || '') : '';
+  /* ★2026-08-25　対象の決め方は targetNamesFor_ に1本化した。
+     　予定を登録する前（まだ予定が無い時点）にも同じ判定が要るため。 */
+  return targetNamesFor_(t, st, own);
 }
 
 function targetLabel_(t){
@@ -1838,18 +1872,40 @@ function lineToPending(evId){
   /* ★2026-08-24　押す前に、通数のことが分かるようにします。
      　クラブの公式アカウントから送るぶんは、送った人数ぶんだけ
      　無料枠（月200通）を使うためです。 */
-  var msgQ = '未回答の ' + names.length + '人へ、LINEで催促を送ります。\n\n' +
-             names.join('、') + '\n\n' +
-             '■ 使う通数：' + names.length + '通' +
-             (lineLeft !== null && lineLeft !== undefined
-               ? '（今月あと ' + lineLeft + '通 送れます）' : '') + '\n' +
-             (lineMode === 'test'
-               ? '■ いまは動作確認中のため、実際には確認用の方にしか届きません\n' : '') +
-             '\n※LINEのお知らせに登録されている方にだけ届きます。\n' +
-             '※通数を使いたくないときは「やめる」を押して、\n' +
-             '　予定の「LINEグループに貼る（0通）」をお使いください。\n' +
-             '　スマホならそのボタン、パソコンなら「文だけコピーする」です。\n\n' +
-             'よろしいですか？';
+  /* ★2026-08-25　押す前に、届く方と届かない方を分けてお見せします。
+     　これまでは押したあとにしか分かりませんでした。 */
+  var miss = lineMissing_(names);
+  var okNames = names;
+  if (miss && miss.length){
+    okNames = [];
+    for (var mi = 0; mi < names.length; mi++){
+      if (miss.indexOf(names[mi]) < 0) okNames.push(names[mi]);
+    }
+  }
+  if (miss && okNames.length === 0){
+    alert('未回答の ' + names.length + '人は、どなたもLINEのお知らせに登録されていないため、\n'
+        + 'LINEではお送りできません。\n\n' + miss.join('、') + '\n\n'
+        + '予定の「LINEグループに貼る（0通）」をお使いいただくか、\n'
+        + '別紙「LINEのお知らせ」でご登録をお願いしてください。');
+    return;
+  }
+  var msgQ = '未回答の ' + names.length + '人のうち、'
+             + (miss ? okNames.length + '人' : '登録されている方') + 'へLINEで催促を送ります。\n\n'
+             + '■ 送る相手：' + okNames.join('、') + '\n'
+             + (miss && miss.length
+                 ? '■ 届かない方：' + miss.join('、') + '\n'
+                   + '　（LINEのお知らせに登録されていません。別紙「LINEのお知らせ」でご登録をお願いしてください）\n'
+                 : '') + '\n'
+             + '■ 使う通数：' + okNames.length + '通'
+             + (lineLeft !== null && lineLeft !== undefined
+                 ? '（今月あと ' + lineLeft + '通 送れます）' : '') + '\n'
+             + (lineMode === 'test'
+                 ? '■ いまは動作確認中のため、実際には確認用の方にしか届きません\n' : '')
+             + (miss ? '' : '\n※LINEのお知らせに登録されている方にだけ届きます。\n')
+             + '※通数を使いたくないときは「やめる」を押して、\n'
+             + '　予定の「LINEグループに貼る（0通）」をお使いください。\n'
+             + '　スマホならそのボタン、パソコンなら「文だけコピーする」です。\n\n'
+             + 'よろしいですか？';
   if (!confirm(msgQ)) return;
   setStatus('送っています…');
   post({ action: 'linePushMembers', name: myName, names: names, text: msg },
@@ -2901,6 +2957,31 @@ function submitAdd(){
     closeAddForm();
     render();
     return;
+  }
+
+  /* ------------------------------------------------------------------
+     ★2026-08-25　対象を絞った予定は、クラブのLINEグループへ流さず、
+     　対象の方へ直接お送りします。そのため、LINEのお知らせに
+     　登録していない対象の方には**何も届きません。**
+     　しかもエラーが出ないので気づけません。登録する前にお知らせします。
+     ------------------------------------------------------------------ */
+  var tgt0 = $('addTarget').value;
+  if (tgt0){
+    var tnames = targetNamesFor_(tgt0, serializeStaff(), name);
+    var tmiss  = lineMissing_(tnames);
+    if (tmiss && tmiss.length){
+      var wq = 'この予定は「' + targetLabel_(tgt0) + '」だけにお知らせします。\n'
+             + 'クラブのLINEグループへは流れません。\n\n'
+             + '■ 対象の方：' + tnames.join('、') + '\n'
+             + '■ このうち ' + tmiss.length + '人には、LINEでは届きません\n'
+             + '　' + tmiss.join('、') + '\n'
+             + '　（LINEのお知らせに登録されていません）\n\n'
+             + (tmiss.length === tnames.length
+                 ? '★対象の方全員に届きません。お口ぞえかお電話が要ります。\n\n'
+                 : '')
+             + 'このまま登録してよろしいですか？';
+      if (!confirm(wq)) return;
+    }
   }
 
   /* ------------------------------------------------------------------
