@@ -1,0 +1,155 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@page { size: A4; margin: 16mm 16mm 14mm 16mm; }
+* { box-sizing: border-box; }
+body {
+  font-family: "Noto Sans CJK JP", "Noto Sans CJK JP Medium", sans-serif;
+  color: #1a1a1a; font-size: 12.3px; line-height: 1.66; margin: 0;
+}
+.doc-title {
+  background: #2E6B34; color: #fff; border-radius: 14px;
+  padding: 16px 22px; margin-bottom: 4px;
+}
+.doc-title .kicker { font-size: 12px; color: #cfe8d2; font-weight: 500; margin-bottom: 2px; }
+.doc-title h1 { font-size: 22px; margin: 0 0 3px 0; font-weight: 900; }
+.doc-title .sub { font-size: 13px; color: #dff0e0; font-weight: 500; }
+.intro {
+  background: #f4f7f4; border-radius: 10px; padding: 12px 16px; margin: 10px 0 16px 0;
+  font-size: 11.6px; color: #333;
+}
+.section {
+  background: #E8F4E9; border-left: 7px solid #2E6B34; border-radius: 4px;
+  padding: 8px 14px; margin: 20px 0 10px 0;
+}
+.section h2 { margin: 0; font-size: 15.5px; color: #2E6B34; font-weight: 900; }
+.subsection { margin: 14px 0 6px 0; }
+.subsection h3 {
+  margin: 0 0 4px 0; font-size: 13px; font-weight: 900; color: #2E6B34;
+  border-bottom: 2px solid #2E6B34; display: inline-block; padding-bottom: 2px;
+}
+.steps { margin: 6px 0 10px 0; }
+.step { display: flex; margin: 5px 0; align-items: flex-start; }
+.step .num {
+  flex: 0 0 auto; font-weight: 900; color: #2E6B34; font-size: 14px;
+  margin-right: 7px; line-height: 1.5;
+}
+.step .txt { flex: 1 1 auto; }
+.step .txt b { color: #2E6B34; }
+p { margin: 6px 0; }
+.note { font-size: 11px; color: #555; margin: 5px 0; }
+.tip {
+  background: #FFF3E0; border: 1.6px solid #E8A000; border-radius: 10px;
+  padding: 10px 14px; margin: 10px 0; font-size: 11.4px;
+}
+.tip .label { font-weight: 900; color: #8a5c00; margin-bottom: 3px; }
+.warnbox {
+  background: #FDECEC; border: 1.6px solid #E60012; border-radius: 10px;
+  padding: 10px 14px; margin: 10px 0; font-size: 11.4px; color: #7a0d15;
+}
+.warnbox .label { font-weight: 900; color: #E60012; margin-bottom: 3px; }
+table { width: 100%; border-collapse: collapse; margin: 8px 0 4px 0; font-size: 11px; }
+th, td { border: 1px solid #cfd6cf; padding: 5px 8px; text-align: left; vertical-align: top; }
+th { background: #E8F4E9; color: #2E6B34; font-weight: 900; }
+tr:nth-child(even) td { background: #fafcfa; }
+
+.mockwrap { text-align: center; margin: 10px 0 4px 0; }
+.mock {
+  display: inline-block; text-align: left; background: #fff;
+  border: 1.4px solid #b9c2b9; border-radius: 12px; padding: 12px 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08); max-width: 480px; font-size: 11px;
+}
+.caption { text-align: center; color: #777; font-size: 10.3px; margin: 4px 0 2px 0; }
+.redbox { border: 2.4px solid #E60012; border-radius: 8px; padding: 4px 6px; display: inline-block; }
+
+.appbar { background: #2E6B34; color: #fff; border-radius: 6px 6px 0 0; padding: 6px 10px; font-weight: 700; font-size: 11.5px; display: flex; justify-content: space-between; }
+.card { border: 1px solid #d7ddd7; border-radius: 8px; padding: 8px 10px; margin: 6px 0; background: #fff; }
+.card .title { font-weight: 900; font-size: 11.5px; }
+.card .meta { color: #555; font-size: 10.3px; margin: 2px 0; }
+.btnrow { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.btn { border-radius: 6px; padding: 3px 10px; font-size: 10.5px; font-weight: 700; border: 1px solid #ccc; background: #f2f2f2; }
+.btn.green { background: #2E6B34; color: #fff; border-color: #2E6B34; }
+.btn.outline { background: #fff; color: #2E6B34; border-color: #2E6B34; }
+.pill { display:inline-block; border-radius: 999px; padding: 2px 10px; font-size: 10px; font-weight: 700; }
+.pill.gray { background:#eee; color:#555; }
+.pill.check { background:#E8F4E9; color:#2E6B34; }
+
+.yellow {
+  background: #FFF7DE; border: 1.6px solid #E8B400; border-radius: 10px;
+  padding: 9px 13px; margin: 8px 0; font-size: 11px;
+}
+.yellow .flag { font-weight: 900; color: #8a6800; }
+
+.route { border: 1px solid #d7ddd7; border-radius: 8px; padding: 6px 10px; margin: 5px 0; font-size: 11px; background:#fff; }
+.route.selected { border-color: #2E6B34; background: #E8F4E9; }
+.route .line1 { font-weight: 700; }
+.route .line2 { color:#555; font-size: 10.3px; }
+
+.footer {
+  margin-top: 26px; padding-top: 8px; border-top: 1px solid #cfd6cf;
+  text-align: center; color: #888; font-size: 10px;
+}
+.pagebreak { page-break-before: always; }
+
+/* --- 改ページの決まり（2026-08-23）---------------------------------
+   見出しだけがページの最後に取り残される、注意書きや表が途中で切れる、
+   といったおかしな改ページを防ぐ。 */
+.section, .subsection { break-after: avoid; page-break-after: avoid;
+                         break-inside: avoid; page-break-inside: avoid; }
+/* ★見出しと、そのすぐ下のひとかたまりを、必ず同じページに載せるための箱。
+   Chromiumの印刷では break-after: avoid の効きが弱く、見出しだけ・見出し＋1行だけが
+   前のページに取り残されていた（2026-08-23）。 */
+.keep { break-inside: avoid; page-break-inside: avoid; }
+.doc-title, .intro { break-after: avoid; page-break-after: avoid; }
+.step, .note, .tip, .warnbox, .secret, .yellow, .route,
+.mockwrap, .caption { break-inside: avoid; page-break-inside: avoid; }
+tr, th, td { break-inside: avoid; page-break-inside: avoid; }
+thead { display: table-header-group; }
+.footer { break-inside: avoid; page-break-inside: avoid; }
+.smallcaps { font-weight:700; color:#2E6B34; }
+
+/* --- DXベアーズ用（社内）の見た目。配布物と取り違えないよう色を変える --- */
+.internal .doc-title { background: #1f2933; }
+.internal .doc-title .kicker { color: #ffd88a; }
+.internal .section { background: #eef1f4; border-left-color: #1f2933; }
+.internal .section h2 { color: #1f2933; }
+.internal .subsection h3 { color: #1f2933; border-bottom-color: #1f2933; }
+.internal .step .num { color: #1f2933; }
+.internal th { background: #eef1f4; color: #1f2933; }
+.internal a { color: #1155cc; }
+.secret {
+  background: #FFF1F1; border: 2px solid #E60012; border-radius: 10px;
+  padding: 10px 14px; margin: 10px 0; font-size: 11.4px;
+}
+.secret .label { font-weight: 900; color: #E60012; margin-bottom: 3px; }
+.linkrow { font-size: 11px; }
+.linkrow code { font-size: 10.3px; word-break: break-all; }
+</style><style>
+@media screen {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-size: 17px; line-height: 1.85;
+    max-width: 720px; margin: 0 auto;
+    padding: 12px 14px 48px; background: #eef3ee;
+  }
+  .doc-title { padding: 18px 20px; }
+  .doc-title h1 { font-size: 27px; }
+  .doc-title .kicker { font-size: 15px; }
+  .doc-title .sub { font-size: 16px; }
+  .intro { font-size: 16px; padding: 14px 16px; }
+  .section { padding: 10px 14px; }
+  .section h2 { font-size: 21px; }
+  .subsection h3 { font-size: 18px; }
+  .step .num { font-size: 18px; }
+  .note { font-size: 15px; }
+  .tip, .warnbox, .secret, .yellow { font-size: 16px; padding: 12px 14px; }
+  table { font-size: 15px; }
+  th, td { padding: 9px 10px; }
+  .mock { font-size: 15px; max-width: 100%; }
+  .appbar, .card .title, .route .line1 { font-size: 15px; }
+  .card .meta, .route .line2, .btn, .pill, .caption,
+  .linkrow, .linkrow code { font-size: 14px; }
+  .footer { font-size: 14px; }
+}
+</style></head><body><div class="keep"><div class="doc-title"><div class="kicker">OHCカレンダー</div>
+<h1>困ったときは、まずここ</h1><div class="sub">やりたいこと・困りごとから、書いてある場所を探せます</div></div></div><div class="keep"><div class="intro"><b>ほとんどのことは、手順書のどこかに書いてあります。</b>下の表から、ご自分の困りごとに近いものを探してください。それでも分からないときは、<b>クラブの幹事、または連絡窓口の方</b>におたずねください。</div></div><div class="keep"><div class="section"><h2>1. 会員のみなさん（手順書①）</h2></div><table><thead><tr><th>こんなとき</th><th>見るところ</th></tr></thead><tbody><tr><td>はじめて使う／スマホを買い替えた</td><td><b>導入案内</b>（1枚）</td></tr><tr><td>ホーム画面にアイコンを置きたい</td><td><b>導入案内 4章</b>（iPhone・Android・らくらくスマホ別）</td></tr><tr><td>LINEのリンクから開いたら「LINEの中では正しく動きません」と出た</td><td><b>手順書① 1-1</b></td></tr><tr><td>出欠の答え方が分からない</td><td><b>手順書① 3章</b></td></tr><tr><td>終わった予定が見当たらない</td><td><b>手順書① 2-1</b>（3日たつと隠れます）</td></tr><tr><td>計画表・報告書・精算結果を見たい</td><td><b>手順書① 4章</b></td></tr><tr><td>パソコンや2台目のスマホでも使いたい</td><td><b>手順書① 8-1</b>（4けたの確認番号）</td></tr><tr><td>機種変更した</td><td><b>手順書① 8-2</b></td></tr><tr><td>出欠のボタンが出ない予定がある</td><td><b>手順書① 9章</b>（対象でない予定です）</td></tr><tr><td>画面が古い気がする／役割を変えてもらったのに変わらない</td><td><b>手順書① 10章</b>（5分ほどかかることがあります）</td></tr><tr><td>LINEでお知らせを受け取りたい</td><td><b>LINEのお知らせ②_会員のみなさんへ</b></td></tr></tbody></table></div><div class="keep"><div class="section"><h2>2. 予定を登録する方（手順書②）</h2></div><table><thead><tr><th>こんなとき</th><th>見るところ</th></tr></thead><tbody><tr><td>予定を登録したい／くり返しの予定を入れたい</td><td><b>手順書② 1章</b></td></tr><tr><td>出欠をとる相手を、幹事だけ・係だけにしたい</td><td><b>手順書② 1-3</b></td></tr><tr><td>予定を直したときにお知らせが飛ぶか知りたい</td><td><b>手順書② 1-2</b></td></tr><tr><td>係・担当を付けたい</td><td><b>手順書② 2章</b></td></tr><tr><td>計画表・報告書を付けたい</td><td><b>手順書② 3章</b></td></tr><tr><td>予定を編集・締め切り・中止にしたい</td><td><b>手順書② 5章</b></td></tr><tr><td>スマホが苦手な方の代わりに出欠を答えたい</td><td><b>手順書② 6章</b>（代理回答）</td></tr><tr><td>クラブ全体にお知らせを出したい</td><td><b>手順書② 7章</b></td></tr><tr><td>まだ見ていない人・答えていない人に催促したい</td><td><b>手順書② 7-2 / 7-6</b></td></tr><tr><td>マイカー精算のやり方</td><td><b>手順書② 8章</b></td></tr></tbody></table></div><div class="keep"><div class="section"><h2>3. 幹事の方（手順書③）</h2></div><table><thead><tr><th>こんなとき</th><th>見るところ</th></tr></thead><tbody><tr><td>Excelから予定をまとめて登録したい</td><td><b>手順書③ 2章</b></td></tr><tr><td>上書きされないか心配</td><td><b>手順書③ 3章</b></td></tr><tr><td>新しい会員が入った</td><td><b>手順書③ 5章</b>（登録は管理者が行います）</td></tr><tr><td>高速料金表を直したい</td><td><b>手順書③ 6章</b></td></tr></tbody></table></div><div class="keep"><div class="section"><h2>4. 管理者の方（手順書④）</h2></div><table><thead><tr><th>こんなとき</th><th>見るところ</th></tr></thead><tbody><tr><td>出欠の回答を取り消したい</td><td><b>手順書④ 1章</b></td></tr><tr><td>会員に電話をかけたい</td><td><b>手順書④ 1章</b></td></tr><tr><td>新しい会員を登録したい</td><td><b>手順書④ 6章</b></td></tr><tr><td>例会でまとめて使い始めてもらいたい</td><td><b>手順書④ 6-3</b></td></tr><tr><td>携帯を変えた方が名乗れない</td><td><b>手順書④ 7章</b></td></tr><tr><td>確認番号を忘れたと言われた</td><td><b>手順書④ 7-1</b>（名簿の「確認番号」欄）</td></tr><tr><td>幹事・管理者を増やしたい／減らしたい</td><td><b>手順書④ 5-3</b>「役割」</td></tr><tr><td>会員が退会した</td><td><b>手順書④ 5-5</b></td></tr><tr><td>メール・電話番号を登録したい</td><td><b>手順書④ 5-3</b>（管理者だけができます）</td></tr><tr><td>誰がLINEのお知らせに登録済みか知りたい</td><td><b>手順書④ 9-3</b>（名簿の「LINE通知」欄）</td></tr><tr><td>LINEの通数が心配</td><td><b>手順書④ 9章</b> ／ <b>手順書② 7-3</b></td></tr><tr><td>LINEのお知らせを始めたい</td><td><b>LINEのお知らせ①_管理者がすること</b></td></tr><tr><td>どこまでサポートしてもらえるのか</td><td><b>手順書④ 8章</b></td></tr></tbody></table></div><div class="keep"><div class="warnbox"><div class="label">★それでも分からないときは</div><b>クラブの幹事、または連絡窓口の方</b>におたずねください。会員のみなさんから直接DXベアーズへご連絡いただく必要はありません。<br>管理者の方からDXベアーズへご連絡いただくときは、<b>「手順書◯の◯章を見たが、こうなった」</b>とお書きいただけると、こちらもすぐ手を打てます。</div></div><div class="keep"><div class="footer">大牟田ハイキングクラブ　OHCカレンダー手順書（2026年8月・アプリ版2026-08-24f対応）</div></div></body></html>

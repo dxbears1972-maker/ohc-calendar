@@ -378,6 +378,10 @@
     font-size: 15px; color: #789a7c; background: transparent;
     border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
   }
+  /* ★2026-08-30：「❓ 使い方」はリンクなので、ボタンと同じ見た目にそろえる */
+  a.cfgbtn { display: inline-block; text-decoration: none; margin-right: 8px;
+             line-height: normal; vertical-align: middle; }
+  button.cfgbtn { vertical-align: middle; }
   /* 4けたの数字だけを入れる欄 */
   input.pin {
     width: 100%; font-size: 34px; font-weight: bold;
@@ -739,6 +743,8 @@
 
   <!-- 設定（めったに使わないものは、ここにまとめる） -->
   <p style="text-align:center; margin-top:14px">
+    <a class="cfgbtn" href="https://dxbears1972-maker.github.io/ohc-calendar/guide/"
+       target="_blank" rel="noopener">❓ 使い方</a>
     <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
   </p>
   <div class="card" id="cfgCard" style="display:none">
@@ -902,7 +908,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-25a';
+var APP_VER = '2026-08-30a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
