@@ -11,3 +11,6 @@ desktop.ini
 Thumbs.db
 .DS_Store
 _to_delete_by_user/
+
+# 開発版アプリ（2026-09-01に使用停止。控えは OneDrive 99_バックアップ\03_開発版アプリ_20260807（使用停止））
+dev/
