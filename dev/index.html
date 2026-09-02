@@ -667,13 +667,17 @@
     <div id="staffRows"></div>
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
-    <!-- ★2026-08-24：出欠をとる相手。空欄＝全員（これまでどおり） -->
-    <label>出欠をとる相手</label>
+    <!-- ★★2026-09-03　予定の「種類」を選ぶ形にしました。
+         　本番の操作ログを数えたところ、貼り付け方式（Excelでまとめて登録）は
+         　一度も使われておらず、杉野さんはこのフォームから1件ずつ入れておられました。
+         　だから、種類を選ぶ入口はここが本命です。 -->
+    <label>予定の種類</label>
     <select id="addTarget">
-      <option value="">全員（クラブの皆さん）</option>
+      <option value="">山行・集会・行事（全員）</option>
+      <option value="係のみ">下見（係に名前がある方だけ）</option>
       <option value="幹事・管理者">アプリの管理者・幹事だけ（★OHCの役員ではありません）</option>
-      <option value="係のみ">係に名前がある人だけ</option>
     </select>
+    <p class="note" id="addTargetWho">全員（クラブの皆さん）に届きます。</p>
     <p class="note">「全員」以外にすると、対象でない方には<b>出欠のボタンが出ません</b>
       （予定そのものは見えます）。メールとLINEのお知らせも、対象の方にだけ届きます。</p>
 
@@ -906,7 +910,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-03b';
+var APP_VER = '2026-09-03c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1250,10 +1254,16 @@ function fillTargetSelect_(){
   for (var q1 = 0; q1 < ws.length; q1++){
     var op = document.createElement('option');
     op.value = '作業:' + ws[q1];
-    op.text  = ws[q1] + 'の方だけ';
+    op.text  = ws[q1] + '（この作業の方だけ）';
     sel.appendChild(op);
   }
   if (cur){ try { sel.value = cur; } catch (e) {} }
+  /* ★2026-09-03　種類を変えたら、届く相手を出し直す */
+  if (!sel.getAttribute('data-whobound')){
+    sel.setAttribute('data-whobound', '1');
+    sel.onchange = function(){ try { refreshAddTargetWho(); } catch(e){} };
+  }
+  try { refreshAddTargetWho(); } catch(e){}
 }
 
 /* ★2026-08-25　対象（空＝全員／幹事・管理者／係のみ）から、対象の方の名前を出す。
@@ -2836,9 +2846,43 @@ function renderStaffRows(){
   $('staffRows').innerHTML = html;
 }
 
-function staffRoleChg(i, v){ if (staffRows[i]){ staffRows[i].role = v; renderStaffRows(); } }
-function staffNameChg(i, v){ if (staffRows[i]){ staffRows[i].name = v; renderStaffRows(); } }
+function staffRoleChg(i, v){ if (staffRows[i]){ staffRows[i].role = v; renderStaffRows();
+  try { refreshAddTargetWho(); } catch(e){} } }
+function staffNameChg(i, v){ if (staffRows[i]){ staffRows[i].name = v; renderStaffRows();
+  try { refreshAddTargetWho(); } catch(e){} } }
 function staffFreeChg(i, v){ if (staffRows[i]) staffRows[i].roleFree = v; }
+
+/* ★★2026-09-03　選んだ種類で、誰に届くのかをその場に出す。
+   　押したあとではなく、押す前に見えるようにするため。 */
+function refreshAddTargetWho(){
+  var el = document.getElementById('addTargetWho');
+  var sel = document.getElementById('addTarget');
+  if (!el || !sel) return;
+  var t = sel.value;
+  var me = getName();
+  var who = targetNamesFor_(t, serializeStaff(), me);
+  var txt;
+  if (!t){
+    txt = '全員（' + who.length + '名）に届きます。';
+  } else if (!who.length){
+    txt = '★このままでは、どなたにも届きません。';
+  } else {
+    txt = who.join('・') + ' の' + who.length + '名に届きます。';
+  }
+  var mw = String(t).match(/^作業[:：](.+)$/);
+  if (mw && !workMembers_(mw[1]).length){
+    txt += '　★作業「' + mw[1] + '」にメンバーが入っていません。';
+  } else if (t === '係のみ' && !serializeStaff()){
+    txt += '　★係・担当の欄が空です。';
+  }
+  if (t){
+    var nn = unreachable_(who);
+    if (nn && nn.length){
+      txt += '　★LINEもメールも登録が無い方：' + nn.join('・');
+    }
+  }
+  el.innerHTML = esc(txt);
+}
 
 function serializeStaff(){
   var parts = [];
@@ -2883,6 +2927,8 @@ function setMailRow(isEdit){
 
 function openAddForm(y, m, d){
   $('addCard').style.display = 'block';
+  /* ★2026-09-03　開いた時点で、種類の選択肢と「誰に届くか」を作り直す */
+  try { fillTargetSelect_(); } catch (e) {}
   $('showAdd').style.display = 'none';
   fillDateSelects(y, m, d);
   if (!$('addHour').innerHTML) fillTimeSelects();
