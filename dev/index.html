@@ -718,6 +718,20 @@
   <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
+
+    <!-- ★★2026-09-03　入力表。1行＝1つの予定のパターン。
+         　くり返しを使えば、1行で1年分が入ります。 -->
+    <h3 style="margin:6px 0 4px; font-size:17px">① 表に書いて登録する</h3>
+    <p class="note">1行が1つの予定です。<b>くり返し</b>を使うと、その1行から何件もできます
+      （例：毎月 第3土曜 → 定例集会1年分）。書いたら「この内容で登録する」を押してください。</p>
+    <div style="overflow-x:auto">
+      <table id="bulkTable" style="width:100%; border-collapse:collapse; font-size:15px"></table>
+    </div>
+    <button class="refbtn" id="bulkAddRow" type="button" style="width:auto; padding:8px 20px; margin-top:8px">＋ 行を足す</button>
+    <p class="note" id="bulkPreview" style="margin-top:8px"></p>
+    <button class="subbtn" id="bulkBtn" type="button">この内容で登録する</button>
+
+    <h3 style="margin:18px 0 4px; font-size:17px">② Excelから貼り付けて登録する</h3>
     <p class="note">Excelの表を<b>見出し行ごと</b>範囲コピーして貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
     <div id="dropZone" style="border:3px dashed #7aa87e; border-radius:10px; background:#f4f9f4; text-align:center; padding:16px 10px; margin-top:8px; color:#2e6b34; font-size:16px;">
       📂 ここにExcel（.xlsx）やCSVのファイルをドロップ<br>
@@ -914,7 +928,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-03d';
+var APP_VER = '2026-09-03e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -3414,6 +3428,123 @@ function parseImport(text){
   return { events: evs, errors: errs };
 }
 
+/* ==================================================================
+   ★★2026-09-03　入力表（1行＝1つの予定のパターン）
+
+   　只隈さん：「一件一件入れていたら普通の登録と変わらない。
+   　　　　　　　年間行事を一気に、半年先の印刷日程を全部、が要る」
+   　くり返し（毎月 第N曜日）と組み合わせて、1行から何件も作ります。
+   ================================================================== */
+var bulkRows = [];
+
+function bulkNewRow_(){
+  var t = new Date();
+  return { date: dkey(t.getFullYear(), t.getMonth() + 1, t.getDate()),
+           title: '', time: '', place: '', kind: '', rep: 'none', len: '12', staff: '' };
+}
+
+function renderBulkTable(){
+  var tb = $('bulkTable');
+  if (!tb) return;
+  if (!bulkRows.length) bulkRows.push(bulkNewRow_());
+  var kinds = kindChoices_();
+  var h = '<tr style="background:#e8f0e8">' +
+    '<th style="padding:4px">日付</th><th>タイトル</th><th>時間</th><th>集合場所</th>' +
+    '<th>種類</th><th>くり返し</th><th>まで</th><th>係・担当</th><th></th></tr>';
+  for (var i = 0; i < bulkRows.length; i++){
+    var r = bulkRows[i];
+    var ko = '<option value="">（山行・集会など全員）</option>';
+    for (var k = 0; k < kinds.length; k++){
+      ko += '<option value="' + esc(kinds[k]) + '"' + (r.kind === kinds[k] ? ' selected' : '') + '>' +
+            esc(kinds[k]) + '</option>';
+    }
+    var reps = [['none','なし'],['week','毎週'],['monthNth','毎月 第N曜'],['monthDay','毎月 同じ日']];
+    var ro = '';
+    for (var p = 0; p < reps.length; p++){
+      ro += '<option value="' + reps[p][0] + '"' + (r.rep === reps[p][0] ? ' selected' : '') + '>' +
+            reps[p][1] + '</option>';
+    }
+    var lens = [['1','1ヶ月'],['3','3ヶ月'],['6','6ヶ月'],['12','1年']];
+    var lo = '';
+    for (var q = 0; q < lens.length; q++){
+      lo += '<option value="' + lens[q][0] + '"' + (r.len === lens[q][0] ? ' selected' : '') + '>' +
+            lens[q][1] + '</option>';
+    }
+    h += '<tr>' +
+      '<td><input type="date" value="' + esc(r.date) + '" onchange="bulkChg(' + i + ',\'date\',this.value)" style="width:140px"></td>' +
+      '<td><input type="text" value="' + esc(r.title) + '" onchange="bulkChg(' + i + ',\'title\',this.value)" style="width:150px"></td>' +
+      '<td><input type="text" value="' + esc(r.time) + '" placeholder="7:00" onchange="bulkChg(' + i + ',\'time\',this.value)" style="width:70px"></td>' +
+      '<td><input type="text" value="' + esc(r.place) + '" onchange="bulkChg(' + i + ',\'place\',this.value)" style="width:130px"></td>' +
+      '<td><select onchange="bulkChg(' + i + ',\'kind\',this.value)">' + ko + '</select></td>' +
+      '<td><select onchange="bulkChg(' + i + ',\'rep\',this.value)">' + ro + '</select></td>' +
+      '<td><select onchange="bulkChg(' + i + ',\'len\',this.value)">' + lo + '</select></td>' +
+      '<td><input type="text" value="' + esc(r.staff) + '" placeholder="リーダー：後藤" onchange="bulkChg(' + i + ',\'staff\',this.value)" style="width:150px"></td>' +
+      '<td><button type="button" class="refbtn" style="width:auto;padding:4px 10px" onclick="bulkDel(' + i + ')">×</button></td>' +
+      '</tr>';
+  }
+  tb.innerHTML = h;
+  refreshBulkPreview();
+}
+
+function bulkChg(i, k, v){ if (bulkRows[i]){ bulkRows[i][k] = v; refreshBulkPreview(); } }
+function bulkDel(i){ bulkRows.splice(i, 1); renderBulkTable(); }
+function bulkAddRow(){ bulkRows.push(bulkNewRow_()); renderBulkTable(); }
+
+/* 表 → 予定の配列（くり返しをここで展開する） */
+function bulkBuildList_(){
+  var out = [], errs = [];
+  for (var i = 0; i < bulkRows.length; i++){
+    var r = bulkRows[i];
+    var ttl = String(r.title || '').replace(/^\s+|\s+$/g, '');
+    if (!ttl && !r.place && !r.time) continue;          /* 空の行は飛ばす */
+    if (!ttl){ errs.push((i + 1) + '行目（タイトルが空です）'); continue; }
+    var md = String(r.date || '').split('-');
+    if (md.length !== 3){ errs.push((i + 1) + '行目（日付）'); continue; }
+    var tg = kindToTarget_(r.kind);
+    if (tg === undefined){ errs.push((i + 1) + '行目（種類「' + r.kind + '」が分かりません）'); continue; }
+    var ds = repeatDates_(r.rep, +md[0], +md[1], +md[2], parseInt(r.len, 10));
+    for (var j = 0; j < ds.length; j++){
+      var ev = { date: ds[j], title: ttl, time: String(r.time || ''),
+                 place: String(r.place || ''), memo: '', plan: '', report: '',
+                 staff: String(r.staff || '') };
+      if (r.kind) { ev.target = tg; ev.kind = r.kind; }
+      out.push(ev);
+    }
+  }
+  return { events: out, errors: errs };
+}
+
+function refreshBulkPreview(){
+  var el = $('bulkPreview');
+  if (!el) return;
+  var b = bulkBuildList_();
+  if (b.errors.length){ el.innerHTML = esc('★' + b.errors.join('、')); return; }
+  if (!b.events.length){ el.innerHTML = ''; return; }
+  var by = {};
+  for (var i = 0; i < b.events.length; i++){
+    var e = b.events[i];
+    if (!by[e.title]) by[e.title] = [];
+    var p = e.date.split('-');
+    by[e.title].push((+p[1]) + '/' + (+p[2]));
+  }
+  var t = 'できる予定：' + b.events.length + '件\n';
+  for (var k in by){ if (by[k]){
+    var ds = by[k];
+    t += '　' + k + ' ' + ds.length + '件： ' + ds.slice(0, 12).join('　') +
+         (ds.length > 12 ? '　ほか' + (ds.length - 12) + '件' : '') + '\n';
+  } }
+  el.innerHTML = esc(t).replace(/\n/g, '<br>');
+}
+
+function submitBulkTable(){
+  var name = getName();
+  if (!name){ alert('先に、あなたのお名前を選んでください'); return; }
+  var b = bulkBuildList_();
+  if (b.errors.length > 0){ alert('直していただく行があります：' + b.errors.join('、')); return; }
+  if (!b.events.length){ alert('登録する予定がありません。表に書いてください'); return; }
+  confirmAndPostEvents_(b.events, name);
+}
+
 function submitImport(){
   var name = getName();
   if (!name){ alert('先に、あなたのお名前を選んでください'); return; }
@@ -3423,11 +3554,15 @@ function submitImport(){
     return;
   }
   if (r.events.length === 0){ alert('登録する予定がありません。表を貼り付けてください'); return; }
+  confirmAndPostEvents_(r.events, name);
+}
 
-  /* 貼り付け内に同じ予定（日付＋タイトル）が2回あれば、後の行を採用 */
+/* ★確認画面と送信。貼り付け・入力表のどちらからも使う */
+function confirmAndPostEvents_(events, name){
+  /* 同じ予定（日付＋タイトル）が2回あれば、後の行を採用 */
   var list = [], i2, j2;
-  for (i2 = 0; i2 < r.events.length; i2++){
-    var ne = r.events[i2];
+  for (i2 = 0; i2 < events.length; i2++){
+    var ne = events[i2];
     var repl = false;
     for (j2 = 0; j2 < list.length; j2++){
       if (list[j2].date === ne.date && list[j2].title === ne.title){ list[j2] = ne; repl = true; break; }
@@ -3543,6 +3678,7 @@ function submitImport(){
       ? '予定を登録しました（新規' + (list.length - over) + '件・上書き' + over + '件）'
       : '予定を登録しました（' + list.length + '件）');
   $('importText').value = '';
+  bulkRows = [];
   closeImport();
 }
 
@@ -4591,10 +4727,14 @@ function init(){
 
   $('showImport').onclick = function(){
     $('importCard').style.display = 'block';
+    try { renderBulkTable(); } catch(e){}
     $('showImport').style.display = 'none';
   };
   $('importCancel').onclick = closeImport;
   $('importBtn').onclick = submitImport;
+  /* ★2026-09-03　入力表 */
+  $('bulkBtn').onclick = submitBulkTable;
+  $('bulkAddRow').onclick = bulkAddRow;
   $('exportBtn').onclick = exportEvents;
   $('exportFileBtn').onclick = exportEventsFile;
   $('filePickBtn').onclick = function(){ $('fileInput').click(); };
