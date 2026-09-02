@@ -400,6 +400,24 @@
 </head>
 <body>
 
+<!-- ★2026-09-03　開発版であることを、ひと目で分かるようにする。
+     　9/2に本番から作り直したときに、以前あった赤い表示が消えていた。
+     　見出しが「OHC カレンダー」のままなので、本番と見間違える。 -->
+<style>
+  header { background: #a3231f !important; }
+  #devBanner {
+    position: sticky; top: 0; z-index: 10000;
+    background: #d32f2f; color: #fff; text-align: center;
+    font-size: 17px; font-weight: bold; line-height: 1.5;
+    padding: 9px 10px; border-bottom: 3px solid #7f1d1d;
+  }
+  #devBanner .sub { display: block; font-size: 13px; font-weight: normal; opacity: .95; }
+</style>
+<div id="devBanner">
+  ⚠ これは開発版です（本番ではありません）
+  <span class="sub">ここでの操作は、本番のカレンダーには影響しません</span>
+</div>
+
 <!-- LINE内ブラウザで開いたときの案内（外部ブラウザへ誘導） -->
 <div id="lineWarn" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#eef3ee; padding:24px 18px; overflow:auto;">
   <div style="max-width:420px; margin:6vh auto 0; background:#fff; border-radius:14px; padding:22px 18px; box-shadow:0 2px 10px rgba(0,0,0,.15); text-align:center;">
@@ -826,7 +844,7 @@ var CLUB = {
   id: 'ohc',
 
   /* 画面の上と、ブラウザのタブに出る名前 */
-  appTitle: 'OHC カレンダー',
+  appTitle: 'OHC カレンダー【開発版】',   /* ★2026-09-03　本番と見分けるため */
 
   /* ホーム画面のアイコンの下に出る名前（短く。全角6文字くらいまで） */
   homeTitle: 'OHC予定',
@@ -888,7 +906,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-02c';
+var APP_VER = '2026-09-03a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
