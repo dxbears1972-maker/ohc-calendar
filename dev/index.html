@@ -639,6 +639,8 @@
       <select id="addRep">
         <option value="none">なし（この日だけ）</option>
         <option value="week">毎週（同じ曜日にくり返す）</option>
+        <option value="monthNth">★毎月（同じ週の同じ曜日。例：毎月 第3土曜）</option>
+        <option value="monthDay">毎月（同じ日。例：毎月 15日）</option>
       </select>
       <div id="repLenWrap" style="display:none">
         <label>いつの分まで登録するか</label>
@@ -646,7 +648,9 @@
           <option value="1">1ヶ月分</option>
           <option value="3" selected>3ヶ月分</option>
           <option value="6">6ヶ月分</option>
+          <option value="12">1年分</option>
         </select>
+        <p class="note" id="repPreview"></p>
       </div>
     </div>
     <label>山名・タイトル（必須）</label>
@@ -910,7 +914,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-03c';
+var APP_VER = '2026-09-03d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2884,6 +2888,76 @@ function refreshAddTargetWho(){
   el.innerHTML = esc(txt);
 }
 
+/* ★★2026-09-03　くり返しの日付を作る。
+   　実物の予定を数えたところ、定例集会は「毎月 第3土曜」が7ヶ月続いていた。
+   　これまでは「毎週」しか無かったので、毎月の予定は1件も作れなかった。
+
+   　week      … 毎週（同じ曜日）
+   　monthNth  … ★毎月 第N◯曜（例：第3土曜）。その月に第N週が無ければ飛ばす
+   　monthDay  … 毎月 同じ日（例：15日）。31日など無い月は飛ばす */
+function repeatDates_(mode, y, m, d, months){
+  var out = [];
+  if (mode === 'week'){
+    var endW = new Date(y, m - 1 + months, d);
+    var cw = new Date(y, m - 1, d), gw = 0;
+    while (cw <= endW && gw < 120){
+      out.push(dkey(cw.getFullYear(), cw.getMonth() + 1, cw.getDate()));
+      cw.setDate(cw.getDate() + 7); gw++;
+    }
+    return out;
+  }
+  if (mode === 'monthNth'){
+    var base = new Date(y, m - 1, d);
+    var nth  = Math.floor((d - 1) / 7) + 1;   /* 第何週か */
+    var wd   = base.getDay();                 /* 曜日 */
+    for (var i = 0; i <= months; i++){
+      var yy = y, mm = m - 1 + i;
+      yy += Math.floor(mm / 12); mm = ((mm % 12) + 12) % 12;
+      var first = new Date(yy, mm, 1);
+      var day1 = 1 + ((wd - first.getDay()) + 7) % 7;   /* その月の第1◯曜 */
+      var day = day1 + (nth - 1) * 7;
+      var last = new Date(yy, mm + 1, 0).getDate();
+      if (day > last) continue;               /* 第5週が無い月は飛ばす */
+      out.push(dkey(yy, mm + 1, day));
+    }
+    return out;
+  }
+  if (mode === 'monthDay'){
+    for (var j = 0; j <= months; j++){
+      var yy2 = y, mm2 = m - 1 + j;
+      yy2 += Math.floor(mm2 / 12); mm2 = ((mm2 % 12) + 12) % 12;
+      var last2 = new Date(yy2, mm2 + 1, 0).getDate();
+      if (d > last2) continue;                /* 31日が無い月は飛ばす */
+      out.push(dkey(yy2, mm2 + 1, d));
+    }
+    return out;
+  }
+  return [dkey(y, m, d)];
+}
+
+/* ★くり返しで、どの日ができるのかを押す前に見せる */
+function refreshRepPreview(){
+  var el = document.getElementById('repPreview');
+  var sel = document.getElementById('addRep');
+  if (!el || !sel) return;
+  if (sel.value === 'none'){ el.innerHTML = ''; return; }
+  var y = parseInt($('addY').value, 10);
+  var m = parseInt($('addM').value, 10);
+  var d = parseInt($('addD').value, 10);
+  if (!y || !m || !d){ el.innerHTML = ''; return; }
+  var ds = repeatDates_(sel.value, y, m, d, parseInt($('addRepLen').value, 10));
+  var W = '日月火水木金土';
+  var t = 'この設定でできる予定：' + ds.length + '件\n';
+  var sh = [];
+  for (var i = 0; i < ds.length && i < 14; i++){
+    var p = ds[i].split('-');
+    sh.push((+p[1]) + '/' + (+p[2]) + '(' + W[new Date(+p[0], p[1]-1, +p[2]).getDay()] + ')');
+  }
+  t += sh.join('　');
+  if (ds.length > 14) t += '　ほか' + (ds.length - 14) + '件';
+  el.innerHTML = esc(t).replace(/\n/g, '<br>');
+}
+
 function serializeStaff(){
   var parts = [];
   for (var i = 0; i < staffRows.length; i++){
@@ -3050,20 +3124,8 @@ function submitAdd(){
   }
 
   /* くり返し設定に応じて日付リストを作る */
-  var dates = [];
-  if ($('addRep').value === 'week'){
-    var months = parseInt($('addRepLen').value, 10);
-    var endDt = new Date(y, m - 1 + months, d);
-    var cur = new Date(y, m - 1, d);
-    var guard = 0;
-    while (cur <= endDt && guard < 60){
-      dates.push(dkey(cur.getFullYear(), cur.getMonth() + 1, cur.getDate()));
-      cur.setDate(cur.getDate() + 7);
-      guard++;
-    }
-  } else {
-    dates.push(dkey(y, m, d));
-  }
+  var dates = repeatDates_($('addRep').value, y, m, d,
+                          parseInt($('addRepLen').value, 10));
 
   var time = '';
   if ($('addHour').value !== ''){
@@ -4563,8 +4625,14 @@ function init(){
   $('refReport').onclick = function(){ openPicker('report'); };
   $('pickerClose').onclick = closePicker;
   $('addRep').onchange = function(){
-    $('repLenWrap').style.display = $('addRep').value === 'week' ? 'block' : 'none';
+    $('repLenWrap').style.display = ($('addRep').value !== 'none') ? 'block' : 'none';
+    try { refreshRepPreview(); } catch(e){}
   };
+  /* ★2026-09-03　期間・日付を変えても、できる日の一覧を出し直す */
+  $('addRepLen').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  $('addY').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  $('addM').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  $('addD').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('staffType').onchange = function(){
     staffRows = [];
     renderStaffRows();
