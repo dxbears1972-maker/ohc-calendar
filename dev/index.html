@@ -888,7 +888,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-02b';
+var APP_VER = '2026-09-02c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1007,6 +1007,10 @@ var WORKS      = {};   /* ★2026-09-02 作業マスタ（作業名 → メン�
    　空のときは「分からない」あつかいにして、警告を出しません。 */
 var MEMBER_LINE = {};
 var MEMBER_LINE_KNOWN = false;
+/* ★修正8（2026-09-02　只隈さん）　名簿にメールアドレスがある方かどうか。
+   　メールも、登録していない方には届かない。 */
+var MEMBER_MAIL = {};
+var MEMBER_MAIL_KNOWN = false;
 var KEYS       = CLUB.keys;
 
 /* 名字 → ひらがなの読み（名前選択の「あ行・か行…」に使う）
@@ -1136,6 +1140,26 @@ function lineMissing_(names){
   for (var i = 0; i < names.length; i++){
     if (!MEMBER_LINE[names[i]]) out.push(names[i]);
   }
+  return out;
+}
+
+/* ★修正8（2026-09-02）　この方々のうち、名簿にメールアドレスが無い方を返す。
+   　分からないときは null（呼び出し側は警告を出さない）。lineMissing_ と同じ作り。 */
+function mailMissing_(names){
+  if (!MEMBER_MAIL_KNOWN) return null;
+  var out = [];
+  for (var i = 0; i < names.length; i++){
+    if (!MEMBER_MAIL[names[i]]) out.push(names[i]);
+  }
+  return out;
+}
+
+/* ★修正8　LINEもメールも無い方＝どの手段でも届かない方 */
+function unreachable_(names){
+  var a = lineMissing_(names), b = mailMissing_(names);
+  if (!a || !b) return null;
+  var out = [];
+  for (var i = 0; i < a.length; i++){ if (b.indexOf(a[i]) >= 0) out.push(a[i]); }
   return out;
 }
 
@@ -1386,6 +1410,14 @@ function applyData(data){
       MEMBER_LINE_KNOWN = true;
       for (var li = 0; li < MEMBERS.length; li++){
         MEMBER_LINE[MEMBERS[li]] = !!data.lineOks[li];
+      }
+    }
+    /* ★修正8　メールのアドレスが名簿にあるかどうか（アドレスそのものは来ない） */
+    MEMBER_MAIL = {}; MEMBER_MAIL_KNOWN = false;
+    if (data.mailOks && data.mailOks.length){
+      MEMBER_MAIL_KNOWN = true;
+      for (var mk = 0; mk < MEMBERS.length; mk++){
+        MEMBER_MAIL[MEMBERS[mk]] = !!data.mailOks[mk];
       }
     }
     /* 名字 → 会員ID の対応表も作り直す */
@@ -3062,9 +3094,17 @@ function submitAdd(){
              + '　' + tmiss.join('、') + '\n'
              + '　（LINEのお知らせに登録されていません）\n\n'
              + (tmiss.length === tnames.length
-                 ? '★対象の方全員に届きません。お口ぞえかお電話が要ります。\n\n'
-                 : '')
-             + 'このまま登録してよろしいですか？';
+                 ? '★対象の方全員に、LINEでは届きません。\n\n'
+                 : '');
+      /* ★修正8（2026-09-02）　メールも同じ。名簿にアドレスが無い方には届かない。 */
+      var tnone = unreachable_(tnames);
+      if (tnone && tnone.length){
+        wq += '■ このうち ' + tnone.length + '人には、どの手段でも届きません\n'
+            + '　' + tnone.join('、') + '\n'
+            + '　（LINEにも、名簿のメールアドレスにも登録がありません）\n'
+            + '　お口ぞえかお電話が要ります。\n\n';
+      }
+      wq += 'このまま登録してよろしいですか？';
       if (!confirm(wq)) return;
     }
   }
@@ -3272,7 +3312,7 @@ function submitImport(){
   /* ★修正5（2026-09-02　只隈さん）　LINEのお知らせに登録していない方には、
      　絞った予定は何も届かない（クラブのLINEグループへ流れないため）。
      　個別追加には前からこの警告があるのに、まとめて登録の確認画面には無かった。 */
-  var missAll = [], missTotal = 0;
+  var missAll = [], missTotal = 0, noneAll = [];
   for (i2 = 0; i2 < list.length; i2++){
     var it2 = list[i2], isOver = false;
     for (j2 = 0; j2 < state.events.length; j2++){
@@ -3292,8 +3332,15 @@ function submitImport(){
           if (missAll.indexOf(ms2[q2]) < 0) missAll.push(ms2[q2]);
         }
         toStr += '（うち ' + ms2.length + '名は LINE未登録）';
-        if (ms2.length === who2.length){
-          warn.push('・' + it2.title + '：★対象の方全員が LINE未登録です。この予定はどなたにも届きません');
+      }
+      /* ★修正8　LINEもメールも無い方は、どの手段でも届かない */
+      var nn2 = unreachable_(who2);
+      if (nn2 && nn2.length){
+        for (var r2 = 0; r2 < nn2.length; r2++){
+          if (noneAll.indexOf(nn2[r2]) < 0) noneAll.push(nn2[r2]);
+        }
+        if (nn2.length === who2.length){
+          warn.push('・' + it2.title + '：★対象の方全員に、LINEもメールも届きません');
         }
       }
     }
@@ -3342,13 +3389,18 @@ function submitImport(){
     msg += '\n★このうち のべ' + missTotal + '名分は、LINEでは届きません\n' +
            '　LINEのお知らせに登録されていない方：' + missAll.join('・') + '\n' +
            '　（絞った予定はクラブのLINEグループへ流れないため、エラーも出ずに届きません）\n' +
-           '　別紙「LINEのお知らせ」でご登録をお願いしてください。';
+           '　この方々には、名簿にアドレスがあればメールで届きます。';
+  }
+  /* ★修正8　LINEもメールも無い方を、いちばんはっきりお見せする */
+  if (noneAll.length){
+    msg += '\n★★どの手段でも届かない方：' + noneAll.join('・') + '\n' +
+           '　（LINEのお知らせにも、名簿のメールアドレスにも登録がありません）\n' +
+           '　お口ぞえかお電話が要ります。';
   }
   msg += '\n\nまちがえても、あとから直せます・消せます';
   if (warn.length){
     msg += '\n\n★ご確認ください\n' + warn.join('\n');
-    if (solo) msg += '\n　このままですと、ほとんどの方に届きません。\n' +
-      '　作業のメンバーを直すか、種類を「集会・行事」に変えてください。';
+    if (solo) msg += '\n　種類と、作業のメンバー・係の欄をお確かめください。';
   }
   msg += '\n\n登録してよろしいですか？';
   if (!confirm(msg)) return;
