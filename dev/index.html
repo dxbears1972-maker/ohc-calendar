@@ -888,7 +888,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-02a';
+var APP_VER = '2026-09-02b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -3232,6 +3232,7 @@ function parseImport(text){
           continue;
         }
         evObj.target = tg0;
+        evObj.kind = kindRaw;   /* ★確認画面に、貼られたままの種類を出すため */
       }
     }
     evs.push(evObj);
@@ -3268,6 +3269,10 @@ function submitImport(){
      　★全件・新規/上書きの別・届く相手のお名前・通数を出す。
      ================================================================== */
   var newList = [], ovList = [], warn = [], total = 0, over = 0, solo = false;
+  /* ★修正5（2026-09-02　只隈さん）　LINEのお知らせに登録していない方には、
+     　絞った予定は何も届かない（クラブのLINEグループへ流れないため）。
+     　個別追加には前からこの警告があるのに、まとめて登録の確認画面には無かった。 */
+  var missAll = [], missTotal = 0;
   for (i2 = 0; i2 < list.length; i2++){
     var it2 = list[i2], isOver = false;
     for (j2 = 0; j2 < state.events.length; j2++){
@@ -3278,9 +3283,25 @@ function submitImport(){
     total += who2.length;
     var toStr = !tg2 ? ('全員へ（' + who2.length + '名）')
               : (who2.length ? (who2.join('・') + ' の' + who2.length + '名へ') : '★届く方がいません');
+    /* ★修正5　絞った予定だけ。全員あてはLINEグループへ流れるので、ここでは数えない。 */
+    if (tg2){
+      var ms2 = lineMissing_(who2);
+      if (ms2 && ms2.length){
+        missTotal += ms2.length;
+        for (var q2 = 0; q2 < ms2.length; q2++){
+          if (missAll.indexOf(ms2[q2]) < 0) missAll.push(ms2[q2]);
+        }
+        toStr += '（うち ' + ms2.length + '名は LINE未登録）';
+        if (ms2.length === who2.length){
+          warn.push('・' + it2.title + '：★対象の方全員が LINE未登録です。この予定はどなたにも届きません');
+        }
+      }
+    }
+    /* ★貼られた種類をそのまま出す。無ければ対象から逆算する。 */
+    var kd2 = it2.kind || targetToKind_(tg2);
     var md2 = it2.date.split('-');
     var ln2 = '　' + (+md2[1]) + '/' + (+md2[2]) + '　' + it2.title +
-              (targetToKind_(tg2) ? '　［' + targetToKind_(tg2) + '］' : '') + '　→ ' + toStr;
+              (kd2 ? '　［' + kd2 + '］' : '') + '　→ ' + toStr;
     if (isOver){ ovList.push(ln2); over++; } else { newList.push(ln2); }
 
     /* ★5-A　届く方がいなくなる形を、押す前に知らせる */
@@ -3316,6 +3337,13 @@ function submitImport(){
                              '\n　　※出欠のご回答はそのまま残ります\n';
   msg += '\nお知らせが届く数：のべ' + total + '名';
   if (lineLeft != null) msg += '（LINEは今月あと' + lineLeft + '通）';
+  /* ★修正5　LINE未登録の方を、押す前に名指しでお見せする */
+  if (missAll.length){
+    msg += '\n★このうち のべ' + missTotal + '名分は、LINEでは届きません\n' +
+           '　LINEのお知らせに登録されていない方：' + missAll.join('・') + '\n' +
+           '　（絞った予定はクラブのLINEグループへ流れないため、エラーも出ずに届きません）\n' +
+           '　別紙「LINEのお知らせ」でご登録をお願いしてください。';
+  }
   msg += '\n\nまちがえても、あとから直せます・消せます';
   if (warn.length){
     msg += '\n\n★ご確認ください\n' + warn.join('\n');
