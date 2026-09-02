@@ -888,7 +888,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-30a';
+var APP_VER = '2026-09-02a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1169,7 +1169,9 @@ function targetToKind_(t){
   if (m0) return m0[1];
   if (s0 === '幹事・管理者') return '打合せ';
   if (s0 === '係のみ') return '下見';
-  return '山行';
+  /* ★修正4　空（全員）は、山行・集会・行事・木曜会を兼ねている。
+     　「山行」と書いて戻すと、木曜会が山行に化ける。空欄で出す。 */
+  return '';
 }
 
 function workNames_(){
@@ -1215,13 +1217,16 @@ function targetNamesFor_(target, staffStr, owner){
   var mw = t.match(/^作業[:：](.+)$/);
   if (mw){
     var wl = workMembers_(mw[1]);
-    if (wl.length){
-      var rw = [];
-      for (var w0 = 0; w0 < all.length; w0++){
-        if (wl.indexOf(all[w0]) >= 0 || all[w0] === owner) rw.push(all[w0]);
-      }
-      return rw;
+    /* ★修正3　マスタが空のときだけでなく、マスタの名字が名簿と
+       　1文字でも違って、誰にも当たらないときも「係のみ」に落とす。
+       　黙って登録した本人ひとりに送る事故を防ぐため。 */
+    var rw = [], hit0 = 0;
+    for (var w0 = 0; w0 < all.length; w0++){
+      var inw0 = (wl.indexOf(all[w0]) >= 0);
+      if (inw0) hit0++;
+      if (inw0 || all[w0] === owner) rw.push(all[w0]);
     }
+    if (hit0) return rw;
     t = '係のみ';
   }
   var out = [];
@@ -1918,7 +1923,10 @@ function isTargetOf_(ev, name){
   var mw3 = t.match(/^作業[:：](.+)$/);
   if (mw3){
     var wl3 = workMembers_(mw3[1]);
-    if (wl3.length) return wl3.indexOf(name) >= 0;
+    /* ★修正3　名簿に一人も当たらないマスタは、係のみに落とす */
+    var all3 = realMembers_(), hit3 = 0;
+    for (var y3 = 0; y3 < wl3.length; y3++){ if (all3.indexOf(wl3[y3]) >= 0) hit3++; }
+    if (hit3) return wl3.indexOf(name) >= 0;
   }
   return String(ev.staff || '').indexOf(name) >= 0;
 }
@@ -3129,7 +3137,10 @@ var IMPORT_FIXED = {
   '報告書リンク': 'report', '報告書': 'report',
   '係・担当': 'staff', '係': 'staff', '担当': 'staff',
   /* ★2026-09-02　種類の列。★ここに入れることで「係あつかい」からも外れる（罠2） */
-  '種類': 'kind', '対象': 'kind'
+  /* ★ここに入れることで「係あつかい」から外れる（罠2）。
+     　★ただし「対象」は種類としては読まない（ignore）。
+     　　内部の値（幹事・管理者 など）が入っていても行を弾かないようにするため。 */
+  '種類': 'kind', '対象': 'ignore'
 };
 
 function parseImport(text){
@@ -3210,14 +3221,18 @@ function parseImport(text){
     };
     /* ★2026-09-02　「種類」の列があるときだけ、対象を決める。
        　列が無い表（いままでの表）を貼ったときは target を付けない＝いまの対象のまま。 */
-    if (headers && (headers.indexOf('種類') >= 0 || headers.indexOf('対象') >= 0)){
+    if (headers && headers.indexOf('種類') >= 0){
       var kindRaw = val('kind', -1);
-      var tg0 = kindToTarget_(kindRaw);
-      if (tg0 === undefined){
-        errs.push((i + 1) + '行目（種類「' + kindRaw + '」が分かりません）');
-        continue;
+      /* ★修正2　種類の欄が空の行は target を付けない。
+         　記入漏れで、さきほど絞った対象が黙って「全員」に戻るのを防ぐ。 */
+      if (kindRaw){
+        var tg0 = kindToTarget_(kindRaw);
+        if (tg0 === undefined){
+          errs.push((i + 1) + '行目（種類「' + kindRaw + '」が分かりません）');
+          continue;
+        }
+        evObj.target = tg0;
       }
-      evObj.target = tg0;
     }
     evs.push(evObj);
   }
@@ -3252,7 +3267,7 @@ function submitImport(){
      　「はい」を押すことになっていた。上書きされる予定も名指ししていない。
      　★全件・新規/上書きの別・届く相手のお名前・通数を出す。
      ================================================================== */
-  var newList = [], ovList = [], warn = [], total = 0, over = 0;
+  var newList = [], ovList = [], warn = [], total = 0, over = 0, solo = false;
   for (i2 = 0; i2 < list.length; i2++){
     var it2 = list[i2], isOver = false;
     for (j2 = 0; j2 < state.events.length; j2++){
@@ -3265,15 +3280,33 @@ function submitImport(){
               : (who2.length ? (who2.join('・') + ' の' + who2.length + '名へ') : '★届く方がいません');
     var md2 = it2.date.split('-');
     var ln2 = '　' + (+md2[1]) + '/' + (+md2[2]) + '　' + it2.title +
-              '　［' + targetToKind_(tg2) + '］→ ' + toStr;
+              (targetToKind_(tg2) ? '　［' + targetToKind_(tg2) + '］' : '') + '　→ ' + toStr;
     if (isOver){ ovList.push(ln2); over++; } else { newList.push(ln2); }
 
     /* ★5-A　届く方がいなくなる形を、押す前に知らせる */
     var mwc = String(tg2).match(/^作業[:：](.+)$/);
-    if (mwc && !workMembers_(mwc[1]).length){
-      warn.push('・' + it2.title + '：作業「' + mwc[1] + '」にメンバーが入っていません');
+    if (mwc){
+      var wlc = workMembers_(mwc[1]);
+      if (!wlc.length){
+        warn.push('・' + it2.title + '：作業「' + mwc[1] + '」にメンバーが入っていません');
+      } else {
+        /* ★修正3　マスタの名字が名簿にない（打ち間違い）を、押す前に知らせる */
+        var allc = realMembers_(), badc = [];
+        for (var b0 = 0; b0 < wlc.length; b0++){
+          if (allc.indexOf(wlc[b0]) < 0) badc.push(wlc[b0]);
+        }
+        if (badc.length) warn.push('・' + it2.title + '：作業「' + mwc[1] + '」の ' +
+          badc.join('・') + ' が名簿にありません（その方には届きません）');
+      }
     } else if (tg2 === '係のみ' && !String(it2.staff || '')){
       warn.push('・' + it2.title + '：係・担当の欄が空です');
+    }
+    /* ★届く方がご本人だけ（またはございません）なら、結果から直接判定する */
+    if (who2.length <= 1){
+      solo = true;
+      if (!mwc && tg2 !== '係のみ'){
+        warn.push('・' + it2.title + '：届く方が' + who2.length + '名しかいません');
+      }
     }
   }
 
@@ -3285,9 +3318,9 @@ function submitImport(){
   if (lineLeft != null) msg += '（LINEは今月あと' + lineLeft + '通）';
   msg += '\n\nまちがえても、あとから直せます・消せます';
   if (warn.length){
-    msg += '\n\n★ご確認ください\n' + warn.join('\n') +
-           '\n　このままですと、' + name + 'さんおひとりにしか届きません。\n' +
-           '　作業のメンバーを入れるか、種類を「集会・行事」に変えてください。';
+    msg += '\n\n★ご確認ください\n' + warn.join('\n');
+    if (solo) msg += '\n　このままですと、ほとんどの方に届きません。\n' +
+      '　作業のメンバーを直すか、種類を「集会・行事」に変えてください。';
   }
   msg += '\n\n登録してよろしいですか？';
   if (!confirm(msg)) return;
