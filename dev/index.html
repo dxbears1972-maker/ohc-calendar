@@ -928,7 +928,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-03e';
+var APP_VER = '2026-09-03f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2890,6 +2890,19 @@ function refreshAddTargetWho(){
   var mw = String(t).match(/^作業[:：](.+)$/);
   if (mw && !workMembers_(mw[1]).length){
     txt += '　★作業「' + mw[1] + '」にメンバーが入っていません。';
+  } else if (mw){
+    /* ★★2026-09-03　穴1　作業マスタの名字が名簿にないとき、押す前に名指しで知らせる。
+       　まとめて登録の確認画面には前からこの警告があったのに、
+       　杉野さんが実際に使うこのフォームには無かった。
+       　名簿に一人も当たらないと、届くのは登録者ひとりになる（サーバー側で係のみに落ちる）。 */
+    var wlf = workMembers_(mw[1]), allf = realMembers_(), badf = [];
+    for (var bf = 0; bf < wlf.length; bf++){
+      if (allf.indexOf(wlf[bf]) < 0) badf.push(wlf[bf]);
+    }
+    if (badf.length){
+      txt += '　★作業「' + mw[1] + '」の ' + badf.join('・') +
+             ' が名簿にありません（その方には届きません）。';
+    }
   } else if (t === '係のみ' && !serializeStaff()){
     txt += '　★係・担当の欄が空です。';
   }
