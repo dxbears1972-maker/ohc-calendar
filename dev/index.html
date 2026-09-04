@@ -853,38 +853,86 @@
    ここから下（「ここから下は共通」の行より下）は、
    どのクラブでも 1 文字も変えません。
    ------------------------------------------------------------------
-   新しいクラブに渡すときの手順
-     1. id を決める（半角英数字の小文字・3〜10文字。あとから変えない）
-     2. appTitle / homeTitle / contactLabel をそのクラブの言い方に変える
-     3. apiUrl にそのクラブ用の GAS のURL（…/exec）を貼る
-     4. members に名簿（名字だけ・50音順）を入れる
-     5. keys に個人コードを入れる（当面は従来どおり）
+   ★2026-09-04（工事B B-2）　ここに書くのは、もう2つだけです。
+
+   　　id     … どのクラブとして開くか。ふだんは URL の ?club=xxx で決まります
+   　　apiUrl … GAS のウェブアプリURL。★全クラブ共通の1本です
+
+   　クラブの名前・見た目・呼び名・マイカー精算のURLは、
+   　**サーバー（スプレッドシートの「設定」シート）から受け取ります。**
+   　→ 新しいクラブを増やすのに、このファイルを直す必要はありません。
+   　手順は internal.py の「新規クラブ導入チェックリスト」を見てください。
    ================================================================== */
+
+/* ------------------------------------------------------------------
+   ★2026-09-04　どのクラブとして開くかを、いちばん最初に決めます。
+
+     1. URL の ?club=xxx
+     2. 前にこの端末で開いたクラブ（下の控え）
+     3. どちらも無ければ 'ohc'
+
+   ★通すのは半角小文字英数字2〜10文字だけ（サーバー側とまったく同じ決まり）。
+   ★2回目からは、URLに ?club= が付いていなくても控えで分かります。
+   　ホーム画面のアイコンから開いたときも、これで正しいクラブになります。
+   ------------------------------------------------------------------ */
+var CLUB_LAST_KEY = 'clubId';   /* ★この控えだけは、クラブIDを付けません */
+
+function pickClubId_(){
+  var raw = '';
+  try {
+    var m = String(window.location.search || '').match(/[?&]club=([^&]+)/);
+    if (m){ try { raw = decodeURIComponent(m[1]); } catch(e0){ raw = m[1]; } }
+  } catch(e){}
+  raw = String(raw || '').toLowerCase();
+
+  /* ★URLに ?club= が付いていたら、それが正しくなくても、そのまま使います。
+     　黙って 'ohc' に落とすと、打ち間違えた方に OHC の予定が見えてしまうためです。
+     　正しくないクラブIDは、サーバーが入口で断ります。 */
+  if (raw){
+    if (/^[a-z0-9]{2,10}$/.test(raw)){
+      try { localStorage.setItem(CLUB_LAST_KEY, raw); } catch(e3){}
+    }
+    return raw;
+  }
+
+  /* ?club= が付いていないとき。前にこの端末で開いたクラブを使います */
+  var s = '';
+  try { s = String(localStorage.getItem(CLUB_LAST_KEY) || '').toLowerCase(); } catch(e2){}
+  if (!/^[a-z0-9]{2,10}$/.test(s)) s = 'ohc';
+  return s;
+}
+
 var CLUB = {
 
-  /* クラブを見分けるID（半角小文字英数字） */
-  id: 'ohc',
+  /* クラブを見分けるID（半角小文字英数字2〜10文字） */
+  id: pickClubId_(),
+
+  /* ------------------------------------------------------------------
+     ここから下は、サーバーの「設定」シートから受け取ります。
+     書いてあるのは「まだ受け取れていないとき（初回・圏外）」の予備です。
+     ★クラブごとに直す必要はありません。
+     ------------------------------------------------------------------ */
 
   /* 画面の上と、ブラウザのタブに出る名前 */
-  appTitle: 'OHC カレンダー【開発版】',   /* ★2026-09-03　本番と見分けるため */
+  appTitle: 'カレンダー',
 
   /* ホーム画面のアイコンの下に出る名前（短く。全角6文字くらいまで） */
-  homeTitle: 'OHC予定',
+  homeTitle: '予定',
 
   /* LINEで送る文章の先頭に付く見出し（【　】の中身） */
-  shareTag: 'OHC予定',
+  shareTag: '予定',
 
   /* 画面の色（ヘッダーの緑） */
   themeColor: '#2e6b34',
 
   /* 「分からないときは○○に連絡してください」の○○ */
-  contactLabel: '只隈さん',
+  contactLabel: '幹事さん',
 
   /* GAS のウェブアプリURL（https://script.google.com/macros/s/…/exec） */
   apiUrl: 'https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec',   /* ★開発版 */
 
-  /* マイカー精算アプリのURL */
-  carpoolUrl: 'https://dxbears1972-maker.github.io/ohc-calendar/carpool/',
+  /* マイカー精算アプリのURL（★サーバーの「設定」シートから受け取ります） */
+  carpoolUrl: '',
 
   /* ★2026-08-23：専用URL（?key=…／?name=…）で名乗れるようにするか。
      　false ＝ 使わない。どのクラブでも
@@ -902,8 +950,8 @@ var CLUB = {
      ▼戻したいときは、この1行を true にするだけ。 */
   useKeyUrl: false,
 
-  /* 管理者の名前（どの予定でも削除でき、出欠の回答も取り消せる） */
-  adminName: '只隈',
+  /* 管理者の名前（★名簿シートが正。ここは名簿が読めないときの予備で、ふだんは空） */
+  adminName: '',
 
   /* 幹事の名前（どの予定でも編集・削除・締切ができ、Excelまとめて登録も使える）
      杉野さん・大原さんは、自分が登録した予定／自分がリーダーの予定だけ編集できる
@@ -915,7 +963,7 @@ var CLUB = {
   /* メンバー一覧（増減したらここを直してGitHubに上げ直す）
      ※50音順に並べておくこと。出欠の名前がこの順で表示される
      ※将来はスプレッドシート管理に移す予定 */
-  members: [],   /* ★開発版では載せない。名簿はサーバー（data.members）から来る */
+  members: [],   /* ★載せません。名簿はサーバー（data.members）から来ます */
 
   /* 個人コード → 名前（★開発版では載せない。個人コードは既に無効） */
   keys: {}
@@ -928,7 +976,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-03f';
+var APP_VER = '2026-09-04a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -952,6 +1000,46 @@ function applyClubConfig(){
 }
 
 /* ------------------------------------------------------------------
+   ★2026-09-04（工事B B-2）　サーバーから届いたクラブの見た目・呼び名を当てる。
+
+   ★起動の一瞬だけ題名が空になるのを防ぐため、受け取った内容は端末に控え、
+   　次に開いたときは、サーバーの返事を待たずに先に当てます。
+   　（初回だけは電波が要ります。工事Aで受け入れ済みの前提と同じです）
+   ------------------------------------------------------------------ */
+/* ★管理者・幹事はここに入れません。名簿シートが正で、
+   　data.admins / data.editors として別に届きます（2-5の訂正）。 */
+var CLUB_CFG_KEYS = ['appTitle','homeTitle','shareTag','themeColor',
+                     'contactLabel','carpoolUrl'];
+
+function setClubCfg_(c, save){
+  if (!c) return;
+  var changed = false;
+  for (var i = 0; i < CLUB_CFG_KEYS.length; i++){
+    var k = CLUB_CFG_KEYS[i];
+    if (c[k] === undefined || c[k] === null || c[k] === '') continue;
+    /* 中身が同じなら何もしない。毎回 applyClubConfig を呼ぶと、
+       画面いちばん下の「（サーバー …）」が消えてしまうため。 */
+    var a = '', b = '';
+    try { a = JSON.stringify(CLUB[k]); b = JSON.stringify(c[k]); } catch(e){}
+    if (a === b) continue;
+    CLUB[k] = c[k];
+    changed = true;
+  }
+  if (save){
+    try { lsSet(LSK.club, JSON.stringify(c)); } catch(e2){}
+  }
+  if (changed) applyClubConfig();
+}
+
+/* 端末の控えから先に当てる（起動時に1回だけ） */
+function loadClubCfg_(){
+  try {
+    var c = JSON.parse(lsGet(LSK.club) || 'null');
+    if (c) setClubCfg_(c, false);
+  } catch(e){}
+}
+
+/* ------------------------------------------------------------------
    端末に覚えさせておく項目の名前。
    クラブごとに分けておかないと、1台の端末で2つのクラブを開いたときに
    名前や予定が混ざってしまうため、うしろにクラブIDを付ける。
@@ -967,7 +1055,8 @@ var LSK = {
   claimed:   'claimed_'   + CLUB.id,   /* この端末で登録済みの名前 */
   mid:       'mid_'       + CLUB.id,   /* この端末の持ち主の会員ID（名字が変わっても追える） */
   instHide:  'instHide_'  + CLUB.id,   /* ホーム画面の案内を閉じたか */
-  codeTip:   'codeTip_'   + CLUB.id    /* 4けたのお誘いを閉じたか（2026-08-23） */
+  codeTip:   'codeTip_'   + CLUB.id,   /* 4けたのお誘いを閉じたか（2026-08-23） */
+  club:      'club_'      + CLUB.id    /* ★2026-09-04 クラブの見た目・呼び名の控え */
 };
 
 /* この端末を見分けるための記号を作る（初回だけ）。
@@ -1037,7 +1126,7 @@ var API_URL = CLUB.apiUrl;
    会員が増減しても、ここを直す必要はありません。
    幹事さんが名簿シートに1行足すだけで反映されます。
    ------------------------------------------------------------------ */
-var ADMINS     = [CLUB.adminName];
+var ADMINS     = CLUB.adminName ? [CLUB.adminName] : [];
 var ADMIN_NAME = CLUB.adminName;
 var EDITORS    = CLUB.editors;
 var MEMBERS    = CLUB.members;
@@ -1117,8 +1206,8 @@ function byMember_(a, b){
   return a < b ? -1 : (a > b ? 1 : 0);
 }
 
-/* マイカー精算アプリのURL（設定は CLUB のほうを直すこと） */
-var CARPOOL_URL = CLUB.carpoolUrl;
+/* ★2026-09-04　マイカー精算アプリのURLは CLUB.carpoolUrl を直に見ます。
+   　サーバーから届いたあとに差し替わるため、ここで控えを作りません。 */
 
 /* 表題行の右端に置くアイコン（どの端末でも同じに出るようSVGで埋め込む・全て26px）
    ・CAR_ICON   ：マイカー精算（緑の車）
@@ -1384,6 +1473,9 @@ function api(method, body, cb, tryNo, fresh){
   }
   var xhr = new XMLHttpRequest();
   var url = API_URL;
+  /* ★2026-09-04（工事B）　どのクラブの用事かを、必ずURLで伝えます。
+     　付けないとサーバーが送信内容をのぞきに行くため、二度読みになります。 */
+  url += (url.indexOf('?') >= 0 ? '&' : '?') + 'club=' + encodeURIComponent(CLUB.id);
   if (method === 'GET'){
     url += (url.indexOf('?') >= 0 ? '&' : '?') + 'v=' + new Date().getTime();
     /* この端末の記号もいっしょに送る。
@@ -1417,6 +1509,8 @@ function api(method, body, cb, tryNo, fresh){
 }
 
 function applyData(data){
+  /* ★2026-09-04（工事B B-2）　クラブの見た目・呼び名。届いたら画面に当て、端末に控える */
+  if (data && data.club) { try { setClubCfg_(data.club, true); } catch(eCC){} }
   /* ★2026-08-24　LINEの残り通数（幹事・管理者にだけ届きます） */
   if (data && typeof data.lineLeft !== 'undefined') lineLeft = data.lineLeft;
   if (data && typeof data.lineMode !== 'undefined') lineMode = data.lineMode;
@@ -1653,6 +1747,14 @@ function load(fresh){
       showRetiredBlock();
       setStatus('');
       reloadBtnText_('');
+      return;
+    }
+    /* ★2026-09-04（工事B）　サーバーが「そのクラブは受け付けません」と
+       　断ったとき。中身は渡ってこないので、理由を画面に出して終わります。 */
+    if (data && data.error){
+      setStatus(String(data.error) +
+        '（URLの ?club= をお確かめください）', true);
+      reloadBtnText_('開けませんでした');
       return;
     }
     hideRetiredBlock();
@@ -2277,7 +2379,7 @@ function renderList(){
     var canSettle_ = (myn !== '') &&
                      (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn));
     var icons = canSettle_ ?
-      ('<a href="' + CARPOOL_URL + '?event=' + ev.id +
+      ('<a href="' + CLUB.carpoolUrl + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
         '&place=' + encodeURIComponent(ev.place || '') +
@@ -4573,6 +4675,9 @@ function changeName(){
 
 /* ---------- 初期化 ---------- */
 function init(){
+  /* ★2026-09-04　まず端末の控えからクラブの見た目・呼び名を当てる
+     　（applyClubConfig は、この中で呼ばれます）*/
+  loadClubCfg_();
   applyClubConfig();
   migrateOldKeys();
 
