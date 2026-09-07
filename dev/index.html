@@ -999,7 +999,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-04b';
+var APP_VER = '2026-09-07a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2401,8 +2401,14 @@ function renderList(){
        　会員の皆さんの画面から、使わないボタンを減らすためです。 */
     var canSettle_ = (myn !== '') &&
                      (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn));
+    /* ★2026-09-07（工事B B-3）精算アプリへ渡すもの
+       　・club … どのクラブの精算かを、精算アプリにも伝えます
+       　・「マイカー精算のURL」に ?gas=dev が付いていることがあるので、
+       　　 そのときは ? ではなく & でつなぎます（?が2つになるのを防ぐ） */
+    var carSep_ = (String(CLUB.carpoolUrl).indexOf('?') >= 0) ? '&' : '?';
     var icons = canSettle_ ?
-      ('<a href="' + CLUB.carpoolUrl + '?event=' + ev.id +
+      ('<a href="' + CLUB.carpoolUrl + carSep_ + 'club=' + encodeURIComponent(CLUB.id) +
+        '&event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
         '&place=' + encodeURIComponent(ev.place || '') +

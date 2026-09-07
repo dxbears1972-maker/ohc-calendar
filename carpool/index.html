@@ -12,6 +12,9 @@
 <meta name="apple-mobile-web-app-title" content="OHC精算">
 <title>OHC マイカー精算</title>
 <style>
+  /* ★2026-09-07（工事B B-3）画面の色はこの1本だけで決まります。
+     サーバー（設定シートの「画面の色」）が届いたら、ここを差し替えます。 */
+  :root { --club: #2e6b34; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
@@ -22,7 +25,7 @@
     padding-bottom: 60px;
   }
   header {
-    background: #2e6b34;
+    background: var(--club);
     color: #fff;
     padding: 16px;
     text-align: center;
@@ -43,8 +46,8 @@
   }
   .card h2 {
     font-size: 20px;
-    color: #2e6b34;
-    border-left: 6px solid #2e6b34;
+    color: var(--club);
+    border-left: 6px solid var(--club);
     padding-left: 10px;
     margin-bottom: 12px;
   }
@@ -59,7 +62,7 @@
     margin-top: 4px;
     background: #fff;
   }
-  input:focus, select:focus { border-color: #2e6b34; outline: none; }
+  input:focus, select:focus { border-color: var(--club); outline: none; }
   input.err { border-color: #c33; background: #fff0f0; }
   /* チェックで入力欄を出す */
   .chk-row { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 12px; }
@@ -69,20 +72,20 @@
     background: #eef3ee; border: 2px solid #cdd6cd;
     padding: 8px 12px; border-radius: 8px; cursor: pointer;
   }
-  .chk-row label.on { background: #d6ead6; border-color: #2e6b34; color: #2e6b34; }
+  .chk-row label.on { background: #d6ead6; border-color: var(--club); color: var(--club); }
   .chk-row input[type=checkbox] { width: 26px; height: 26px; }
   .opt-blk { display: none; }
   .opt-blk.on { display: block; }
   .row { display: flex; gap: 10px; }
   .row > div { flex: 1; }
-  .subhead { font-size: 15px; font-weight: bold; color: #2e6b34; margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
+  .subhead { font-size: 15px; font-weight: bold; color: var(--club); margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
   /* 人数ステッパー */
   .stepper { display: flex; align-items: center; gap: 14px; justify-content: center; margin-top: 8px; }
   .stepper button {
     width: 64px; height: 64px;
     font-size: 34px; font-weight: bold;
     border: none; border-radius: 50%;
-    background: #2e6b34; color: #fff;
+    background: var(--club); color: #fff;
     cursor: pointer;
   }
   .stepper button:active { background: #1d4a22; }
@@ -96,7 +99,7 @@
   }
   .btn-main { background: #d9541e; color: #fff; font-size: 26px; }
   .btn-main:active { background: #b34317; }
-  .btn-sub { background: #e8f0e8; color: #2e6b34; border: 2px dashed #2e6b34; }
+  .btn-sub { background: #e8f0e8; color: var(--club); border: 2px dashed var(--club); }
   a.btn { text-align: center; text-decoration: none; }
   .btn-small {
     font-size: 16px; padding: 8px 14px;
@@ -104,14 +107,14 @@
     background: #c33; color: #fff; cursor: pointer;
   }
   .car-card {
-    border: 2px solid #2e6b34;
+    border: 2px solid var(--club);
     border-radius: 10px;
     padding: 12px;
     margin-top: 12px;
     background: #f7fbf7;
   }
   .car-card .car-head { display: flex; justify-content: space-between; align-items: center; }
-  .car-card .car-title { font-size: 19px; font-weight: bold; color: #2e6b34; }
+  .car-card .car-title { font-size: 19px; font-weight: bold; color: var(--club); }
   /* 結果 */
   #result .per-person {
     background: #fff8e1;
@@ -129,10 +132,10 @@
     padding: 12px 0;
   }
   .result-car .name { font-size: 20px; font-weight: bold; }
-  .result-car .receive { font-size: 26px; font-weight: bold; color: #2e6b34; }
+  .result-car .receive { font-size: 26px; font-weight: bold; color: var(--club); }
   .result-car .detail { font-size: 14px; color: #555; }
   .check-ok {
-    background: #e7f4e7; border: 2px solid #2e6b34; color: #1d4a22;
+    background: #e7f4e7; border: 2px solid var(--club); color: #1d4a22;
     border-radius: 10px; padding: 10px; margin-top: 12px;
     font-size: 16px; font-weight: bold; text-align: center;
   }
@@ -141,7 +144,7 @@
   details { margin-top: 14px; }
   summary {
     font-size: 18px; font-weight: bold;
-    background: #dde8dd; color: #2e6b34;
+    background: #dde8dd; color: var(--club);
     padding: 12px; border-radius: 10px;
     cursor: pointer;
   }
@@ -156,8 +159,8 @@
   .etc-fees { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
   .etc-fees > div { flex: 1; }
   .etc-fees .fee-label { font-size: 14px; font-weight: bold; color: #555; display: block; margin: 0; }
-  .copied { text-align: center; color: #2e6b34; font-weight: bold; margin-top: 6px; display: none; }
-  .youbi { font-size: 18px; font-weight: bold; color: #2e6b34; margin-top: 4px; text-align: center; }
+  .copied { text-align: center; color: var(--club); font-weight: bold; margin-top: 6px; display: none; }
+  .youbi { font-size: 18px; font-weight: bold; color: var(--club); margin-top: 4px; text-align: center; }
   /* 履歴 */
   .hist-item { border-bottom: 1px solid #ccc; padding: 12px 0; }
   .hist-item .h-title { font-size: 18px; font-weight: bold; }
@@ -166,7 +169,7 @@
   .hist-btns .h-btn {
     font-size: 16px; padding: 8px 14px;
     border: none; border-radius: 8px;
-    background: #2e6b34; color: #fff; cursor: pointer;
+    background: var(--club); color: #fff; cursor: pointer;
   }
   .hist-item pre {
     white-space: pre-wrap; background: #f4f7f4;
@@ -201,7 +204,7 @@
     <div class="row">
       <div>
         <label>集合場所</label>
-        <input type="text" id="meetPlace" placeholder="例：大牟田市役所前">
+        <input type="text" id="meetPlace" placeholder="例：市役所前">
       </div>
       <div>
         <label>集合時間</label>
@@ -368,18 +371,59 @@
   <button type="button" class="btn btn-sub" onclick="clearForm()" style="margin-top:24px;">入力を全部消して最初から</button>
 
   <!-- 関連アプリ -->
-  <a class="btn" id="backCalBtn" style="background:#2e6b34;color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
+  <a class="btn" id="backCalBtn" style="background:var(--club);color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-08-24g</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-09-07a</p>
 
 </main>
 
 <script>
 "use strict";
-var LS_ETC = "ohc_carpool_etc";
-var LS_SET = "ohc_carpool_set";
-var LS_FORM = "ohc_carpool_form";
-var LS_HIST = "ohc_carpool_hist";
+
+/* ==================================================================
+   ★2026-09-07（工事B B-3）どのクラブの、どのサーバーにつなぐか
+
+   ★この精算アプリは、本番も開発版も、全クラブでこの1本だけです。
+   ・どのクラブか  … URL の ?club=xxx で決まります（無ければ端末の控え→ ohc）
+   ・どのサーバーか … URL に ?gas=dev が付いているときだけ開発版へ。
+   　　　　　　　　　 開発版の「設定」シートの「マイカー精算のURL」に
+   　　　　　　　　　 …/carpool/?gas=dev と書いてください。本番は空欄のままです。
+   ================================================================== */
+var GAS_PROD = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec";
+var GAS_DEV  = "https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
+var USE_DEV  = /[?&]gas=dev(&|$)/.test(location.search || "");
+var CAL_API  = USE_DEV ? GAS_DEV : GAS_PROD;
+
+/* クラブのID。★カレンダーと同じ控え（clubId）を使います。
+   　同じ場所に置いてあるアプリなので、カレンダーで一度開けばこちらも分かります。 */
+var CLUB_LAST_KEY = "clubId";
+function clubOk_(v) { return /^[a-z0-9]{2,10}$/.test(String(v || "")); }
+function pickClubId_() {
+  try {
+    var m = (location.search || "").match(/[?&]club=([^&]+)/);
+    if (m) {
+      var v = "";
+      try { v = decodeURIComponent(m[1]); } catch (e1) { v = m[1]; }
+      if (clubOk_(v)) {
+        try { localStorage.setItem(CLUB_LAST_KEY, v); } catch (e2) {}
+        return v;
+      }
+    }
+    var s0 = localStorage.getItem(CLUB_LAST_KEY);
+    if (clubOk_(s0)) return s0;
+  } catch (e) {}
+  return "ohc";
+}
+var CLUB_ID = pickClubId_();
+
+/* 端末に残す控えは、★クラブごとに別々にします。
+   　（同じ端末で2つのクラブを使っても、入力途中の下書きが混ざりません） */
+var LSP     = "carpool_" + CLUB_ID + "_";
+var OLD_LSP = "ohc_carpool_";
+var LS_ETC  = LSP + "etc";
+var LS_SET  = LSP + "set";
+var LS_FORM = LSP + "form";
+var LS_HIST = LSP + "hist";
 
 /* カレンダーの予定から開かれた場合は、その予定専用に入力データを分ける */
 var EVENT_ID = "", EVENT_DATE = "", EVENT_TITLE = "", EVENT_TIME = "", EVENT_PLACE = "", EVENT_N = 0;
@@ -400,13 +444,92 @@ try {
      そちらを優先し、この値では上書きしない（手で直した人数を守るため）。 */
   var mN = q0.match(/[?&]n=([^&]+)/); if (mN) EVENT_N = parseInt(mN[1], 10) || 0;
 } catch (e) {}
-if (EVENT_ID) LS_FORM = "ohc_carpool_form_" + EVENT_ID;
+if (EVENT_ID) LS_FORM = LSP + "form_" + EVENT_ID;
 
-/* カレンダーのデータ保存先（GAS）。精算結果の記録と料金表の共有に使う */
-var CAL_API = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec";
+/* ★2026-09-07（工事B B-3）控えの名前をクラブ別に変えたので、
+   　OHCの方の「入力途中」と「料金表」を、1回だけ新しい名前へ写します。
+   　（新しい名前にすでに何かあるときは、何もしません） */
+if (CLUB_ID === "ohc") {
+  try {
+    var mvKeys = ["etc", "set", "hist"];
+    if (EVENT_ID) mvKeys.push("form_" + EVENT_ID); else mvKeys.push("form");
+    for (var mi = 0; mi < mvKeys.length; mi++) {
+      var kNew = LSP + mvKeys[mi], kOld = OLD_LSP + mvKeys[mi];
+      if (localStorage.getItem(kNew) === null && localStorage.getItem(kOld) !== null) {
+        localStorage.setItem(kNew, localStorage.getItem(kOld));
+      }
+    }
+  } catch (e) {}
+}
 
-/* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う */
+/* カレンダーのデータ保存先（GAS）は、上の CAL_API で決めています。 */
+
+/* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う。
+   ★2026-09-07（工事B B-3）サーバー（設定シートの「アプリのURL」）が届いたら
+   　差し替わります。ここに書いてあるのは、まだ届いていないときの予備です。 */
 var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
+
+/* ------------------------------------------------------------------
+   ★2026-09-07（工事B B-3）クラブの見た目と呼び名
+
+   画面の名前・色・戻り先は、サーバーの「設定」シートから受け取ります。
+   カレンダー（index.html）とまったく同じ考え方です。
+   ここに書いてあるのは「まだ受け取れていないとき（初回・圏外）」の予備で、
+   ★クラブごとに直す必要はありません。
+   ------------------------------------------------------------------ */
+var CLUB_CFG_LSK = "carpool_club_" + CLUB_ID;
+
+function applyClub_(c) {
+  if (!c) return;
+  try {
+    var nm  = c.clubName || "";
+    var col = c.themeColor || "";
+
+    if (col) {
+      try { document.documentElement.style.setProperty("--club", col); } catch (e1) {}
+      var mt = document.querySelector('meta[name="theme-color"]');
+      if (mt) mt.setAttribute("content", col);
+    }
+
+    if (nm) {
+      document.title = nm + " マイカー精算";
+      var mat = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (mat) mat.setAttribute("content", nm + "精算");
+      var h1 = document.querySelector("header h1");
+      if (h1) h1.textContent = nm + " マイカー精算";
+      /* 予定から開かれているときは、ヘッダーの1行は「○月○日 △△ の精算」が勝ちます */
+      if (!EVENT_DATE && !EVENT_TITLE) {
+        var hp = document.querySelector("header p");
+        if (hp) hp.textContent = nm + "　カープール費用計算";
+      }
+    }
+
+    if (c.appUrl) {
+      var u = String(c.appUrl);
+      if (u.charAt(u.length - 1) !== "/") u += "/";
+      CAL_PAGE = u;
+    }
+
+    var back = document.getElementById("backCalBtn");
+    if (back) {
+      if (nm) back.textContent = "📅 " + nm + "カレンダーに戻る";
+      back.href = EVENT_ID ? (CAL_PAGE + "?goto=" + EVENT_ID) : CAL_PAGE;
+    }
+  } catch (e) {}
+}
+
+/* 起動の一瞬だけ前のクラブの名前が見える、を防ぐため、
+   前回サーバーから届いた内容を端末に控えておき、先に当てます。 */
+function loadClubCfg_() {
+  try {
+    var v = localStorage.getItem(CLUB_CFG_LSK);
+    if (v) applyClub_(JSON.parse(v));
+  } catch (e) {}
+}
+function saveClubCfg_(c) {
+  try { localStorage.setItem(CLUB_CFG_LSK, JSON.stringify(c)); } catch (e) {}
+}
+loadClubCfg_();
 
 /* ==================================================================
    このアプリの版。（2026-08-17k）
@@ -415,7 +538,7 @@ var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-08-24g";
+var APP_VER = "2026-09-07a";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -488,7 +611,8 @@ function updateYoubi() {
 /* ---------- サーバー通信（カレンダーと同じGASを使う） ---------- */
 function apiPost(body, cb) {
   var xhr = new XMLHttpRequest();
-  xhr.open("POST", CAL_API, true);
+  /* ★2026-09-07（工事B B-3）どのクラブかを、URLに付けて知らせます */
+  xhr.open("POST", CAL_API + "?club=" + encodeURIComponent(CLUB_ID), true);
   xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
   xhr.onreadystatechange = function () {
     if (xhr.readyState !== 4) return;
@@ -618,7 +742,7 @@ function foot_(items) {
    ------------------------------------------------------------------ */
 var MAP_BTN_CSS =
   'display:inline-block;padding:9px 14px;border-radius:9px;text-decoration:none;' +
-  'font-weight:bold;font-size:15px;border:2px solid #2e6b34;';
+  'font-weight:bold;font-size:15px;border:2px solid var(--club);';
 
 /* ------------------------------------------------------------------
    ★どの道で作った地図かを覚えておきます。（2026-08-17q）
@@ -703,7 +827,7 @@ function mapMatchesNow_() {
 function mapSaveAreaHtml_(url) {
   if (url && mapMatchesNow_()) {
     var h = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
-            'style="' + MAP_BTN_CSS + 'background:#fff;color:#2e6b34;">' +
+            'style="' + MAP_BTN_CSS + 'background:#fff;color:var(--club);">' +
             '🗺 地図を見る（PDF）</a>' +
             '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
             'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
@@ -713,7 +837,7 @@ function mapSaveAreaHtml_(url) {
       h += '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
            'この地図が<b>どの道順で作ったものかは記録がありません</b>' +
            '（古い精算のため）。いまの道順で<a href="javascript:void(0)" ' +
-           'onclick="saveRouteMap()" style="color:#2e6b34;font-weight:bold;">作り直す</a>と、' +
+           'onclick="saveRouteMap()" style="color:var(--club);font-weight:bold;">作り直す</a>と、' +
            '次からはっきり分かります。</div>';
     }
     return h;
@@ -721,7 +845,7 @@ function mapSaveAreaHtml_(url) {
   if (url) {
     /* 残してある地図が、いま選んでいる道と違うとき */
     return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
-           'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:#2e6b34;">' +
+           'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:var(--club);">' +
            '🗺 この道順で地図を作る</a>' +
            '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
            'いま残っている地図は <b>' + escapeHtml(routeMapLabel || "別の道") +
@@ -730,7 +854,7 @@ function mapSaveAreaHtml_(url) {
            'style="color:#5a6b5c;">（その地図を見る）</a></div>';
   }
   return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
-         'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:#2e6b34;">' +
+         'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:var(--club);">' +
          '🗺 地図をPDFで残す</a>';
 }
 
@@ -778,7 +902,7 @@ function tollHtml(t, label) {
 
 function routePointsHtml(points) {
   if (!points || !points.length) return "";
-  var h = '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#2e6b34;">' +
+  var h = '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--club);">' +
           'どこで乗り降りするか（' + points.length + '件）</summary>' +
           '<div style="margin-top:6px;line-height:1.7;">';
   for (var i = 0; i < points.length; i++) {
@@ -910,7 +1034,7 @@ function saveRouteMap() {
 
     msg.innerHTML = "地図を残しました。" + ul_(mli) +
       '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
-      'style="display:inline-block;margin-top:4px;padding:8px 12px;background:#2e6b34;' +
+      'style="display:inline-block;margin-top:4px;padding:8px 12px;background:var(--club);' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
       '🗺 保存した地図を見る</a>';
   });
@@ -1084,7 +1208,7 @@ function routeListHtml_(detail) {
   if (cur) {
     h += '<div style="margin:0 0 8px;padding:8px 11px;background:#eaf2ea;' +
          'border:1px solid #b9d2ba;border-radius:8px;font-size:14px;">' +
-         '<span style="color:#2e6b34;font-weight:bold;">✅ 選択中：候補' + (lastRouteIdx + 1) + '</span>　' +
+         '<span style="color:var(--club);font-weight:bold;">✅ 選択中：候補' + (lastRouteIdx + 1) + '</span>　' +
          '<b>' + cur.km + 'km</b>・' + cur.mins + '分' +
          (cur.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
          (routeSubLabel_(cur) ? '（' + escapeHtml(routeSubLabel_(cur)) + '）' : '') +
@@ -1094,13 +1218,13 @@ function routeListHtml_(detail) {
   /* ★計算する／地図を残す、をしたあとは、選び直しの一覧は畳んで
      選んだ道だけを見せます（2026-08-17） */
   if (routeLocked) {
-    h += '<div style="margin:0 0 4px;color:#2e6b34;font-weight:bold;">' +
+    h += '<div style="margin:0 0 4px;color:var(--club);font-weight:bold;">' +
          'この道順で確定しています' +
          '　<a href="javascript:void(0)" onclick="unlockRoute_()" ' +
          'style="font-weight:normal;font-size:13px;">（別の道に変更する）</a></div>';
     if (detail) {
       h += '<div style="margin:0 0 10px 0;padding:8px 12px;' +
-           'border-left:4px solid #2e6b34;background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           'border-left:4px solid var(--club);background:#f7faf7;border-radius:0 8px 8px 0;">' +
            detail + '</div>';
     }
     return h;
@@ -1112,10 +1236,10 @@ function routeListHtml_(detail) {
     var r = lastRouteList[i], on = (i === lastRouteIdx);
     h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
       'style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 11px;' +
-      'border-radius:9px;border:2px solid ' + (on ? '#2e6b34' : '#cfd8cd') + ';' +
+      'border-radius:9px;border:2px solid ' + (on ? 'var(--club)' : '#cfd8cd') + ';' +
       'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;' +
       (on ? '' : 'color:#7a857a;') + '">' +
-      '<span style="display:inline-block;background:' + (on ? '#2e6b34' : '#9aa89a') + ';' +
+      '<span style="display:inline-block;background:' + (on ? 'var(--club)' : '#9aa89a') + ';' +
       'color:#fff;font-size:12px;font-weight:bold;border-radius:5px;padding:1px 7px;' +
       'margin-right:6px;">候補' + (i + 1) + '</span>' +
       (on ? '✅ ' : '') + '<b style="color:' + (on ? '#1f3a20' : '#7a857a') + ';">' + r.km + 'km</b>・' + r.mins + '分' +
@@ -1125,7 +1249,7 @@ function routeListHtml_(detail) {
        　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
     if (on && detail) {
       h += '<div style="margin:0 0 10px 10px;padding:8px 12px;' +
-           'border-left:4px solid #2e6b34;background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           'border-left:4px solid var(--club);background:#f7faf7;border-radius:0 8px 8px 0;">' +
            detail + '</div>';
     }
   }
@@ -1176,7 +1300,7 @@ function showRoute_(i) {
   if (d.mapUrl) {
     btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
       'onclick="onMapViewed_()" ' +
-      'style="display:inline-block;margin:4px 0 2px;padding:8px 12px;background:#2e6b34;' +
+      'style="display:inline-block;margin:4px 0 2px;padding:8px 12px;background:var(--club);' +
       'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
       '🗺 この道順を地図で見る</a>' + slot +
       foot_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
@@ -1384,6 +1508,8 @@ function fetchRoutes() {
       var vl = document.getElementById("verLine");
       if (vl && data.gasver) vl.textContent = "版 " + APP_VER + "（サーバー " + data.gasver + "）";
     } catch (eV) {}
+    /* ★2026-09-07（工事B B-3）クラブの見た目と呼び名を当て、端末に控える */
+    if (data.club) { applyClub_(data.club); saveClubCfg_(data.club); }
     if (!data.routes) return;
     var local = getEtcRoutes();
     /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
@@ -2200,7 +2326,7 @@ function rememberFee(btn) {
     card.querySelector(".car-etc").value = fee;
   }
   card.querySelector(".fee-remember").innerHTML =
-    '<p class="note" style="color:#2e6b34;"><b>「' + escapeHtml(nm) + '」として覚えました。</b><br>' +
+    '<p class="note" style="color:var(--club);"><b>「' + escapeHtml(nm) + '」として覚えました。</b><br>' +
     '行き先「' + escapeHtml(dest) + '」で、次から自動で入ります。</p>';
   saveForm();
 }
