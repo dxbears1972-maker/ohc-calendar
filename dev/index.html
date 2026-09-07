@@ -833,6 +833,24 @@
       <div id="telBookList" class="unreadlist"></div>
     </div>
 
+    <!-- ★2026-09-07（工事C 段3）管理者の画面。見るだけ。
+         これまでスプレッドシートを開いて見ていたものを、ここで見られるようにします。
+         シートを開けるということは名簿を書き換えられるということなので、
+         「見るだけ」ならアプリで足りるようにするのが目的です。 -->
+    <div id="adminBox" style="display:none">
+      <h2 style="margin-top:4px">管理者の画面</h2>
+      <p class="note">スプレッドシートを開かなくても、ここで見られます。
+        <b>見るだけで、書き換えはできません。</b></p>
+      <p style="margin-bottom:8px">
+        <button type="button" class="subbtn" style="margin-bottom:6px"
+                onclick="showAdminView('logs')">操作の記録を見る</button>
+        <button type="button" class="subbtn"
+                onclick="showAdminView('members')">会員の一覧を見る</button>
+      </p>
+      <p class="note" id="adminMsg" style="display:none"></p>
+      <div id="adminList"></div>
+    </div>
+
     <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
       パソコンなど、べつの端末でも使う
     </button>
@@ -999,7 +1017,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-07a';
+var APP_VER = '2026-09-07b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4258,6 +4276,80 @@ function updateWho(){
     : 'まだお名前が選ばれていません。';
 }
 
+/* ------------------------------------------------------------------
+   ★2026-09-07（工事C 段3）　管理者の画面（見るだけ）
+
+   　サーバーが返すのは「安全な項目」だけです。
+   　★確認番号そのものと、端末の記号そのものは返ってきません。
+   　　管理者に要るのは「決めているか」「何台か」だけだからです。
+   ------------------------------------------------------------------ */
+var ADMIN_DATA = null;
+
+function showAdminView(which){
+  $('adminList').innerHTML = '';
+  $('adminMsg').style.display = 'block';
+  if (ADMIN_DATA){ renderAdmin_(which); return; }
+  $('adminMsg').textContent = '読み込んでいます…';
+  api('POST', { action: 'adminView', deviceId: deviceId(), name: myName },
+    function(err, data){
+      if (err || !data || data.error){
+        $('adminMsg').textContent = (data && data.error) ? data.error :
+          '読み込めませんでした。電波の良いところで、もう一度押してください。';
+        return;
+      }
+      ADMIN_DATA = data;
+      renderAdmin_(which);
+    });
+}
+
+function renderAdmin_(which){
+  var h = '';
+  if (which === 'logs'){
+    var lg = (ADMIN_DATA && ADMIN_DATA.logs) || [];
+    $('adminMsg').textContent = '新しい順に ' + lg.length + ' 件です。';
+    for (var i = 0; i < lg.length; i++){
+      h += '<div style="padding:8px 10px;border-bottom:1px solid #e3e8e3">' +
+             '<div style="font-size:14px;color:#777">' + esc(lg[i].when) + '</div>' +
+             '<div><b>' + esc(lg[i].who) + '</b>　' + esc(lg[i].what) + '</div>' +
+             (lg[i].detail ? '<div style="font-size:15px;color:#444">' +
+                             esc(lg[i].detail) + '</div>' : '') +
+           '</div>';
+    }
+    if (!lg.length) h = '<p class="note">記録がありません。</p>';
+  } else {
+    var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
+    var genki = 0;
+    for (var m0 = 0; m0 < mb.length; m0++){ if (!mb[m0].left) genki++; }
+    $('adminMsg').textContent = '在籍 ' + genki + '名（退会を含めて ' + mb.length + '行）です。';
+    for (var k = 0; k < mb.length; k++){
+      var m = mb[k];
+      var tag = [];
+      if (m.role) tag.push(m.role);
+      if (m.contact) tag.push('連絡窓口');
+      if (m.left) tag.push('退会');
+      h += '<div style="padding:8px 10px;border-bottom:1px solid #e3e8e3' +
+             (m.left ? ';opacity:.55' : '') + '">' +
+             '<div><b>' + esc(m.name) + '</b>' +
+               (m.yomi ? '<span style="font-size:14px;color:#777">（' + esc(m.yomi) + '）</span>' : '') +
+               (tag.length ? '<span style="font-size:14px;color:' +
+                             (CLUB.themeColor || '#2e6b34') + '">　' +
+                             esc(tag.join('・')) + '</span>' : '') +
+             '</div>' +
+             '<div style="font-size:14px;color:#666">' +
+               '端末 ' + (m.devices || 0) + '台' +
+               (m.status ? '（' + esc(m.status) + '）' : '') +
+               '　確認番号 ' + (m.hasCode ? 'あり' : 'まだ') +
+               (m.line ? '　LINE ' + esc(m.line) : '') +
+               (m.hasMail ? '　メールあり' : '') +
+               (m.hasTel ? '　電話あり' : '') +
+             '</div>' +
+           '</div>';
+    }
+    if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
+  }
+  $('adminList').innerHTML = h;
+}
+
 function openCfg(){
   updateWho();
   closeCodeForm();
@@ -4292,6 +4384,15 @@ function openCfg(){
       '<b>4けたの数字は、ほかの方には教えないでください。</b>';
   }
   $('setCodeNote').style.display = 'block';
+
+  /* ★2026-09-07（工事C 段3）管理者の画面は、管理者にだけ出します */
+  var ab = $('adminBox');
+  if (ab){
+    ab.style.display = isAdmin_(myName) ? 'block' : 'none';
+    ADMIN_DATA = null;                 /* 開くたびに読み直す */
+    $('adminList').innerHTML = '';
+    $('adminMsg').style.display = 'none';
+  }
 
   var rb = $('reInstallBtn');
   if (rb) rb.style.display = isStandalone() ? 'none' : 'block';
