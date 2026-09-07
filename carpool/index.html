@@ -373,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:var(--club);color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-09-07a</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-09-07b</p>
 
 </main>
 
@@ -491,12 +491,17 @@ function applyClub_(c) {
       if (mt) mt.setAttribute("content", col);
     }
 
-    if (nm) {
-      document.title = nm + " マイカー精算";
+    /* 画面の名前。設定シートの「マイカー精算の名前」が空欄なら
+       　サーバー側で「クラブ名＋ マイカー精算」が入って届きます。 */
+    var ttl = c.carpoolTitle || (nm ? nm + " マイカー精算" : "");
+    if (ttl) {
+      document.title = ttl;
       var mat = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-      if (mat) mat.setAttribute("content", nm + "精算");
+      if (mat) mat.setAttribute("content", ttl);
       var h1 = document.querySelector("header h1");
-      if (h1) h1.textContent = nm + " マイカー精算";
+      if (h1) h1.textContent = ttl;
+    }
+    if (nm) {
       /* 予定から開かれているときは、ヘッダーの1行は「○月○日 △△ の精算」が勝ちます */
       if (!EVENT_DATE && !EVENT_TITLE) {
         var hp = document.querySelector("header p");
@@ -512,7 +517,9 @@ function applyClub_(c) {
 
     var back = document.getElementById("backCalBtn");
     if (back) {
-      if (nm) back.textContent = "📅 " + nm + "カレンダーに戻る";
+      /* 戻り先の呼び名は、カレンダー側の「アプリの名前」に合わせます */
+      var calNm = c.appTitle || (nm ? nm + "カレンダー" : "");
+      if (calNm) back.textContent = "📅 " + calNm + "に戻る";
       back.href = EVENT_ID ? (CAL_PAGE + "?goto=" + EVENT_ID) : CAL_PAGE;
     }
   } catch (e) {}
@@ -538,7 +545,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-09-07a";
+var APP_VER = "2026-09-07b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
