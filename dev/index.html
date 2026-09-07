@@ -840,12 +840,16 @@
     <div id="adminBox" style="display:none">
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>見るだけで、書き換えはできません。</b></p>
+        <b>役割・連絡窓口・係の担当は、ここで変えられます。</b></p>
       <p style="margin-bottom:8px">
         <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('logs')">操作の記録を見る</button>
-        <button type="button" class="subbtn"
+        <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('members')">会員の一覧を見る</button>
+        <button type="button" class="subbtn" style="margin-bottom:6px"
+                onclick="showAdminView('roles')">役割・連絡窓口を変える</button>
+        <button type="button" class="subbtn"
+                onclick="showAdminView('works')">係の担当を変える</button>
       </p>
       <p class="note" id="adminMsg" style="display:none"></p>
       <div id="adminList"></div>
@@ -1017,7 +1021,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-07b';
+var APP_VER = '2026-09-08a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4304,6 +4308,8 @@ function showAdminView(which){
 
 function renderAdmin_(which){
   var h = '';
+  if (which === 'roles'){ renderRoles_(); return; }
+  if (which === 'works'){ renderWorks_(); return; }
   if (which === 'logs'){
     var lg = (ADMIN_DATA && ADMIN_DATA.logs) || [];
     $('adminMsg').textContent = '新しい順に ' + lg.length + ' 件です。';
@@ -4348,6 +4354,158 @@ function renderAdmin_(which){
     if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
   }
   $('adminList').innerHTML = h;
+}
+
+/* ==================================================================
+   ★★2026-09-08（工事D）　役割・連絡窓口・係の担当を、ここで変える
+
+   　名簿を別のファイルへ分けると、管理者はもう名簿を開けません。
+   　これまでシートでしていただいていた分を、ここへ移しました。
+   ================================================================== */
+var ADMIN_EDIT = null;      /* いま開いている編集の相手（名字 or 作業名） */
+
+/* 在籍している方だけ（退会した方は出しません） */
+function adminAlive_(){
+  var out = [], mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
+  for (var i = 0; i < mb.length; i++){ if (!mb[i].left) out.push(mb[i]); }
+  return out;
+}
+function adminFind_(name){
+  var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
+  for (var i = 0; i < mb.length; i++){ if (mb[i].name === name) return mb[i]; }
+  return null;
+}
+
+/* --- 役割・連絡窓口 --- */
+function renderRoles_(){
+  var mb = adminAlive_(), h = '';
+  $('adminMsg').textContent = '変えたい方の「変える」を押してください。';
+  for (var i = 0; i < mb.length; i++){
+    var m = mb[i];
+    var tag = [];
+    if (m.role) tag.push(m.role);
+    if (m.contact) tag.push('連絡窓口');
+    h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
+           '<div><b>' + esc(m.name) + '</b>' +
+             '<span style="font-size:15px;color:#666">　' +
+             esc(tag.length ? tag.join('・') : '（役割なし）') + '</span></div>' +
+           '<button type="button" class="subbtn" style="margin-top:6px"' +
+             ' onclick="adminEditMember(\'' + esc(m.name) + '\')">変える</button>' +
+         '</div>';
+  }
+  if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
+  $('adminList').innerHTML = h;
+}
+
+function adminEditMember(name){
+  var m = adminFind_(name);
+  if (!m) return;
+  ADMIN_EDIT = name;
+  var r = m.role || '';
+  function radio(v, label){
+    return '<label style="display:block;padding:8px 4px;font-size:17px">' +
+             '<input type="radio" name="admRole" value="' + v + '"' +
+             (r === v ? ' checked' : '') + '> ' + label + '</label>';
+  }
+  $('adminMsg').textContent = esc(name) + 'さんの役割を決めてください。';
+  $('adminList').innerHTML =
+    '<div style="padding:10px">' +
+      '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b> さん</div>' +
+      radio('', '役割なし（ふつうの会員）') +
+      radio('幹事', '幹事（予定を登録できます）') +
+      radio('管理者', '管理者（この画面を使えます）') +
+      '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
+        'border-top:1px solid #e3e8e3">' +
+        '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
+        ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
+      '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
+      '<button type="button" class="mainbtn" style="margin-top:8px"' +
+        ' onclick="adminSaveMember()">この内容で変える</button>' +
+      '<button type="button" class="subbtn" style="margin-top:8px"' +
+        ' onclick="showAdminView(\'roles\')">やめる</button>' +
+    '</div>';
+}
+
+function adminSaveMember(){
+  var name = ADMIN_EDIT;
+  if (!name) return;
+  var rs = document.getElementsByName('admRole'), role = '';
+  for (var i = 0; i < rs.length; i++){ if (rs[i].checked) role = rs[i].value; }
+  var ct = $('admContact') ? $('admContact').checked : false;
+  $('adminMsg').textContent = '変えています…';
+  api('POST', { action: 'adminSetMember', deviceId: deviceId(), name: myName,
+                target: name, role: role, contact: ct },
+    function(err, data){
+      if (err || !data || data.error){
+        $('adminMsg').textContent = (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        return;
+      }
+      ADMIN_DATA = null; ADMIN_EDIT = null;
+      showAdminView('roles');
+    });
+}
+
+/* --- 係の担当（作業マスタ） --- */
+function renderWorks_(){
+  var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], h = '';
+  $('adminMsg').textContent = '係を決めたい作業の「変える」を押してください。';
+  for (var i = 0; i < wk.length; i++){
+    h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
+           '<div><b>' + esc(wk[i].name) + '</b></div>' +
+           '<div style="font-size:15px;color:#666">' +
+             esc(wk[i].members.length ? wk[i].members.join('、') : '（まだ決まっていません）') +
+           '</div>' +
+           '<button type="button" class="subbtn" style="margin-top:6px"' +
+             ' onclick="adminEditWork(\'' + esc(wk[i].name) + '\')">変える</button>' +
+         '</div>';
+  }
+  if (!wk.length) h = '<p class="note">作業がまだ作られていません。' +
+                      'スプレッドシートの「作業」シートの1行目に、作業の名前を書いてください。</p>';
+  $('adminList').innerHTML = h;
+}
+
+function adminEditWork(name){
+  var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], cur = [];
+  for (var i = 0; i < wk.length; i++){ if (wk[i].name === name) cur = wk[i].members; }
+  ADMIN_EDIT = name;
+  var mb = adminAlive_(), h = '';
+  for (var k = 0; k < mb.length; k++){
+    var on = cur.indexOf(mb[k].name) >= 0;
+    h += '<label style="display:block;padding:8px 4px;font-size:17px;' +
+           'border-bottom:1px solid #eef1ee">' +
+           '<input type="checkbox" class="admWk" value="' + esc(mb[k].name) + '"' +
+           (on ? ' checked' : '') + '> ' + esc(mb[k].name) + '</label>';
+  }
+  $('adminMsg').textContent = esc(name) + 'の係を選んでください。';
+  $('adminList').innerHTML =
+    '<div style="padding:10px">' +
+      '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
+      h +
+      '<button type="button" class="mainbtn" style="margin-top:8px"' +
+        ' onclick="adminSaveWork()">この内容で変える</button>' +
+      '<button type="button" class="subbtn" style="margin-top:8px"' +
+        ' onclick="showAdminView(\'works\')">やめる</button>' +
+    '</div>';
+}
+
+function adminSaveWork(){
+  var name = ADMIN_EDIT;
+  if (!name) return;
+  var cbs = document.getElementsByClassName('admWk'), list = [];
+  for (var i = 0; i < cbs.length; i++){ if (cbs[i].checked) list.push(cbs[i].value); }
+  $('adminMsg').textContent = '変えています…';
+  api('POST', { action: 'adminSetWork', deviceId: deviceId(), name: myName,
+                work: name, members: list },
+    function(err, data){
+      if (err || !data || data.error){
+        $('adminMsg').textContent = (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        return;
+      }
+      ADMIN_DATA = null; ADMIN_EDIT = null;
+      showAdminView('works');
+    });
 }
 
 function openCfg(){
