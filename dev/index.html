@@ -840,14 +840,14 @@
     <div id="adminBox" style="display:none">
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>会員の手当て（役割・連絡窓口・端末・確認番号・退会）と係の担当は、ここで変えられます。</b></p>
+        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と係の担当は、ここで変えられます。</b></p>
       <p style="margin-bottom:8px">
         <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('logs')">操作の記録を見る</button>
         <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('members')">会員の一覧を見る</button>
         <button type="button" class="subbtn" style="margin-bottom:6px"
-                onclick="showAdminView('roles')">会員を手当てする</button>
+                onclick="showAdminView('roles')">会員の設定を変える</button>
         <button type="button" class="subbtn"
                 onclick="showAdminView('works')">係の担当を変える</button>
       </p>
@@ -1021,7 +1021,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08b';
+var APP_VER = '2026-09-08c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4289,6 +4289,19 @@ function updateWho(){
    ------------------------------------------------------------------ */
 var ADMIN_DATA = null;
 
+/* ★2026-09-08（工事E-1b）　開いた一覧を閉じるボタン。
+   　只隈さんのご指摘：31名の一覧が開きっぱなしになると、下まで送るのが大変。 */
+function admCloseBtn_(){
+  return '<button type="button" class="cancelbtn" style="margin-top:14px"' +
+         ' onclick="closeAdminView()">とじる</button>';
+}
+function closeAdminView(){
+  ADMIN_EDIT = null;
+  $('adminList').innerHTML = '';
+  $('adminMsg').style.display = 'none';
+  $('adminMsg').textContent = '';
+}
+
 function showAdminView(which){
   $('adminList').innerHTML = '';
   $('adminMsg').style.display = 'block';
@@ -4353,7 +4366,7 @@ function renderAdmin_(which){
     }
     if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
   }
-  $('adminList').innerHTML = h;
+  $('adminList').innerHTML = h + admCloseBtn_();
 }
 
 /* ==================================================================
@@ -4376,14 +4389,14 @@ function adminFind_(name){
   return null;
 }
 
-/* --- 会員を1人ずつ手当てする（役割・連絡窓口・端末・確認番号・退会） ---
+/* --- 会員の設定を、1人ずつ変える（役割・連絡窓口・端末・確認番号・退会） ---
    ★2026-09-08（工事E-1）　ボタンを増やさず、この1枚にまとめました。
    　会員を選ぶ → その方についてできることが、上から順に1列に並びます。 */
 function renderRoles_(){
   var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
   var live = [], gone = [];
   for (var i0 = 0; i0 < mb.length; i0++){ (mb[i0].left ? gone : live).push(mb[i0]); }
-  $('adminMsg').textContent = '手当てしたい方の「変える」を押してください。';
+  $('adminMsg').textContent = '変えたい方の「変える」を押してください。';
   var h = '';
   for (var i = 0; i < live.length; i++) h += adminCard_(live[i]);
   if (gone.length){
@@ -4392,7 +4405,7 @@ function renderRoles_(){
     for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
   }
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
-  $('adminList').innerHTML = h;
+  $('adminList').innerHTML = h + admCloseBtn_();
 }
 
 function adminCard_(m){
@@ -4434,7 +4447,7 @@ function adminEditMember(name){
          '<button type="button" class="bigbtn" style="margin-top:8px"' +
            ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>';
   } else {
-    $('adminMsg').textContent = name + 'さんの手当てをします。';
+    $('adminMsg').textContent = name + 'さんの設定を変えます。';
 
     /* ① 役割・連絡窓口（★工事Dで作った分。ここへ移しました） */
     h += radio('', '役割なし（ふつうの会員）') +
@@ -4560,7 +4573,7 @@ function renderWorks_(){
   }
   if (!wk.length) h = '<p class="note">作業がまだ作られていません。' +
                       'スプレッドシートの「作業」シートの1行目に、作業の名前を書いてください。</p>';
-  $('adminList').innerHTML = h;
+  $('adminList').innerHTML = h + admCloseBtn_();
 }
 
 function adminEditWork(name){
