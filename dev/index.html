@@ -1064,7 +1064,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08h';
+var APP_VER = '2026-09-08i';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4548,6 +4548,11 @@ function adminEditMember(name){
   if (!m) return;
   ADMIN_EDIT = name;
   var r = m.role || '';
+  /* ★2026-09-08（工事E-1h）　只隈さん「本人なのにこのメッセージですよ」。
+     　ご自身は退会にできないと分かっているのに、「よろしいですか？」と聞いて、
+     　OKのあと5秒待たせてから断っていました。★聞かずに、はじめから出しません。 */
+  var isSelf = String(name).replace(/[\s　]/g, '') ===
+               String(myName || '').replace(/[\s　]/g, '');
   function radio(v, label){
     return '<label style="display:block;padding:8px 4px;font-size:17px">' +
              '<input type="radio" name="admRole" value="' + v + '"' +
@@ -4615,14 +4620,21 @@ function adminEditMember(name){
     }
     h += '</div>';
 
-    /* ④ 退会 */
+    /* ④ 退会（★ご自身にはボタンを出しません） */
     h += '<div class="admsec">' +
-           '<div class="admsec-h">退会</div>' +
-           '<p class="note" style="margin-top:0">退会にすると、会員の一覧にも、出欠のお相手にも' +
-             '出なくなります。過去の記録は残ります。<b>あとで取り消せます。</b></p>' +
+           '<div class="admsec-h">退会</div>';
+    if (isSelf){
+      h += '<p class="note" style="margin-top:0"><b>ご自身を退会にすることはできません。</b><br>' +
+             '押し間違いで、どなたもこの画面を使えなくなるのを防ぐためです。<br>' +
+             'ご自身の退会が必要なときは、先にほかの方を管理者にして、その方に操作していただきます。</p>';
+    } else {
+      h += '<p class="note" style="margin-top:0">退会にすると、会員の一覧にも、出欠のお相手にも' +
+             '出なくなります。<b>その方は、いつもの端末からアプリを開けなくなります。</b><br>' +
+             '過去の記録は残ります。<b>あとで取り消せます。</b></p>' +
            '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'leave\')">この方を退会にする</button>' +
-         '</div>';
+             ' onclick="adminMemberOp(\'leave\')">この方を退会にする</button>';
+    }
+    h += '</div>';
   }
 
   h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
