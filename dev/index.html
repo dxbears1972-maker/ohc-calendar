@@ -1064,7 +1064,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08i';
+var APP_VER = '2026-09-08j';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4365,6 +4365,28 @@ function admSay_(msg, isErr){
   if (el){ try { el.scrollIntoView({ block: 'center' }); } catch (eS){} }
 }
 
+/* ★2026-09-08（工事E-1i）　変えたあとは、その方の画面のまま結果を見せます。
+   　只隈さん「退会を押したけど、退会を取り消すはない気がしますが」。
+   　一覧の先頭へ戻していたので、退会にした方は★31名の下のほう（退会の欄）へ
+   　行ってしまい、見つけられませんでした。 */
+function admAfterMember_(name){
+  ADMIN_DATA = null; ADMIN_EDIT = null;
+  ADMIN_PANE = 'roles';
+  var msgEl = $('adminMsg_roles');
+  if (msgEl) msgEl.textContent = '読み込んでいます…';
+  adminLoad_(function(msg){
+    if (ADMIN_PANE !== 'roles') return;
+    if (msg){ admSay_(msg, true); return; }
+    if (adminFind_(name)){
+      adminEditMember(name);
+    } else {
+      renderRoles_();          /* 名簿から見つからないときだけ、一覧へ戻ります */
+    }
+    var bt = $('admBtn_roles');
+    if (bt){ try { bt.scrollIntoView({ block: 'start' }); } catch (eA){} }
+  });
+}
+
 function admBack_(which){
   ADMIN_DATA = null; ADMIN_EDIT = null;
   showAdminView(which, true);
@@ -4670,7 +4692,7 @@ function adminMemberOp(op){
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      admBack_('roles');
+      admAfterMember_(name);
     });
 }
 
@@ -4689,7 +4711,7 @@ function adminSaveMember(){
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      admBack_('roles');
+      admAfterMember_(name);
     });
 }
 
