@@ -314,6 +314,23 @@
     box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
   }
   .admpane.on { display: block; }
+  /* ★2026-09-08（工事E-1e）ひとかたまりごとに白い箱で区切る。
+     　只隈さんのご指摘：「全部緑だと、どのボタンがどの一覧のものか分かりづらい」 */
+  .admsec {
+    background: #fff; border: 1px solid #d5ded5; border-radius: 10px;
+    padding: 6px 10px 12px; margin-top: 12px;
+  }
+  .admsec-h {
+    font-size: 16px; font-weight: bold; color: #2e6b34;
+    border-left: 5px solid #2e6b34; padding-left: 8px; margin: 4px 0 6px;
+  }
+  /* 気をつけて押すボタン（リセット・退会）。緑の「決める」ボタンと分ける */
+  .carebtn {
+    width: 100%; font-size: 18px; font-weight: bold;
+    padding: 10px 0; margin-top: 10px;
+    background: #fff; color: #8a5a00;
+    border: 2px solid #e8a000; border-radius: 10px;
+  }
   .subbtn.on { box-shadow: inset 0 3px 6px rgba(0,0,0,.40); }
   .cancelbtn {
     width: 100%; font-size: 16px;
@@ -1046,7 +1063,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08e';
+var APP_VER = '2026-09-08f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4373,10 +4390,13 @@ function adminLoad_(cb){
     });
 }
 
-function showAdminView(which){
+/* ★force を true にすると、たたまずに必ず開き直します。
+   　保存のあとや「やめる」から一覧へ戻るときに使います。
+   　（★2026-09-08：これが無く、保存のあとに逆に閉じていました） */
+function showAdminView(which, force){
   var pane = $('admPane_' + which);
   if (!pane) return;
-  var wasOpen = (ADMIN_PANE === which) && (pane.className.indexOf('on') >= 0);
+  var wasOpen = !force && (ADMIN_PANE === which) && (pane.className.indexOf('on') >= 0);
   admPanesOff_();
   ADMIN_EDIT = null;
   if (wasOpen){ ADMIN_PANE = ''; return; }   /* ★もう一度押したら、たたみます */
@@ -4512,71 +4532,80 @@ function adminEditMember(name){
              '<input type="radio" name="admRole" value="' + v + '"' +
              (r === v ? ' checked' : '') + '> ' + label + '</label>';
   }
-  var h = '<div style="padding:10px">' +
-          '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b> さん</div>';
+  var h = '<div style="padding:2px 0 4px">' +
+          '<div style="font-size:19px;margin:4px 0 2px"><b>' + esc(name) + '</b> さん</div>';
 
   if (m.left){
     /* --- 退会になっている方 --- */
     admMsg_().textContent = name + 'さんは、いま退会になっています。';
-    h += '<p class="note" style="margin-top:0">会員の一覧にも、出欠のお相手にも出てきません。' +
-           '過去の記録は、お名前のまま残っています。</p>' +
-         '<button type="button" class="bigbtn" style="margin-top:8px"' +
-           ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>';
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">退会</div>' +
+           '<p class="note" style="margin-top:0">会員の一覧にも、出欠のお相手にも出てきません。' +
+             '過去の記録は、お名前のまま残っています。</p>' +
+           '<button type="button" class="bigbtn"' +
+             ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>' +
+         '</div>';
   } else {
     admMsg_().textContent = name + 'さんの設定を変えます。';
 
-    /* ① 役割・連絡窓口（★工事Dで作った分。ここへ移しました） */
-    h += radio('', '役割なし（ふつうの会員）') +
-         radio('幹事', '幹事（予定を登録できます）') +
-         radio('管理者', '管理者（この画面を使えます）') +
-         '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
-           'border-top:1px solid #e3e8e3">' +
-           '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
-           ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
-         '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
-         '<button type="button" class="bigbtn" style="margin-top:8px"' +
-           ' onclick="adminSaveMember()">この内容で変える</button>';
+    /* ① 役割・連絡窓口 */
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">役割と連絡窓口</div>' +
+           radio('', '役割なし（ふつうの会員）') +
+           radio('幹事', '幹事（予定を登録できます）') +
+           radio('管理者', '管理者（この画面を使えます）') +
+           '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
+             'border-top:1px solid #e3e8e3">' +
+             '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
+             ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
+           '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
+           '<button type="button" class="bigbtn"' +
+             ' onclick="adminSaveMember()">この内容で変える</button>' +
+         '</div>';
 
     /* ② 端末（機種変更のとき） */
-    h += '<div style="margin-top:18px;border-top:1px solid #e3e8e3;padding-top:12px">' +
-           '<div style="font-size:17px">端末　<b>' + (m.devices || 0) + '台</b>' +
-             (m.status ? '<span style="font-size:14px;color:#666">　' +
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">端末　' + (m.devices || 0) + '台' +
+             (m.status ? '<span style="font-weight:normal;font-size:14px;color:#666">　' +
                          esc(m.status) + '</span>' : '') + '</div>';
     if (m.devices){
-      h += '<p class="note" style="margin-top:2px">機種を変えて、新しい端末から入れないときに' +
+      h += '<p class="note" style="margin-top:0">機種を変えて、新しい端末から入れないときに' +
              'いったん空にします。そのあと、新しい端末でお名前を選び直していただきます。</p>' +
-           '<button type="button" class="subbtn"' +
+           '<button type="button" class="carebtn"' +
              ' onclick="adminMemberOp(\'resetDevice\')">端末の登録をリセットする</button>';
     } else {
-      h += '<p class="note" style="margin-top:2px">まだ、どの端末からもお使いになっていません。</p>';
+      h += '<p class="note" style="margin-top:0">まだ、どの端末からもお使いになっていません。</p>';
     }
+    h += '</div>';
 
     /* ③ 確認番号（4けたを忘れたとき） */
-    h += '<div style="font-size:17px;margin-top:16px">確認番号　<b>' +
-           (m.hasCode ? 'あり' : 'まだ決めていません') + '</b></div>';
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">確認番号　' +
+             (m.hasCode ? 'あり' : 'まだ決めていません') + '</div>';
     if (m.hasCode){
-      h += '<p class="note" style="margin-top:2px">4けたの数字を忘れた方に使います。' +
+      h += '<p class="note" style="margin-top:0">4けたの数字を忘れた方に使います。' +
              '消したあと、ふだんお使いの端末の⚙設定から決め直していただきます。<br>' +
              '<b>番号そのものは、この画面には出ません。</b></p>' +
-           '<button type="button" class="subbtn"' +
+           '<button type="button" class="carebtn"' +
              ' onclick="adminMemberOp(\'resetCode\')">確認番号をリセットする</button>';
     } else {
-      h += '<p class="note" style="margin-top:2px">2台目をお使いになる方だけが決める番号です。' +
+      h += '<p class="note" style="margin-top:0">2台目をお使いになる方だけが決める番号です。' +
              '決めていなくてかまいません。</p>';
     }
     h += '</div>';
 
     /* ④ 退会 */
-    h += '<div style="margin-top:18px;border-top:1px solid #e3e8e3;padding-top:12px">' +
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">退会</div>' +
            '<p class="note" style="margin-top:0">退会にすると、会員の一覧にも、出欠のお相手にも' +
              '出なくなります。過去の記録は残ります。<b>あとで取り消せます。</b></p>' +
-           '<button type="button" class="cancelbtn"' +
+           '<button type="button" class="carebtn"' +
              ' onclick="adminMemberOp(\'leave\')">この方を退会にする</button>' +
          '</div>';
   }
 
   h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
-         ' onclick="showAdminView(\'roles\')">やめる</button></div>';
+         ' onclick="showAdminView(\'roles\', true)">やめる</button></div>';
   admList_().innerHTML = h;
 }
 
@@ -4609,7 +4638,7 @@ function adminMemberOp(op){
         return;
       }
       ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('roles');
+      showAdminView('roles', true);
     });
 }
 
@@ -4629,7 +4658,7 @@ function adminSaveMember(){
         return;
       }
       ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('roles');
+      showAdminView('roles', true);
     });
 }
 
@@ -4672,7 +4701,7 @@ function adminEditWork(name){
       '<button type="button" class="bigbtn" style="margin-top:8px"' +
         ' onclick="adminSaveWork()">この内容で変える</button>' +
       '<button type="button" class="cancelbtn" style="margin-top:8px"' +
-        ' onclick="showAdminView(\'works\')">やめる</button>' +
+        ' onclick="showAdminView(\'works\', true)">やめる</button>' +
     '</div>';
 }
 
@@ -4691,7 +4720,7 @@ function adminSaveWork(){
         return;
       }
       ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('works');
+      showAdminView('works', true);
     });
 }
 
