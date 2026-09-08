@@ -840,14 +840,14 @@
     <div id="adminBox" style="display:none">
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>役割・連絡窓口・係の担当は、ここで変えられます。</b></p>
+        <b>会員の手当て（役割・連絡窓口・端末・確認番号・退会）と係の担当は、ここで変えられます。</b></p>
       <p style="margin-bottom:8px">
         <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('logs')">操作の記録を見る</button>
         <button type="button" class="subbtn" style="margin-bottom:6px"
                 onclick="showAdminView('members')">会員の一覧を見る</button>
         <button type="button" class="subbtn" style="margin-bottom:6px"
-                onclick="showAdminView('roles')">役割・連絡窓口を変える</button>
+                onclick="showAdminView('roles')">会員を手当てする</button>
         <button type="button" class="subbtn"
                 onclick="showAdminView('works')">係の担当を変える</button>
       </p>
@@ -1021,7 +1021,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08a';
+var APP_VER = '2026-09-08b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4376,25 +4376,41 @@ function adminFind_(name){
   return null;
 }
 
-/* --- 役割・連絡窓口 --- */
+/* --- 会員を1人ずつ手当てする（役割・連絡窓口・端末・確認番号・退会） ---
+   ★2026-09-08（工事E-1）　ボタンを増やさず、この1枚にまとめました。
+   　会員を選ぶ → その方についてできることが、上から順に1列に並びます。 */
 function renderRoles_(){
-  var mb = adminAlive_(), h = '';
-  $('adminMsg').textContent = '変えたい方の「変える」を押してください。';
-  for (var i = 0; i < mb.length; i++){
-    var m = mb[i];
-    var tag = [];
-    if (m.role) tag.push(m.role);
-    if (m.contact) tag.push('連絡窓口');
-    h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
-           '<div><b>' + esc(m.name) + '</b>' +
-             '<span style="font-size:15px;color:#666">　' +
-             esc(tag.length ? tag.join('・') : '（役割なし）') + '</span></div>' +
-           '<button type="button" class="subbtn" style="margin-top:6px"' +
-             ' onclick="adminEditMember(\'' + esc(m.name) + '\')">変える</button>' +
-         '</div>';
+  var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
+  var live = [], gone = [];
+  for (var i0 = 0; i0 < mb.length; i0++){ (mb[i0].left ? gone : live).push(mb[i0]); }
+  $('adminMsg').textContent = '手当てしたい方の「変える」を押してください。';
+  var h = '';
+  for (var i = 0; i < live.length; i++) h += adminCard_(live[i]);
+  if (gone.length){
+    h += '<p class="note" style="margin:16px 0 0;padding:0 10px">' +
+         '退会になっている方（' + gone.length + '名）</p>';
+    for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
   }
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
   $('adminList').innerHTML = h;
+}
+
+function adminCard_(m){
+  var tag = [];
+  if (m.role) tag.push(m.role);
+  if (m.contact) tag.push('連絡窓口');
+  return '<div style="padding:10px;border-bottom:1px solid #e3e8e3' +
+           (m.left ? ';opacity:.55' : '') + '">' +
+           '<div><b>' + esc(m.name) + '</b>' +
+             '<span style="font-size:15px;color:#666">　' +
+             esc(m.left ? '退会' : (tag.length ? tag.join('・') : '（役割なし）')) +
+             '</span></div>' +
+           '<div style="font-size:14px;color:#888">端末 ' + (m.devices || 0) + '台' +
+             '　確認番号 ' + (m.hasCode ? 'あり' : 'まだ') + '</div>' +
+           '<button type="button" class="subbtn" style="margin-top:6px"' +
+             ' onclick="adminEditMember(\'' + esc(m.name) + '\')">' +
+             (m.left ? '退会を取り消す' : '変える') + '</button>' +
+         '</div>';
 }
 
 function adminEditMember(name){
@@ -4407,23 +4423,105 @@ function adminEditMember(name){
              '<input type="radio" name="admRole" value="' + v + '"' +
              (r === v ? ' checked' : '') + '> ' + label + '</label>';
   }
-  $('adminMsg').textContent = esc(name) + 'さんの役割を決めてください。';
-  $('adminList').innerHTML =
-    '<div style="padding:10px">' +
-      '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b> さん</div>' +
-      radio('', '役割なし（ふつうの会員）') +
-      radio('幹事', '幹事（予定を登録できます）') +
-      radio('管理者', '管理者（この画面を使えます）') +
-      '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
-        'border-top:1px solid #e3e8e3">' +
-        '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
-        ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
-      '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
-      '<button type="button" class="mainbtn" style="margin-top:8px"' +
-        ' onclick="adminSaveMember()">この内容で変える</button>' +
-      '<button type="button" class="subbtn" style="margin-top:8px"' +
-        ' onclick="showAdminView(\'roles\')">やめる</button>' +
-    '</div>';
+  var h = '<div style="padding:10px">' +
+          '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b> さん</div>';
+
+  if (m.left){
+    /* --- 退会になっている方 --- */
+    $('adminMsg').textContent = name + 'さんは、いま退会になっています。';
+    h += '<p class="note" style="margin-top:0">会員の一覧にも、出欠のお相手にも出てきません。' +
+           '過去の記録は、お名前のまま残っています。</p>' +
+         '<button type="button" class="bigbtn" style="margin-top:8px"' +
+           ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>';
+  } else {
+    $('adminMsg').textContent = name + 'さんの手当てをします。';
+
+    /* ① 役割・連絡窓口（★工事Dで作った分。ここへ移しました） */
+    h += radio('', '役割なし（ふつうの会員）') +
+         radio('幹事', '幹事（予定を登録できます）') +
+         radio('管理者', '管理者（この画面を使えます）') +
+         '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
+           'border-top:1px solid #e3e8e3">' +
+           '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
+           ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
+         '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
+         '<button type="button" class="bigbtn" style="margin-top:8px"' +
+           ' onclick="adminSaveMember()">この内容で変える</button>';
+
+    /* ② 端末（機種変更のとき） */
+    h += '<div style="margin-top:18px;border-top:1px solid #e3e8e3;padding-top:12px">' +
+           '<div style="font-size:17px">端末　<b>' + (m.devices || 0) + '台</b>' +
+             (m.status ? '<span style="font-size:14px;color:#666">　' +
+                         esc(m.status) + '</span>' : '') + '</div>';
+    if (m.devices){
+      h += '<p class="note" style="margin-top:2px">機種を変えて、新しい端末から入れないときに' +
+             'いったん空にします。そのあと、新しい端末でお名前を選び直していただきます。</p>' +
+           '<button type="button" class="subbtn"' +
+             ' onclick="adminMemberOp(\'resetDevice\')">端末の登録をリセットする</button>';
+    } else {
+      h += '<p class="note" style="margin-top:2px">まだ、どの端末からもお使いになっていません。</p>';
+    }
+
+    /* ③ 確認番号（4けたを忘れたとき） */
+    h += '<div style="font-size:17px;margin-top:16px">確認番号　<b>' +
+           (m.hasCode ? 'あり' : 'まだ決めていません') + '</b></div>';
+    if (m.hasCode){
+      h += '<p class="note" style="margin-top:2px">4けたの数字を忘れた方に使います。' +
+             '消したあと、ふだんお使いの端末の⚙設定から決め直していただきます。<br>' +
+             '<b>番号そのものは、この画面には出ません。</b></p>' +
+           '<button type="button" class="subbtn"' +
+             ' onclick="adminMemberOp(\'resetCode\')">確認番号をリセットする</button>';
+    } else {
+      h += '<p class="note" style="margin-top:2px">2台目をお使いになる方だけが決める番号です。' +
+             '決めていなくてかまいません。</p>';
+    }
+    h += '</div>';
+
+    /* ④ 退会 */
+    h += '<div style="margin-top:18px;border-top:1px solid #e3e8e3;padding-top:12px">' +
+           '<p class="note" style="margin-top:0">退会にすると、会員の一覧にも、出欠のお相手にも' +
+             '出なくなります。過去の記録は残ります。<b>あとで取り消せます。</b></p>' +
+           '<button type="button" class="cancelbtn"' +
+             ' onclick="adminMemberOp(\'leave\')">この方を退会にする</button>' +
+         '</div>';
+  }
+
+  h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
+         ' onclick="showAdminView(\'roles\')">やめる</button></div>';
+  $('adminList').innerHTML = h;
+}
+
+/* ★2026-09-08（工事E-1）　退会・端末リセット・確認番号リセット */
+function adminMemberOp(op){
+  var name = ADMIN_EDIT;
+  if (!name) return;
+  var q = '';
+  if (op === 'resetDevice')
+    q = '「' + name + '」さんの端末の登録を、すべて消します。\n' +
+        'そのあと、新しい端末でお名前を選び直していただきます。\n\nよろしいですか？';
+  if (op === 'resetCode')
+    q = '「' + name + '」さんの確認番号を消します。\n' +
+        'そのあと、ご本人に決め直していただきます。\n\nよろしいですか？';
+  if (op === 'leave')
+    q = '「' + name + '」さんを退会にします。\n' +
+        '会員の一覧にも、出欠のお相手にも出なくなります。\n\nよろしいですか？';
+  if (op === 'rejoin')
+    q = '「' + name + '」さんの退会を取り消します。\n' +
+        '役割は「なし」で戻ります。\n\nよろしいですか？';
+  if (!q || !confirm(q)) return;
+
+  $('adminMsg').textContent = '変えています…';
+  api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
+                target: name, op: op },
+    function(err, data){
+      if (err || !data || data.error){
+        $('adminMsg').textContent = (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        return;
+      }
+      ADMIN_DATA = null; ADMIN_EDIT = null;
+      showAdminView('roles');
+    });
 }
 
 function adminSaveMember(){
@@ -4482,9 +4580,9 @@ function adminEditWork(name){
     '<div style="padding:10px">' +
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
       h +
-      '<button type="button" class="mainbtn" style="margin-top:8px"' +
+      '<button type="button" class="bigbtn" style="margin-top:8px"' +
         ' onclick="adminSaveWork()">この内容で変える</button>' +
-      '<button type="button" class="subbtn" style="margin-top:8px"' +
+      '<button type="button" class="cancelbtn" style="margin-top:8px"' +
         ' onclick="showAdminView(\'works\')">やめる</button>' +
     '</div>';
 }
