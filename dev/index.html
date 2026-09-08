@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08k';
+var APP_VER = '2026-09-08l';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4379,6 +4379,15 @@ function admSay_(msg, isErr){
    　只隈さん「退会を押したけど、退会を取り消すはない気がしますが」。
    　一覧の先頭へ戻していたので、退会にした方は★31名の下のほう（退会の欄）へ
    　行ってしまい、見つけられませんでした。 */
+/* ★2026-09-08（工事E-1k）　書き換えの返事に、新しい中身（view）が
+   　載っていればそれを使います。載っていない古いサーバーのときは、
+   　これまでどおり読み直します（batを当てる前でも動きます）。 */
+function admApplyView_(data){
+  if (!data || !data.view || !data.view.members) return false;
+  ADMIN_DATA = data.view;
+  return true;
+}
+
 function admAfterMember_(name){
   ADMIN_DATA = null; ADMIN_EDIT = null;
   ADMIN_PANE = 'roles';
@@ -4702,7 +4711,15 @@ function adminMemberOp(op){
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      admAfterMember_(name);
+      if (admApplyView_(data)){
+        ADMIN_EDIT = null;
+        ADMIN_PANE = 'roles';
+        if (adminFind_(name)) adminEditMember(name); else renderRoles_();
+        var bt1 = $('admBtn_roles');
+        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+      } else {
+        admAfterMember_(name);
+      }
     });
 }
 
@@ -4721,7 +4738,15 @@ function adminSaveMember(){
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      admAfterMember_(name);
+      if (admApplyView_(data)){
+        ADMIN_EDIT = null;
+        ADMIN_PANE = 'roles';
+        if (adminFind_(name)) adminEditMember(name); else renderRoles_();
+        var bt1 = $('admBtn_roles');
+        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+      } else {
+        admAfterMember_(name);
+      }
     });
 }
 
@@ -4787,7 +4812,15 @@ function adminSaveWork(){
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      admBack_('works');
+      if (admApplyView_(data)){
+        ADMIN_EDIT = null;
+        ADMIN_PANE = 'works';
+        renderWorks_();
+        var bt2 = $('admBtn_works');
+        if (bt2){ try { bt2.scrollIntoView({ block: 'start' }); } catch (eW2){} }
+      } else {
+        admBack_('works');
+      }
     });
 }
 
