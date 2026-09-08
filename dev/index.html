@@ -1064,7 +1064,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08g';
+var APP_VER = '2026-09-08h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4352,6 +4352,26 @@ function admPanesOff_(){
   }
 }
 
+/* ★2026-09-08（工事E-1g）　答えが、押したところから遠くに出ていました。
+   　只隈さん「退会押して何も出ませんでしたよ」。実測すると、サーバーは正しく
+   　断っていたのに、その文字は★画面の623px上（＝画面の外）に出ていました。
+   　　・知らせは、押した場所へ戻して見せる（scrollIntoView）
+   　　・断られたときは、見落とさないよう窓でも出す（alert）
+   　　・終わったら、変えた一覧の先頭へ戻す */
+function admSay_(msg, isErr){
+  var el = admMsg_();
+  if (el) el.textContent = msg;
+  if (isErr) alert(msg);          /* ★窓は先に。閉じたあとで位置を合わせます */
+  if (el){ try { el.scrollIntoView({ block: 'center' }); } catch (eS){} }
+}
+
+function admBack_(which){
+  ADMIN_DATA = null; ADMIN_EDIT = null;
+  showAdminView(which, true);
+  var bt = $('admBtn_' + which);
+  if (bt){ try { bt.scrollIntoView({ block: 'start' }); } catch (eB){} }
+}
+
 function admCloseBtn_(){
   return '<button type="button" class="cancelbtn" style="margin-top:14px"' +
          ' onclick="closeAdminView()">とじる</button>';
@@ -4629,17 +4649,16 @@ function adminMemberOp(op){
         '役割は「なし」で戻ります。\n\nよろしいですか？';
   if (!q || !confirm(q)) return;
 
-  admMsg_().textContent = '変えています…';
+  admSay_('変えています…');
   api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
                 target: name, op: op },
     function(err, data){
       if (err || !data || data.error){
-        admMsg_().textContent = (data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        admSay_((data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('roles', true);
+      admBack_('roles');
     });
 }
 
@@ -4649,17 +4668,16 @@ function adminSaveMember(){
   var rs = document.getElementsByName('admRole'), role = '';
   for (var i = 0; i < rs.length; i++){ if (rs[i].checked) role = rs[i].value; }
   var ct = $('admContact') ? $('admContact').checked : false;
-  admMsg_().textContent = '変えています…';
+  admSay_('変えています…');
   api('POST', { action: 'adminSetMember', deviceId: deviceId(), name: myName,
                 target: name, role: role, contact: ct },
     function(err, data){
       if (err || !data || data.error){
-        admMsg_().textContent = (data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        admSay_((data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('roles', true);
+      admBack_('roles');
     });
 }
 
@@ -4716,17 +4734,16 @@ function adminSaveWork(){
   if (!name) return;
   var cbs = document.getElementsByClassName('admWk'), list = [];
   for (var i = 0; i < cbs.length; i++){ if (cbs[i].checked) list.push(cbs[i].value); }
-  admMsg_().textContent = '変えています…';
+  admSay_('変えています…');
   api('POST', { action: 'adminSetWork', deviceId: deviceId(), name: myName,
                 work: name, members: list },
     function(err, data){
       if (err || !data || data.error){
-        admMsg_().textContent = (data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        admSay_((data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
         return;
       }
-      ADMIN_DATA = null; ADMIN_EDIT = null;
-      showAdminView('works', true);
+      admBack_('works');
     });
 }
 
