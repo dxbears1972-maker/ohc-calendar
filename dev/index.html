@@ -1021,7 +1021,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08c';
+var APP_VER = '2026-09-08d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4302,21 +4302,44 @@ function closeAdminView(){
   $('adminMsg').textContent = '';
 }
 
+/* ★2026-09-08（工事E-1c）　サーバーとの往復に約5秒かかります（只隈さん実測）。
+   　押されてから読み始めると、その5秒がまるごと待ち時間になるので、
+   　★⚙設定を開いた時点で、管理者のときだけ裏で読み始めます。
+   　読み終わる前に押されたときは、二重に読まずに、この1本の結果を待ちます。 */
+var ADMIN_LOADING = false;
+var ADMIN_WAIT = [];
+
+function adminLoad_(cb){
+  if (ADMIN_DATA){ if (cb) cb(null); return; }
+  if (cb) ADMIN_WAIT.push(cb);
+  if (ADMIN_LOADING) return;
+  ADMIN_LOADING = true;
+  api('POST', { action: 'adminView', deviceId: deviceId(), name: myName },
+    function(err, data){
+      ADMIN_LOADING = false;
+      var msg = null;
+      if (err || !data || data.error){
+        msg = (data && data.error) ? data.error :
+              '読み込めませんでした。電波の良いところで、もう一度押してください。';
+      } else {
+        ADMIN_DATA = data;
+      }
+      var ws = ADMIN_WAIT; ADMIN_WAIT = [];
+      for (var wi = 0; wi < ws.length; wi++){
+        try { ws[wi](msg); } catch (eW){}
+      }
+    });
+}
+
 function showAdminView(which){
   $('adminList').innerHTML = '';
   $('adminMsg').style.display = 'block';
   if (ADMIN_DATA){ renderAdmin_(which); return; }
   $('adminMsg').textContent = '読み込んでいます…';
-  api('POST', { action: 'adminView', deviceId: deviceId(), name: myName },
-    function(err, data){
-      if (err || !data || data.error){
-        $('adminMsg').textContent = (data && data.error) ? data.error :
-          '読み込めませんでした。電波の良いところで、もう一度押してください。';
-        return;
-      }
-      ADMIN_DATA = data;
-      renderAdmin_(which);
-    });
+  adminLoad_(function(msg){
+    if (msg){ $('adminMsg').textContent = msg; return; }
+    renderAdmin_(which);
+  });
 }
 
 function renderAdmin_(which){
@@ -4659,8 +4682,11 @@ function openCfg(){
   if (ab){
     ab.style.display = isAdmin_(myName) ? 'block' : 'none';
     ADMIN_DATA = null;                 /* 開くたびに読み直す */
+    ADMIN_WAIT = [];
     $('adminList').innerHTML = '';
     $('adminMsg').style.display = 'none';
+    /* ★2026-09-08（工事E-1c）　押される前に、裏で読み始めます */
+    if (isAdmin_(myName)) adminLoad_(null);
   }
 
   var rb = $('reInstallBtn');
