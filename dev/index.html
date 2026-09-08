@@ -338,6 +338,16 @@
     background: #fff; color: #666;
     border: 2px solid #bbb; border-radius: 10px;
   }
+  /* ★2026-09-08（工事E-1j）　只隈さんのご指摘：
+     　「文字が枠いっぱいになるわけではないので、もっと幅せまくてよくないですか？」
+     　★ボタンの幅に上限を付けて、真ん中に置く。
+     　★スマホ（画面390px＝中身370px）では今までどおり画面いっぱいのまま。
+     　　パソコン（中身620px）でだけ細くなります。70代の方の指の当たりは変えません。 */
+  .bigbtn, .subbtn, .cancelbtn, .carebtn {
+    max-width: 380px;
+    margin-left: auto; margin-right: auto;
+    display: block;
+  }
   .note { font-size: 14px; color: #777; margin-top: 6px; }
 
   /* お知らせ（クラブからの連絡。LINEのように流れない） */
@@ -1064,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08j';
+var APP_VER = '2026-09-08k';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
