@@ -871,7 +871,8 @@
     <div id="adminBox" style="display:none">
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と係の担当は、ここで変えられます。</b></p>
+        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類ごとの顔ぶれは、
+        ここで変えられます。</b></p>
       <button type="button" class="subbtn" id="admBtn_logs"
               onclick="showAdminView('logs')">操作の記録を見る</button>
       <div class="admpane" id="admPane_logs">
@@ -891,7 +892,7 @@
       </div>
 
       <button type="button" class="subbtn" id="admBtn_works"
-              onclick="showAdminView('works')">係の担当を変える</button>
+              onclick="showAdminView('works')">予定の種類と顔ぶれ</button>
       <div class="admpane" id="admPane_works">
         <p class="note" id="adminMsg_works"></p><div id="adminList_works"></div>
       </div>
@@ -1063,7 +1064,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08f';
+var APP_VER = '2026-09-08g';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4466,7 +4467,7 @@ function renderAdmin_(which){
 }
 
 /* ==================================================================
-   ★★2026-09-08（工事D）　役割・連絡窓口・係の担当を、ここで変える
+   ★★2026-09-08（工事D）　役割・連絡窓口・予定の種類ごとの顔ぶれを、ここで変える
 
    　名簿を別のファイルへ分けると、管理者はもう名簿を開けません。
    　これまでシートでしていただいていた分を、ここへ移しました。
@@ -4662,10 +4663,15 @@ function adminSaveMember(){
     });
 }
 
-/* --- 係の担当（作業マスタ） --- */
+/* --- 予定の種類ごとの顔ぶれ（作業マスタ） ---
+   ★2026-09-08（工事E-1f）　只隈さんのご指摘：「役員とかは係じゃない気がしますが」。
+   　そのとおりで、この表は係の表ではなく、★予定の「種類」ごとに
+   　『毎回同じ顔ぶれ』を決める表です（あしあと印刷＝係／役員会＝会合）。
+   　2026-09-03に「役員会は作業マスタで決める」と決めたのが、ここに効いています。
+   　★種類そのものを足す・消すのは、いまはシートの1行目（アプリへ移すのは E-4）。 */
 function renderWorks_(){
   var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], h = '';
-  admMsg_().textContent = '係を決めたい作業の「変える」を押してください。';
+  admMsg_().textContent = '顔ぶれを決めたい種類の「変える」を押してください。';
   for (var i = 0; i < wk.length; i++){
     h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
            '<div><b>' + esc(wk[i].name) + '</b></div>' +
@@ -4676,8 +4682,8 @@ function renderWorks_(){
              ' onclick="adminEditWork(\'' + esc(wk[i].name) + '\')">変える</button>' +
          '</div>';
   }
-  if (!wk.length) h = '<p class="note">作業がまだ作られていません。' +
-                      'スプレッドシートの「作業」シートの1行目に、作業の名前を書いてください。</p>';
+  if (!wk.length) h = '<p class="note">まだ作られていません。' +
+                      'スプレッドシートの「作業」シートの1行目に、種類の名前を書いてください。</p>';
   admList_().innerHTML = h + admCloseBtn_();
 }
 
@@ -4693,7 +4699,7 @@ function adminEditWork(name){
            '<input type="checkbox" class="admWk" value="' + esc(mb[k].name) + '"' +
            (on ? ' checked' : '') + '> ' + esc(mb[k].name) + '</label>';
   }
-  admMsg_().textContent = esc(name) + 'の係を選んでください。';
+  admMsg_().textContent = esc(name) + 'の顔ぶれを選んでください。';
   admList_().innerHTML =
     '<div style="padding:10px">' +
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
