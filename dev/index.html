@@ -301,6 +301,20 @@
     background: #2e6b34; color: #fff;
     border: none; border-radius: 10px;
   }
+  /* ★2026-09-08（工事E-1d）管理者の画面。
+     　只隈さんのご指摘：「押したボタンの下に一覧が出るほうが分かりやすい。
+     　縁取り・くぼみ感を出すと、そのボタンの一覧だと分かる」 */
+  .admpane {
+    display: none;
+    margin-top: 8px;
+    background: #eef2ee;
+    border: 1px solid #cfdacf;
+    border-radius: 10px;
+    padding: 4px 10px 10px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
+  }
+  .admpane.on { display: block; }
+  .subbtn.on { box-shadow: inset 0 3px 6px rgba(0,0,0,.40); }
   .cancelbtn {
     width: 100%; font-size: 16px;
     padding: 8px 0; margin-top: 8px;
@@ -841,18 +855,29 @@
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
         <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と係の担当は、ここで変えられます。</b></p>
-      <p style="margin-bottom:8px">
-        <button type="button" class="subbtn" style="margin-bottom:6px"
-                onclick="showAdminView('logs')">操作の記録を見る</button>
-        <button type="button" class="subbtn" style="margin-bottom:6px"
-                onclick="showAdminView('members')">会員の一覧を見る</button>
-        <button type="button" class="subbtn" style="margin-bottom:6px"
-                onclick="showAdminView('roles')">会員の設定を変える</button>
-        <button type="button" class="subbtn"
-                onclick="showAdminView('works')">係の担当を変える</button>
-      </p>
-      <p class="note" id="adminMsg" style="display:none"></p>
-      <div id="adminList"></div>
+      <button type="button" class="subbtn" id="admBtn_logs"
+              onclick="showAdminView('logs')">操作の記録を見る</button>
+      <div class="admpane" id="admPane_logs">
+        <p class="note" id="adminMsg_logs"></p><div id="adminList_logs"></div>
+      </div>
+
+      <button type="button" class="subbtn" id="admBtn_members"
+              onclick="showAdminView('members')">会員の一覧を見る</button>
+      <div class="admpane" id="admPane_members">
+        <p class="note" id="adminMsg_members"></p><div id="adminList_members"></div>
+      </div>
+
+      <button type="button" class="subbtn" id="admBtn_roles"
+              onclick="showAdminView('roles')">会員の設定を変える</button>
+      <div class="admpane" id="admPane_roles">
+        <p class="note" id="adminMsg_roles"></p><div id="adminList_roles"></div>
+      </div>
+
+      <button type="button" class="subbtn" id="admBtn_works"
+              onclick="showAdminView('works')">係の担当を変える</button>
+      <div class="admpane" id="admPane_works">
+        <p class="note" id="adminMsg_works"></p><div id="adminList_works"></div>
+      </div>
     </div>
 
     <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
@@ -1021,7 +1046,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08d';
+var APP_VER = '2026-09-08e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4291,15 +4316,32 @@ var ADMIN_DATA = null;
 
 /* ★2026-09-08（工事E-1b）　開いた一覧を閉じるボタン。
    　只隈さんのご指摘：31名の一覧が開きっぱなしになると、下まで送るのが大変。 */
+var ADMIN_PANE = '';
+var ADMIN_KEYS = ['logs', 'members', 'roles', 'works'];
+
+/* いま開いている入れ物 */
+function admList_(){ return $('adminList_' + ADMIN_PANE); }
+function admMsg_(){  return $('adminMsg_'  + ADMIN_PANE); }
+
+/* 全部たたむ */
+function admPanesOff_(){
+  for (var i = 0; i < ADMIN_KEYS.length; i++){
+    var k = ADMIN_KEYS[i];
+    var pn = $('admPane_' + k);   if (pn) pn.className = 'admpane';
+    var bt = $('admBtn_' + k);    if (bt) bt.className = 'subbtn';
+    var ls = $('adminList_' + k); if (ls) ls.innerHTML = '';
+    var ms = $('adminMsg_' + k);  if (ms) ms.textContent = '';
+  }
+}
+
 function admCloseBtn_(){
   return '<button type="button" class="cancelbtn" style="margin-top:14px"' +
          ' onclick="closeAdminView()">とじる</button>';
 }
 function closeAdminView(){
   ADMIN_EDIT = null;
-  $('adminList').innerHTML = '';
-  $('adminMsg').style.display = 'none';
-  $('adminMsg').textContent = '';
+  admPanesOff_();
+  ADMIN_PANE = '';
 }
 
 /* ★2026-09-08（工事E-1c）　サーバーとの往復に約5秒かかります（只隈さん実測）。
@@ -4332,12 +4374,23 @@ function adminLoad_(cb){
 }
 
 function showAdminView(which){
-  $('adminList').innerHTML = '';
-  $('adminMsg').style.display = 'block';
+  var pane = $('admPane_' + which);
+  if (!pane) return;
+  var wasOpen = (ADMIN_PANE === which) && (pane.className.indexOf('on') >= 0);
+  admPanesOff_();
+  ADMIN_EDIT = null;
+  if (wasOpen){ ADMIN_PANE = ''; return; }   /* ★もう一度押したら、たたみます */
+
+  ADMIN_PANE = which;
+  pane.className = 'admpane on';
+  var bt = $('admBtn_' + which); if (bt) bt.className = 'subbtn on';
+
   if (ADMIN_DATA){ renderAdmin_(which); return; }
-  $('adminMsg').textContent = '読み込んでいます…';
+  var msgEl = $('adminMsg_' + which);
+  msgEl.textContent = '読み込んでいます…';
   adminLoad_(function(msg){
-    if (msg){ $('adminMsg').textContent = msg; return; }
+    if (ADMIN_PANE !== which) return;        /* 別のボタンが押されたあとなら、何もしません */
+    if (msg){ msgEl.textContent = msg; return; }
     renderAdmin_(which);
   });
 }
@@ -4348,7 +4401,7 @@ function renderAdmin_(which){
   if (which === 'works'){ renderWorks_(); return; }
   if (which === 'logs'){
     var lg = (ADMIN_DATA && ADMIN_DATA.logs) || [];
-    $('adminMsg').textContent = '新しい順に ' + lg.length + ' 件です。';
+    admMsg_().textContent = '新しい順に ' + lg.length + ' 件です。';
     for (var i = 0; i < lg.length; i++){
       h += '<div style="padding:8px 10px;border-bottom:1px solid #e3e8e3">' +
              '<div style="font-size:14px;color:#777">' + esc(lg[i].when) + '</div>' +
@@ -4362,7 +4415,7 @@ function renderAdmin_(which){
     var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
     var genki = 0;
     for (var m0 = 0; m0 < mb.length; m0++){ if (!mb[m0].left) genki++; }
-    $('adminMsg').textContent = '在籍 ' + genki + '名（退会を含めて ' + mb.length + '行）です。';
+    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + mb.length + '行）です。';
     for (var k = 0; k < mb.length; k++){
       var m = mb[k];
       var tag = [];
@@ -4389,7 +4442,7 @@ function renderAdmin_(which){
     }
     if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
   }
-  $('adminList').innerHTML = h + admCloseBtn_();
+  admList_().innerHTML = h + admCloseBtn_();
 }
 
 /* ==================================================================
@@ -4419,7 +4472,7 @@ function renderRoles_(){
   var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
   var live = [], gone = [];
   for (var i0 = 0; i0 < mb.length; i0++){ (mb[i0].left ? gone : live).push(mb[i0]); }
-  $('adminMsg').textContent = '変えたい方の「変える」を押してください。';
+  admMsg_().textContent = '変えたい方の「変える」を押してください。';
   var h = '';
   for (var i = 0; i < live.length; i++) h += adminCard_(live[i]);
   if (gone.length){
@@ -4428,7 +4481,7 @@ function renderRoles_(){
     for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
   }
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
-  $('adminList').innerHTML = h + admCloseBtn_();
+  admList_().innerHTML = h + admCloseBtn_();
 }
 
 function adminCard_(m){
@@ -4464,13 +4517,13 @@ function adminEditMember(name){
 
   if (m.left){
     /* --- 退会になっている方 --- */
-    $('adminMsg').textContent = name + 'さんは、いま退会になっています。';
+    admMsg_().textContent = name + 'さんは、いま退会になっています。';
     h += '<p class="note" style="margin-top:0">会員の一覧にも、出欠のお相手にも出てきません。' +
            '過去の記録は、お名前のまま残っています。</p>' +
          '<button type="button" class="bigbtn" style="margin-top:8px"' +
            ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>';
   } else {
-    $('adminMsg').textContent = name + 'さんの設定を変えます。';
+    admMsg_().textContent = name + 'さんの設定を変えます。';
 
     /* ① 役割・連絡窓口（★工事Dで作った分。ここへ移しました） */
     h += radio('', '役割なし（ふつうの会員）') +
@@ -4524,7 +4577,7 @@ function adminEditMember(name){
 
   h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
          ' onclick="showAdminView(\'roles\')">やめる</button></div>';
-  $('adminList').innerHTML = h;
+  admList_().innerHTML = h;
 }
 
 /* ★2026-09-08（工事E-1）　退会・端末リセット・確認番号リセット */
@@ -4546,12 +4599,12 @@ function adminMemberOp(op){
         '役割は「なし」で戻ります。\n\nよろしいですか？';
   if (!q || !confirm(q)) return;
 
-  $('adminMsg').textContent = '変えています…';
+  admMsg_().textContent = '変えています…';
   api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
                 target: name, op: op },
     function(err, data){
       if (err || !data || data.error){
-        $('adminMsg').textContent = (data && data.error) ? data.error :
+        admMsg_().textContent = (data && data.error) ? data.error :
           '変えられませんでした。電波の良いところで、もう一度お試しください。';
         return;
       }
@@ -4566,12 +4619,12 @@ function adminSaveMember(){
   var rs = document.getElementsByName('admRole'), role = '';
   for (var i = 0; i < rs.length; i++){ if (rs[i].checked) role = rs[i].value; }
   var ct = $('admContact') ? $('admContact').checked : false;
-  $('adminMsg').textContent = '変えています…';
+  admMsg_().textContent = '変えています…';
   api('POST', { action: 'adminSetMember', deviceId: deviceId(), name: myName,
                 target: name, role: role, contact: ct },
     function(err, data){
       if (err || !data || data.error){
-        $('adminMsg').textContent = (data && data.error) ? data.error :
+        admMsg_().textContent = (data && data.error) ? data.error :
           '変えられませんでした。電波の良いところで、もう一度お試しください。';
         return;
       }
@@ -4583,7 +4636,7 @@ function adminSaveMember(){
 /* --- 係の担当（作業マスタ） --- */
 function renderWorks_(){
   var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], h = '';
-  $('adminMsg').textContent = '係を決めたい作業の「変える」を押してください。';
+  admMsg_().textContent = '係を決めたい作業の「変える」を押してください。';
   for (var i = 0; i < wk.length; i++){
     h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
            '<div><b>' + esc(wk[i].name) + '</b></div>' +
@@ -4596,7 +4649,7 @@ function renderWorks_(){
   }
   if (!wk.length) h = '<p class="note">作業がまだ作られていません。' +
                       'スプレッドシートの「作業」シートの1行目に、作業の名前を書いてください。</p>';
-  $('adminList').innerHTML = h + admCloseBtn_();
+  admList_().innerHTML = h + admCloseBtn_();
 }
 
 function adminEditWork(name){
@@ -4611,8 +4664,8 @@ function adminEditWork(name){
            '<input type="checkbox" class="admWk" value="' + esc(mb[k].name) + '"' +
            (on ? ' checked' : '') + '> ' + esc(mb[k].name) + '</label>';
   }
-  $('adminMsg').textContent = esc(name) + 'の係を選んでください。';
-  $('adminList').innerHTML =
+  admMsg_().textContent = esc(name) + 'の係を選んでください。';
+  admList_().innerHTML =
     '<div style="padding:10px">' +
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
       h +
@@ -4628,12 +4681,12 @@ function adminSaveWork(){
   if (!name) return;
   var cbs = document.getElementsByClassName('admWk'), list = [];
   for (var i = 0; i < cbs.length; i++){ if (cbs[i].checked) list.push(cbs[i].value); }
-  $('adminMsg').textContent = '変えています…';
+  admMsg_().textContent = '変えています…';
   api('POST', { action: 'adminSetWork', deviceId: deviceId(), name: myName,
                 work: name, members: list },
     function(err, data){
       if (err || !data || data.error){
-        $('adminMsg').textContent = (data && data.error) ? data.error :
+        admMsg_().textContent = (data && data.error) ? data.error :
           '変えられませんでした。電波の良いところで、もう一度お試しください。';
         return;
       }
@@ -4683,8 +4736,8 @@ function openCfg(){
     ab.style.display = isAdmin_(myName) ? 'block' : 'none';
     ADMIN_DATA = null;                 /* 開くたびに読み直す */
     ADMIN_WAIT = [];
-    $('adminList').innerHTML = '';
-    $('adminMsg').style.display = 'none';
+    admPanesOff_();
+    ADMIN_PANE = '';
     /* ★2026-09-08（工事E-1c）　押される前に、裏で読み始めます */
     if (isAdmin_(myName)) adminLoad_(null);
   }
