@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14f';
+var APP_VER = '2026-09-14g';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4587,6 +4587,29 @@ function renderRoles_(){
     for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
   }
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
+
+  /* ★★2026-09-14（工事E-3）　新しい会員を足す。
+     　★入れていただくのは名字とよみの2つだけ（只隈さんのご判断）。
+     　電話・メール・役割は、足したあと、その方の「変える」から入れます。 */
+  h += '<div class="admsec">' +
+         '<div class="admsec-h">新しい会員を足す</div>' +
+         '<input type="text" id="admNewName" maxlength="12" autocomplete="off"' +
+           ' placeholder="名字（例）山本" value="' + esc(ADM_NEWNAME_) + '"' +
+           ' oninput="ADM_NEWNAME_ = this.value">' +
+         '<input type="text" id="admNewYomi" maxlength="20" autocomplete="off"' +
+           ' style="margin-top:8px" placeholder="よみ（例）やまもと"' +
+           ' value="' + esc(ADM_NEWYOMI_) + '"' +
+           ' oninput="ADM_NEWYOMI_ = this.value">' +
+         '<p class="note" style="margin-top:2px">' +
+           '<b>よみ</b>を見て、一覧を50音順に並べます。カタカナで入れても大丈夫です。<br>' +
+           '足したあと、その方の<b>「変える」</b>から、電話・メール・役割を入れてください。<br>' +
+           'すでにいらっしゃる名字は足せません。同じ名字の方は' +
+           '<b>山本(明)</b>のように、区別できる形でお入れください。</p>' +
+         '<button type="button" class="bigbtn" style="margin-top:8px"' +
+           ' onclick="adminAddMember(this)">この方を足す</button>' +
+         admSecMsg_('memadd') +
+       '</div>';
+
   admList_().innerHTML = h + admCloseBtn_();
 }
 
@@ -4811,13 +4834,13 @@ function adminEditMember(name){
    　★「いま動いている」ことを、押したその場で見せます。
    ================================================================== */
 var ADM_BUSY_ = null;
-function admBusy_(btn){
+function admBusy_(btn, text){
   if (!btn) return;
   ADM_BUSY_ = { el: btn, text: btn.textContent };
   try {
     btn.disabled = true;
     btn.style.opacity = '0.55';
-    btn.textContent = '変えています…';
+    btn.textContent = text || '変えています…';
   } catch (e) {}
 }
 function admBusyEnd_(){
@@ -4942,6 +4965,72 @@ function adminSaveMember(btn){
 /* ★★2026-09-14（工事E-2）　電話・メール・備考を変えます。
    　★断られたときは、画面を本当の姿に戻してから知らせます（E-1M と同じ）。
    　★変えられたときは、その方の画面のまま「変えました」と出します。 */
+/* ==================================================================
+   ★★2026-09-14（工事E-3）　新しい会員を足す
+
+   　答えは★押したその場（この箱の下）に出し、★画面は動かしません（E-2b）。
+   ================================================================== */
+var ADM_NEWNAME_ = '', ADM_NEWYOMI_ = '';
+
+/* ★★足した方を、その場で手元の名簿にも入れます。
+   　★E-4b とまったく同じ理由：会員の一覧（MEMBERS）は
+   　　読み込み（loadAll_）でしか入れ替わらないので、このひと手間が無いと、
+   　　足した直後は「名前をえらぶ」にも、出欠のお相手にも出てきません。
+   　★よみを見て、50音順の正しい場所に入れます（サーバーの並びに合わせるため）。
+   　★往復は増やしていません。返ってきた答えを使っているだけです。 */
+function admMemberSync_(name, yomi, id){
+  try {
+    if (!MEMBERS || !MEMBERS.length) return;
+    if (MEMBERS.indexOf(name) >= 0) return;
+    var at = MEMBERS.length;
+    if (yomi){
+      for (var i = 0; i < MEMBERS.length; i++){
+        var y = MEMBER_YOMI[MEMBERS[i]] || '';
+        if (!y || yomi < y){ at = i; break; }   /* よみが空の方は、うしろに置かれています */
+      }
+    }
+    MEMBERS.splice(at, 0, name);
+    MEMBER_YOMI[name] = yomi || '';
+    if (id){ MEMBER_ID[name] = id; ID_NAME[id] = name; }
+  } catch (e) {}
+}
+
+function adminAddMember(btn){
+  var e1 = $('admNewName'), e2 = $('admNewYomi');
+  var nm = e1 ? e1.value : ADM_NEWNAME_;
+  var ym = e2 ? e2.value : ADM_NEWYOMI_;
+  ADM_NEWNAME_ = nm; ADM_NEWYOMI_ = ym;
+  /* ★断られると分かっていることは、画面で先に止めます（07_つくるときの決まり 2章） */
+  if (!String(nm).replace(/[\s　]/g, '')){
+    admSayAt_('memadd', '名字を入れてください', true, null); return;
+  }
+  if (!String(ym).replace(/[\s　]/g, '')){
+    admSayAt_('memadd', 'よみ（ひらがな）を入れてください', true, null); return;
+  }
+
+  admBusy_(btn, '足しています…');
+  api('POST', { action: 'adminAddMember', deviceId: deviceId(), name: myName,
+                member: nm, yomi: ym },
+    function(err, data){
+      admBusyEnd_();
+      if (err || !data || data.error){
+        admSayAt_('memadd', (data && data.error) ? data.error :
+          '足せませんでした。電波の良いところで、もう一度お試しください。', true, null);
+        return;
+      }
+      var added = data.member || nm;
+      if (admApplyView_(data)){
+        admMemberSync_(added, data.yomi || '', data.id || '');
+        ADM_NEWNAME_ = ''; ADM_NEWYOMI_ = '';
+        ADMIN_EDIT = null;
+        admSayAt_('memadd', '「' + added + '」さんを足しました。' +
+                  'つづけて、その方の「変える」から連絡先などを入れてください。', false, null);
+      } else {
+        admBack_('roles');
+      }
+    });
+}
+
 function adminSaveContact(btn){
   var name = ADMIN_EDIT;
   if (!name) return;
