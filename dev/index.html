@@ -906,6 +906,16 @@
       <div class="admpane" id="admPane_works">
         <p class="note" id="adminMsg_works"></p><div id="adminList_works"></div>
       </div>
+
+      <!-- ★★2026-09-14（工事E-5）お知らせの記録。
+           いま出ているお知らせは、この画面のいちばん上にも出ています。
+           ここに出すのは、★掲載が終わったものと、消したものも含めた記録です。
+           これまではシートを開かないと見られませんでした。 -->
+      <button type="button" class="subbtn" id="admBtn_notices"
+              onclick="showAdminView('notices')">お知らせの記録を見る</button>
+      <div class="admpane" id="admPane_notices">
+        <p class="note" id="adminMsg_notices"></p><div id="adminList_notices"></div>
+      </div>
     </div>
 
     <button type="button" class="subbtn" id="setCodeBtn" onclick="askSetCode()">
@@ -1074,7 +1084,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14g';
+var APP_VER = '2026-09-14h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4369,7 +4379,7 @@ var ADMIN_DATA = null;
 /* ★2026-09-08（工事E-1b）　開いた一覧を閉じるボタン。
    　只隈さんのご指摘：31名の一覧が開きっぱなしになると、下まで送るのが大変。 */
 var ADMIN_PANE = '';
-var ADMIN_KEYS = ['logs', 'members', 'roles', 'works'];
+var ADMIN_KEYS = ['logs', 'members', 'roles', 'works', 'notices'];
 
 /* いま開いている入れ物 */
 function admList_(){ return $('adminList_' + ADMIN_PANE); }
@@ -4505,6 +4515,7 @@ function renderAdmin_(which){
   var h = '';
   if (which === 'roles'){ renderRoles_(); return; }
   if (which === 'works'){ renderWorks_(); return; }
+  if (which === 'notices'){ renderNoticeLog_(); return; }
   if (which === 'logs'){
     var lg = (ADMIN_DATA && ADMIN_DATA.logs) || [];
     admMsg_().textContent = '新しい順に ' + lg.length + ' 件です。';
@@ -4610,6 +4621,61 @@ function renderRoles_(){
          admSecMsg_('memadd') +
        '</div>';
 
+  admList_().innerHTML = h + admCloseBtn_();
+}
+
+/* ==================================================================
+   ★★2026-09-14（工事E-5）　お知らせの記録（見るだけ）
+
+   　只隈さんのご判断（2026-09-14）
+   　　・掲載中／掲載が終わった／消した　の3つとも出す
+   　　・消したものを「戻す」ボタンは付けない（見えるだけ）
+   　　・★「まだ見ていない方」は、掲載中のものにだけ出す
+   　　　（終わった分の既読は、工事E-6で自動で片づけるため）
+   　　・新しい順に50件まで
+   ================================================================== */
+function renderNoticeLog_(){
+  var ns = (ADMIN_DATA && ADMIN_DATA.notices) || [];
+  var liveN = 0;
+  for (var c = 0; c < ns.length; c++){ if (ns[c].state === 'live') liveN++; }
+  admMsg_().textContent = ns.length
+    ? '新しい順に ' + ns.length + ' 件です（いま出ているもの ' + liveN + ' 件）。'
+    : 'お知らせの記録はまだありません。';
+
+  var h = '';
+  for (var i = 0; i < ns.length; i++){
+    var n = ns[i];
+    var lbl = (n.state === 'deleted') ? '消したもの'
+            : (n.state === 'ended')   ? '掲載おわり'
+            :                           'いま出ています';
+    var col = (n.state === 'live') ? (CLUB.themeColor || '#2e6b34') : '#8a8a8a';
+    h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3' +
+           (n.state === 'live' ? '' : ';opacity:.62') + '">' +
+           '<div style="font-size:14px;color:#777">' +
+             esc(n.at) + '　' + esc(n.by) + 'さん' +
+             '<b style="color:' + col + '">　' + lbl + '</b>' +
+             (n.until ? '　<span style="white-space:nowrap">' +
+                          esc(n.until) + 'まで</span>' : '') +
+           '</div>' +
+           '<div style="font-size:16px;margin-top:3px;white-space:pre-wrap;' +
+             'word-break:break-all">' + esc(n.text) + '</div>';
+
+    /* ★見た人数と、まだの方。掲載中のものにだけ付きます */
+    if (n.state === 'live'){
+      var yet = n.yet || [], tot = n.total || 0;
+      h += '<div style="font-size:14px;color:#4a6a4a;margin-top:5px">' +
+             (yet.length
+               ? (tot - yet.length) + '／' + tot + '人が見ました' +
+                 '<br><span style="color:#a35b00">まだの方：' +
+                 esc(yet.join('・')) + '</span>'
+               : '全員（' + tot + '人）が見ました') +
+           '</div>';
+    }
+    h += '</div>';
+  }
+  if (!ns.length){
+    h = '<p class="note">お知らせの記録がありません。</p>';
+  }
   admList_().innerHTML = h + admCloseBtn_();
 }
 

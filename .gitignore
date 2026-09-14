@@ -6,6 +6,10 @@ appsscript.json
 コード.js
 *.gs
 
+# ★2026-09-14　Claudeがチャットへ送ったファイルが、ここへ落ちてきます。
+# 　リポジトリに入れるものではありません（画面の写しなど）。
+Claude outputs/
+
 # Windows / Googleドライブが勝手に作るもの
 desktop.ini
 Thumbs.db
