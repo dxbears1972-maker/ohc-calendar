@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-08l';
+var APP_VER = '2026-09-14a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4594,10 +4594,20 @@ function adminEditMember(name){
      　OKのあと5秒待たせてから断っていました。★聞かずに、はじめから出しません。 */
   var isSelf = String(name).replace(/[\s　]/g, '') ===
                String(myName || '').replace(/[\s　]/g, '');
+  /* ★2026-09-14（工事E-1M・案1）　只隈さんのご指摘：
+     　「管理者が0人になります」と断られたあと、丸は「役割なし」に入ったまま残り、
+     　★実際は管理者のままなのに、画面は変わったように見えていました。
+     　E-1h と同じ考えで、★聞かずに、はじめから選べなくします。
+     　（サーバー側の守りは残したままです。アプリだけで守りません） */
+  var admN = 0, alive0 = adminAlive_();
+  for (var a0 = 0; a0 < alive0.length; a0++){ if (alive0[a0].role === '管理者') admN++; }
+  var lastAdmin = (m.role === '管理者') && admN <= 1;
   function radio(v, label){
-    return '<label style="display:block;padding:8px 4px;font-size:17px">' +
+    var off = lastAdmin && v !== '管理者';
+    return '<label style="display:block;padding:8px 4px;font-size:17px' +
+             (off ? ';color:#aaa' : '') + '">' +
              '<input type="radio" name="admRole" value="' + v + '"' +
-             (r === v ? ' checked' : '') + '> ' + label + '</label>';
+             (r === v ? ' checked' : '') + (off ? ' disabled' : '') + '> ' + label + '</label>';
   }
   var h = '<div style="padding:2px 0 4px">' +
           '<div style="font-size:19px;margin:4px 0 2px"><b>' + esc(name) + '</b> さん</div>';
@@ -4621,6 +4631,11 @@ function adminEditMember(name){
            radio('', '役割なし（ふつうの会員）') +
            radio('幹事', '幹事（予定を登録できます）') +
            radio('管理者', '管理者（この画面を使えます）') +
+           (lastAdmin ?
+             '<p class="note" style="margin:2px 0 0"><b>いまは、管理者のままにしておく必要があります。</b><br>' +
+               (isSelf ? 'ご自身' : 'この方') + 'が、ただ一人の管理者です。役割を外すと、' +
+               'どなたもこの画面を使えなくなります。<br>' +
+               '変えるときは、先にほかの方を管理者にしてください。</p>' : '') +
            '<label style="display:block;padding:8px 4px;font-size:17px;margin-top:6px;' +
              'border-top:1px solid #e3e8e3">' +
              '<input type="checkbox" id="admContact"' + (m.contact ? ' checked' : '') + '>' +
@@ -4734,8 +4749,14 @@ function adminSaveMember(){
                 target: name, role: role, contact: ct },
     function(err, data){
       if (err || !data || data.error){
-        admSay_((data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
+        /* ★2026-09-14（工事E-1M・案2）　断られたときは、★画面を本当の姿に戻します。
+           　これまでは知らせを出すだけで、選んだ丸がそのまま残っていたため、
+           　「変わっていないのに、変わったように見える」状態になっていました。
+           　★知らせは、描き直したあとに出します（描き直すと消えるため）。 */
+        var back = (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        if (adminFind_(name)) adminEditMember(name);
+        admSay_(back, true);
         return;
       }
       if (admApplyView_(data)){
