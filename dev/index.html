@@ -1143,7 +1143,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14k';
+var APP_VER = '2026-09-15a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1694,6 +1694,12 @@ function api(method, body, cb, tryNo, fresh){
 }
 
 function applyData(data){
+  /* ★★★2026-09-15（工事E-5d）　サーバーから新しい中身が届いたら、
+     　管理者の画面の控え（ADMIN_DATA）は★一つ古くなります。
+     　消したお知らせが「いま出ています」のまま見えていたのは、これが理由でした。
+     　★控えは捨てません（開いている画面が壊れるため）。★印だけ立て、
+     　　次にボタンを押したときに読み直します。 */
+  ADMIN_STALE = true;
   /* ★2026-09-04（工事B B-2）　クラブの見た目・呼び名。届いたら画面に当て、端末に控える */
   if (data && data.club) { try { setClubCfg_(data.club, true); } catch(eCC){} }
   /* ★2026-08-24　LINEの残り通数（幹事・管理者にだけ届きます） */
@@ -4435,6 +4441,10 @@ function updateWho(){
    ------------------------------------------------------------------ */
 var ADMIN_DATA = null;
 
+/* ★★2026-09-15（工事E-5d）　控えが古いかどうかの印。
+   　true のあいだは、ボタンを押したときに必ず読み直します。 */
+var ADMIN_STALE = false;
+
 /* ★2026-09-08（工事E-1b）　開いた一覧を閉じるボタン。
    　只隈さんのご指摘：31名の一覧が開きっぱなしになると、下まで送るのが大変。 */
 var ADMIN_PANE = '';
@@ -4479,6 +4489,7 @@ function admSay_(msg, isErr){
 function admApplyView_(data){
   if (!data || !data.view || !data.view.members) return false;
   ADMIN_DATA = data.view;
+  ADMIN_STALE = false;
   return true;
 }
 
@@ -4525,7 +4536,7 @@ var ADMIN_LOADING = false;
 var ADMIN_WAIT = [];
 
 function adminLoad_(cb){
-  if (ADMIN_DATA){ if (cb) cb(null); return; }
+  if (ADMIN_DATA && !ADMIN_STALE){ if (cb) cb(null); return; }
   if (cb) ADMIN_WAIT.push(cb);
   if (ADMIN_LOADING) return;
   ADMIN_LOADING = true;
@@ -4538,6 +4549,7 @@ function adminLoad_(cb){
               '読み込めませんでした。電波の良いところで、もう一度押してください。';
       } else {
         ADMIN_DATA = data;
+        ADMIN_STALE = false;
       }
       var ws = ADMIN_WAIT; ADMIN_WAIT = [];
       for (var wi = 0; wi < ws.length; wi++){
@@ -4562,7 +4574,7 @@ function showAdminView(which, force){
   var grp = $('admGrp_' + which); if (grp) grp.className = 'admgrp on';
   var bt = $('admBtn_' + which); if (bt) bt.className = 'subbtn on';
 
-  if (ADMIN_DATA){ renderAdmin_(which); return; }
+  if (ADMIN_DATA && !ADMIN_STALE){ renderAdmin_(which); return; }
   var msgEl = $('adminMsg_' + which);
   msgEl.textContent = '読み込んでいます…';
   adminLoad_(function(msg){
@@ -5452,6 +5464,7 @@ function openCfg(){
   if (ab){
     ab.style.display = isAdmin_(myName) ? 'block' : 'none';
     ADMIN_DATA = null;                 /* 開くたびに読み直す */
+    ADMIN_STALE = false;
     ADMIN_WAIT = [];
     admPanesOff_();
     ADMIN_PANE = '';
