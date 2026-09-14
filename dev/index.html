@@ -314,6 +314,26 @@
     box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
   }
   .admpane.on { display: block; }
+  /* ★★2026-09-14（工事E-5b）　只隈さんのご指摘：
+     　「くぼんだような□の枠の中に、それ用のボタンも入った方が分かりやすいのでは？」
+     　くぼみ枠は 9/8 に「そのボタンの一覧だと分かるように」と入れたものですが、
+     　★肝心のボタンが枠の外にあり、狙いが半分しか効いていませんでした。
+     　★開いたときだけ、ボタンごと1つの枠に入れます（閉じているときは枠を出しません。
+     　　灰色の箱が5つ並ぶと重たくなるため）。 */
+  .admgrp.on {
+    margin-top: 8px;
+    background: #eef2ee;
+    border: 1px solid #cfdacf;
+    border-radius: 10px;
+    padding: 8px 10px 10px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
+  }
+  .admgrp.on .subbtn { margin-top: 0; }
+  /* 枠が二重にならないように、中の入れ物からは枠とくぼみを外します */
+  .admgrp.on .admpane {
+    background: transparent; border: none; box-shadow: none;
+    padding: 0; margin-top: 6px;
+  }
   /* ★2026-09-08（工事E-1e）ひとかたまりごとに白い箱で区切る。
      　只隈さんのご指摘：「全部緑だと、どのボタンがどの一覧のものか分かりづらい」 */
   .admsec {
@@ -883,38 +903,48 @@
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
         <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類（足す・消す・顔ぶれ）は、
         ここで変えられます。</b></p>
+      <div class="admgrp" id="admGrp_logs">
       <button type="button" class="subbtn" id="admBtn_logs"
               onclick="showAdminView('logs')">操作の記録を見る</button>
       <div class="admpane" id="admPane_logs">
         <p class="note" id="adminMsg_logs"></p><div id="adminList_logs"></div>
       </div>
+      </div>
 
+      <div class="admgrp" id="admGrp_members">
       <button type="button" class="subbtn" id="admBtn_members"
               onclick="showAdminView('members')">会員の一覧を見る</button>
       <div class="admpane" id="admPane_members">
         <p class="note" id="adminMsg_members"></p><div id="adminList_members"></div>
       </div>
+      </div>
 
+      <div class="admgrp" id="admGrp_roles">
       <button type="button" class="subbtn" id="admBtn_roles"
               onclick="showAdminView('roles')">会員の設定を変える</button>
       <div class="admpane" id="admPane_roles">
         <p class="note" id="adminMsg_roles"></p><div id="adminList_roles"></div>
       </div>
+      </div>
 
+      <div class="admgrp" id="admGrp_works">
       <button type="button" class="subbtn" id="admBtn_works"
               onclick="showAdminView('works')">予定の種類と顔ぶれ</button>
       <div class="admpane" id="admPane_works">
         <p class="note" id="adminMsg_works"></p><div id="adminList_works"></div>
+      </div>
       </div>
 
       <!-- ★★2026-09-14（工事E-5）お知らせの記録。
            いま出ているお知らせは、この画面のいちばん上にも出ています。
            ここに出すのは、★掲載が終わったものと、消したものも含めた記録です。
            これまではシートを開かないと見られませんでした。 -->
+      <div class="admgrp" id="admGrp_notices">
       <button type="button" class="subbtn" id="admBtn_notices"
               onclick="showAdminView('notices')">お知らせの記録を見る</button>
       <div class="admpane" id="admPane_notices">
         <p class="note" id="adminMsg_notices"></p><div id="adminList_notices"></div>
+      </div>
       </div>
     </div>
 
@@ -1084,7 +1114,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14i';
+var APP_VER = '2026-09-14j';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4390,6 +4420,7 @@ function admPanesOff_(){
   for (var i = 0; i < ADMIN_KEYS.length; i++){
     var k = ADMIN_KEYS[i];
     var pn = $('admPane_' + k);   if (pn) pn.className = 'admpane';
+    var gp = $('admGrp_' + k);    if (gp) gp.className = 'admgrp';
     var bt = $('admBtn_' + k);    if (bt) bt.className = 'subbtn';
     var ls = $('adminList_' + k); if (ls) ls.innerHTML = '';
     var ms = $('adminMsg_' + k);  if (ms) ms.textContent = '';
@@ -4499,6 +4530,7 @@ function showAdminView(which, force){
 
   ADMIN_PANE = which;
   pane.className = 'admpane on';
+  var grp = $('admGrp_' + which); if (grp) grp.className = 'admgrp on';
   var bt = $('admBtn_' + which); if (bt) bt.className = 'subbtn on';
 
   if (ADMIN_DATA){ renderAdmin_(which); return; }
