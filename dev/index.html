@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14e';
+var APP_VER = '2026-09-14f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1558,12 +1558,30 @@ function api(method, body, cb, tryNo, fresh){
      一度きりのつまずきがほとんどなので、
      2秒おいてもう一度だけ試します。それでも駄目なら、今までどおり知らせます。
      ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------
+     ★★★2026-09-14　送り直すのは★読み込み（GET）だけにしました。
+
+     　只隈さんが予定を1件登録されたのに、★サーバーに2件入り、
+     　しかも★アプリの手元には0件、ということが起きました（2026-09-14）。
+
+     　仕組みはこうでした。
+     　　1回目のPOST → サーバーは受け取って予定を1件書いた
+     　　　　　　　　→ ★返事が届かなかった（4〜5秒かかるので切れることがある）
+     　　　　　　　　→ アプリは「失敗」と見て、もう一度送った
+     　　　2回目のPOST → ★サーバーはまた1件書いた（これが2件目）
+
+     　★★読み込みは何度やっても同じですが、書き換えはそうではありません。
+     　★本番で起きれば、予定が2件並ぶだけでなく、
+     　　★会員へのメールとLINEも 2回飛びます。
+     　→ ★書き換え（POST）は、1回だけ送ります。
+     　　 ★失敗したときの知らせ方は post() で変えています。
+     ------------------------------------------------------------------ */
   tryNo = tryNo || 1;
   var done = false;
   function fail(){
     if (done) return;
     done = true;
-    if (tryNo < 2){
+    if (tryNo < 2 && method === 'GET'){
       setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000);
       return;
     }
@@ -1928,7 +1946,13 @@ function post(body, doneMsg, after, onFail){
   try { if (body && !body.deviceId) body.deviceId = deviceId(); } catch(eP){}
   api('POST', body, function(err, data){
     if (err){
-      setStatus('送信に失敗しました。もう一度お試しください。', true);
+      /* ★★★2026-09-14　「もう一度お試しください」は★間違った案内でした。
+         　返事が届かなかっただけで、★サーバーには入っていることがあります。
+         　そのまま押し直すと、★二重に入ります。
+         　→ ★先に確かめていただく言い方に変えました。 */
+      setStatus('送れたかどうか分かりません。' +
+                '★「最新の情報に更新する」を押して、' +
+                '入っているか確かめてから、もう一度お願いします。', true);
       if (onFail) { try { onFail(); } catch(eF){} }
       return;
     }
@@ -5076,6 +5100,7 @@ function adminSaveWork(btn){
         return;
       }
       if (admApplyView_(data)){
+        admWorksSync_('set', name, list);
         /* ★★2026-09-14（工事E-4）　ここは以前、一覧へ戻ってから
            　「予定の種類と顔ぶれ」のボタンまで画面が飛んでいました。
            　★会員の画面と同じく、そのままで結果を見せます（E-2b）。 */
@@ -5084,6 +5109,28 @@ function adminSaveWork(btn){
         admBack_('works');
       }
     });
+}
+
+/* ==================================================================
+   ★★★2026-09-14（工事E-4）　足した・消したを、その場で画面に反映させる
+
+   　只隈さんの実機で、★足した種類が「予定の種類」に出ず、
+   　★「最新にする」を押してはじめて出ました。2026-09-14。
+
+   　理由：種類の一覧（WORKS）は★読み込み（loadAll_）でしか入れ替わらない。
+   　管理者の画面は別の往復（adminView）なので、そちらだけが新しくなっていた。
+   　→ ★書き換えが通ったら、手元の WORKS も同じだけ直して、
+   　　 ★「予定の種類」の選択肢を作り直します。
+   　★往復は増やしていません。すでに戻ってきている答えを使っているだけです。
+   ================================================================== */
+function admWorksSync_(op, name, members){
+  try {
+    if (!WORKS || typeof WORKS !== 'object') WORKS = {};
+    if (op === 'del') { delete WORKS[name]; }
+    else if (op === 'add') { WORKS[name] = []; }
+    else { WORKS[name] = (members || []).slice(); }
+    fillTargetSelect_();
+  } catch (e) {}
 }
 
 /* ★★2026-09-14（工事E-4）　新しい種類を足す */
@@ -5108,6 +5155,7 @@ function adminAddWork(btn){
       }
       var added = (data.work || nm);
       ADM_NEWWORK_ = '';     /* ★入ったので、入力欄は空に戻します */
+      admWorksSync_('add', added);
       if (admApplyView_(data)){
         admSayWork_('workadd', '「' + added + '」を足しました。' +
           'つづけて「変える」を押し、顔ぶれを選んでください。', false, 'list');
@@ -5138,6 +5186,7 @@ function adminDelWork(btn){
            　★画面の長さが変わるので、答えが見えるように
            　　「予定の種類と顔ぶれ」のボタンの位置まで戻します。
            　　そのすぐ下に、今の答えが出ます。 */
+        admWorksSync_('del', name);
         ADMIN_EDIT = null;
         ADMIN_PANE = 'works';
         renderWorks_();
