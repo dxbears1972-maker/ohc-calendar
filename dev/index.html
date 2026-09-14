@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14c';
+var APP_VER = '2026-09-14d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4641,6 +4641,7 @@ function adminEditMember(name){
              '過去の記録は、お名前のまま残っています。</p>' +
            '<button type="button" class="bigbtn"' +
              ' onclick="adminMemberOp(\'rejoin\', this)">退会を取り消す</button>' +
+           admSecMsg_('leave') +
          '</div>';
   } else {
     admMsg_().textContent = name + 'さんの設定を変えます。';
@@ -4663,6 +4664,7 @@ function adminEditMember(name){
            '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
            '<button type="button" class="bigbtn"' +
              ' onclick="adminSaveMember(this)">この内容で変える</button>' +
+           admSecMsg_('role') +
          '</div>';
 
     /* ★★② 連絡先と備考（2026-09-14 工事E-2）
@@ -4697,6 +4699,7 @@ function adminEditMember(name){
       }
       h += '<button type="button" class="bigbtn"' +
              ' onclick="adminSaveContact(this)">この内容で変える</button>' +
+           admSecMsg_('contact') +
            '</div>';
     }
 
@@ -4713,7 +4716,7 @@ function adminEditMember(name){
     } else {
       h += '<p class="note" style="margin-top:0">まだ、どの端末からもお使いになっていません。</p>';
     }
-    h += '</div>';
+    h += admSecMsg_('device') + '</div>';
 
     /* ④ 確認番号（4けたを忘れたとき） */
     h += '<div class="admsec">' +
@@ -4729,7 +4732,7 @@ function adminEditMember(name){
       h += '<p class="note" style="margin-top:0">2台目をお使いになる方だけが決める番号です。' +
              '決めていなくてかまいません。</p>';
     }
-    h += '</div>';
+    h += admSecMsg_('code') + '</div>';
 
     /* ★★⑤ LINE通知（2026-09-14 工事E-2）★見るだけ
        　只隈さんのご指摘：この欄が付くのは、★ご本人が公式アカウントで
@@ -4763,7 +4766,7 @@ function adminEditMember(name){
            '<button type="button" class="carebtn"' +
              ' onclick="adminMemberOp(\'leave\', this)">この方を退会にする</button>';
     }
-    h += '</div>';
+    h += admSecMsg_('leave') + '</div>';
   }
 
   h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
@@ -4803,6 +4806,41 @@ function admBusyEnd_(){
   ADM_BUSY_ = null;
 }
 
+/* ==================================================================
+   ★★2026-09-14（工事E-2b）　答えは、押したその場に出す。★画面を動かさない。
+
+   　只隈さん「この内容で変えるを押すと、画面がスライドするので、わかりづらい」。
+
+   　これまでは、1回押すごとに★2回も画面が飛んでいました。
+   　　①押した瞬間　… 画面のいちばん上の知らせへ（admSay_ の scrollIntoView）
+   　　②終わったとき… 「会員の設定を変える」のボタンへ（scrollIntoView）
+   　箱が6つになって画面が長くなったので、飛ぶ幅も大きくなりました。
+
+   　→ ★★押したボタンのすぐ下に答えを出し、★★画面の位置はそのままにします。
+   　★E-1の#10・E-1O と同じ考え（押した場所と、答えの出る場所を離さない）。
+   ================================================================== */
+var ADM_MSG_AT_ = null;      /* {sec:'contact', text:'…', err:true/false} */
+
+function admSayAt_(sec, text, isErr, name){
+  ADM_MSG_AT_ = { sec: sec, text: text, err: !!isErr };
+  var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+  /* ★描き直します。断られたときも描き直します（E-1M 案2）。 */
+  if (adminFind_(name)) adminEditMember(name); else renderRoles_();
+  ADM_MSG_AT_ = null;
+  try { window.scrollTo(0, y); } catch (eY){}
+  /* ★断りだけは窓でも出します（見落とすと、何も起きなかったように見えるため） */
+  if (isErr) alert(text);
+}
+
+/* その箱に出す答え（無ければ空） */
+function admSecMsg_(sec){
+  if (!ADM_MSG_AT_ || ADM_MSG_AT_.sec !== sec) return '';
+  var m = ADM_MSG_AT_;
+  return '<p style="margin:8px 0 0;font-size:16px;font-weight:bold;' +
+         'text-align:center;color:' + (m.err ? '#b00000' : '#2e6b34') + '">' +
+         esc(m.text) + '</p>';
+}
+
 /* ★2026-09-08（工事E-1）　退会・端末リセット・確認番号リセット */
 function adminMemberOp(op, btn){
   var name = ADMIN_EDIT;
@@ -4823,22 +4861,25 @@ function adminMemberOp(op, btn){
   if (!q || !confirm(q)) return;
 
   admBusy_(btn);
-  admSay_('変えています…');
+  var sec = (op === 'resetDevice') ? 'device'
+          : (op === 'resetCode')   ? 'code' : 'leave';
   api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
                 target: name, op: op },
     function(err, data){
       admBusyEnd_();
       if (err || !data || data.error){
-        admSay_((data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
+        admSayAt_(sec, (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true, name);
         return;
       }
       if (admApplyView_(data)){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
-        if (adminFind_(name)) adminEditMember(name); else renderRoles_();
-        var bt1 = $('admBtn_roles');
-        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+        admSayAt_(sec,
+          (op === 'resetDevice') ? '端末の登録をリセットしました。' :
+          (op === 'resetCode')   ? '確認番号をリセットしました。' :
+          (op === 'leave')       ? '退会にしました。' : '退会を取り消しました。',
+          false, name);
       } else {
         admAfterMember_(name);
       }
@@ -4852,28 +4893,22 @@ function adminSaveMember(btn){
   for (var i = 0; i < rs.length; i++){ if (rs[i].checked) role = rs[i].value; }
   var ct = $('admContact') ? $('admContact').checked : false;
   admBusy_(btn);
-  admSay_('変えています…');
   api('POST', { action: 'adminSetMember', deviceId: deviceId(), name: myName,
                 target: name, role: role, contact: ct },
     function(err, data){
       admBusyEnd_();
       if (err || !data || data.error){
         /* ★2026-09-14（工事E-1M・案2）　断られたときは、★画面を本当の姿に戻します。
-           　これまでは知らせを出すだけで、選んだ丸がそのまま残っていたため、
-           　「変わっていないのに、変わったように見える」状態になっていました。
-           　★知らせは、描き直したあとに出します（描き直すと消えるため）。 */
-        var back = (data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。';
-        if (adminFind_(name)) adminEditMember(name);
-        admSay_(back, true);
+           　知らせを出すだけだと、選んだ丸がそのまま残り、
+           　「変わっていないのに、変わったように見える」状態になります。 */
+        admSayAt_('role', (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true, name);
         return;
       }
       if (admApplyView_(data)){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
-        if (adminFind_(name)) adminEditMember(name); else renderRoles_();
-        var bt1 = $('admBtn_roles');
-        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+        admSayAt_('role', '役割と連絡窓口を変えました。', false, name);
       } else {
         admAfterMember_(name);
       }
@@ -4890,29 +4925,19 @@ function adminSaveContact(btn){
   var mail = $('admMail') ? $('admMail').value : '';
   var memo = $('admMemo') ? $('admMemo').value : '';
   admBusy_(btn);
-  admSay_('変えています…');
   api('POST', { action: 'adminSetContact', deviceId: deviceId(), name: myName,
                 target: name, tel: tel, mail: mail, memo: memo },
     function(err, data){
       admBusyEnd_();
       if (err || !data || data.error){
-        var back = (data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。';
-        if (adminFind_(name)) adminEditMember(name);
-        admSay_(back, true);
+        admSayAt_('contact', (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。', true, name);
         return;
       }
       if (admApplyView_(data)){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
-        if (adminFind_(name)){
-          adminEditMember(name);
-          admSay_(name + 'さんの連絡先を変えました。');
-        } else {
-          renderRoles_();
-        }
-        var bt1 = $('admBtn_roles');
-        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+        admSayAt_('contact', '連絡先と備考を変えました。', false, name);
       } else {
         admAfterMember_(name);
       }
@@ -4962,6 +4987,7 @@ function adminEditWork(name){
       h +
       '<button type="button" class="bigbtn" style="margin-top:8px"' +
         ' onclick="adminSaveWork(this)">この内容で変える</button>' +
+      admSecMsg_('work') +
       '<button type="button" class="cancelbtn" style="margin-top:8px"' +
         ' onclick="showAdminView(\'works\', true)">やめる</button>' +
     '</div>';
@@ -4973,13 +4999,24 @@ function adminSaveWork(btn){
   var cbs = document.getElementsByClassName('admWk'), list = [];
   for (var i = 0; i < cbs.length; i++){ if (cbs[i].checked) list.push(cbs[i].value); }
   admBusy_(btn);
-  admSay_('変えています…');
   api('POST', { action: 'adminSetWork', deviceId: deviceId(), name: myName,
                 work: name, members: list },
     function(err, data){
+      /* ★★2026-09-14（工事E-2b）　ここに `admBusyEnd_()` が無く、断られると
+         　ボタンが「変えています…」のまま、押せない状態で残っていました。 */
+      admBusyEnd_();
       if (err || !data || data.error){
-        admSay_((data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
+        /* ★答えは押したその場に。画面は動かしません（E-2b） */
+        ADM_MSG_AT_ = { sec: 'work',
+          text: (data && data.error) ? data.error :
+            '変えられませんでした。電波の良いところで、もう一度お試しください。',
+          err: true };
+        var yW = window.pageYOffset || document.documentElement.scrollTop || 0;
+        adminEditWork(name);
+        ADM_MSG_AT_ = null;
+        try { window.scrollTo(0, yW); } catch (eY2){}
+        alert((data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。');
         return;
       }
       if (admApplyView_(data)){
