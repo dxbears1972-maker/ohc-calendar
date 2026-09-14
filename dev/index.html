@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14b';
+var APP_VER = '2026-09-14c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4589,6 +4589,26 @@ function adminEditMember(name){
   if (!m) return;
   ADMIN_EDIT = name;
   var r = m.role || '';
+
+  /* ★★2026-09-14（工事E-2）　保守業者（DXベアーズ）の行。
+     　クラブの側には、そもそもこの行が出ません。出るのは保守業者ご本人の画面だけです。
+     　サーバーは前から断っていましたが、★画面は変えられるように見えていました。
+     　「断られると分かっていることは、画面で先に止める」（07_つくるときの決まり 2章）。 */
+  if (m.maintRow){
+    admMsg_().textContent = name + 'さんは、保守業者の行です。';
+    admList_().innerHTML =
+      '<div style="padding:2px 0 4px">' +
+        '<div style="font-size:19px;margin:4px 0 2px"><b>' + esc(name) + '</b> さん</div>' +
+        '<div class="admsec">' +
+          '<div class="admsec-h">保守業者の行</div>' +
+          '<p class="note" style="margin-top:0">この行は、アプリからは変えられません。' +
+            '名簿のファイルで直してください。</p>' +
+        '</div>' +
+        '<button type="button" class="cancelbtn" style="margin-top:14px"' +
+          ' onclick="showAdminView(\'roles\', true)">やめる</button>' +
+      '</div>';
+    return;
+  }
   /* ★2026-09-08（工事E-1h）　只隈さん「本人なのにこのメッセージですよ」。
      　ご自身は退会にできないと分かっているのに、「よろしいですか？」と聞いて、
      　OKのあと5秒待たせてから断っていました。★聞かずに、はじめから出しません。 */
@@ -4645,7 +4665,42 @@ function adminEditMember(name){
              ' onclick="adminSaveMember(this)">この内容で変える</button>' +
          '</div>';
 
-    /* ② 端末（機種変更のとき） */
+    /* ★★② 連絡先と備考（2026-09-14 工事E-2）
+       　これまで名簿シートに直接入れていただいていた3つです。
+       　★電話は、前から幹事・管理者には渡しています（サーバーの tels）。
+       　★メールのアドレスと備考は、★管理者のこの画面にだけ出します。 */
+    var C = (ADMIN_DATA && ADMIN_DATA.cols) || { tel: true, mail: true, memo: true };
+    if (C.tel || C.mail || C.memo){
+      h += '<div class="admsec">' +
+             '<div class="admsec-h">連絡先と備考</div>';
+      if (C.tel){
+        h += '<label style="display:block;font-size:15px;color:#444;margin-top:6px">電話</label>' +
+             '<input type="text" id="admTel" inputmode="tel" autocomplete="off"' +
+               ' placeholder="例）09012345678" value="' + esc(m.tel || '') + '">' +
+             '<p class="note" style="margin-top:2px">幹事・管理者だけに見えます。' +
+               '「まだ読んでいない人」から、押すだけでおかけになれます。</p>';
+      }
+      if (C.mail){
+        h += '<label style="display:block;font-size:15px;color:#444;margin-top:10px">メール</label>' +
+             '<input type="text" id="admMail" inputmode="email" autocomplete="off"' +
+               ' placeholder="例）taro@example.com" value="' + esc(m.mail || '') + '">' +
+             '<p class="note" style="margin-top:2px">入れておくと、予定やお知らせが' +
+               '自動で届きます。費用はかかりません。' +
+               '<b>この画面以外には出ません。</b></p>';
+      }
+      if (C.memo){
+        h += '<label style="display:block;font-size:15px;color:#444;margin-top:10px">備考</label>' +
+             '<textarea id="admMemo" rows="2" placeholder="自由に書けます">' +
+               esc(m.memo || '') + '</textarea>' +
+             '<p class="note" style="margin-top:2px"><b>管理者だけが見られます。</b>' +
+               'ご本人にも、ほかの会員にも出ません。</p>';
+      }
+      h += '<button type="button" class="bigbtn"' +
+             ' onclick="adminSaveContact(this)">この内容で変える</button>' +
+           '</div>';
+    }
+
+    /* ③ 端末（機種変更のとき） */
     h += '<div class="admsec">' +
            '<div class="admsec-h">端末　' + (m.devices || 0) + '台' +
              (m.status ? '<span style="font-weight:normal;font-size:14px;color:#666">　' +
@@ -4660,7 +4715,7 @@ function adminEditMember(name){
     }
     h += '</div>';
 
-    /* ③ 確認番号（4けたを忘れたとき） */
+    /* ④ 確認番号（4けたを忘れたとき） */
     h += '<div class="admsec">' +
            '<div class="admsec-h">確認番号　' +
              (m.hasCode ? 'あり' : 'まだ決めていません') + '</div>';
@@ -4676,7 +4731,25 @@ function adminEditMember(name){
     }
     h += '</div>';
 
-    /* ④ 退会（★ご自身にはボタンを出しません） */
+    /* ★★⑤ LINE通知（2026-09-14 工事E-2）★見るだけ
+       　只隈さんのご指摘：この欄が付くのは、★ご本人が公式アカウントで
+       　お名前を選んで登録されたときだけ。しかも別のLINEで登録し直されたときは、
+       　★GASが前の行の印を自動で消します（lineSaveToRoster_）。
+       　残るのは「LINEをおやめになった方」だけで、★それが起きるかは
+       　他のクラブをやってみないと分かりません。
+       　→ ★★「外す」ボタンは作りません（07_つくるときの決まり 2章）。 */
+    h += '<div class="admsec">' +
+           '<div class="admsec-h">LINE通知　' +
+             (m.line ? esc(m.line) : 'まだ登録されていません') + '</div>' +
+           '<p class="note" style="margin-top:0">' +
+             (m.line
+               ? 'ご本人が公式アカウントでお名前を選ばれたので、<b>自動で入りました。</b>'
+               : 'まだ、公式アカウントでお名前を選ばれていません。') +
+             '<br>この欄は<b>ご本人の登録でしか変わりません。</b>' +
+             'こちらから登録したり、消したりすることはできません。</p>' +
+         '</div>';
+
+    /* ⑥ 退会（★ご自身にはボタンを出しません） */
     h += '<div class="admsec">' +
            '<div class="admsec-h">退会</div>';
     if (isSelf){
@@ -4799,6 +4872,45 @@ function adminSaveMember(btn){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
         if (adminFind_(name)) adminEditMember(name); else renderRoles_();
+        var bt1 = $('admBtn_roles');
+        if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
+      } else {
+        admAfterMember_(name);
+      }
+    });
+}
+
+/* ★★2026-09-14（工事E-2）　電話・メール・備考を変えます。
+   　★断られたときは、画面を本当の姿に戻してから知らせます（E-1M と同じ）。
+   　★変えられたときは、その方の画面のまま「変えました」と出します。 */
+function adminSaveContact(btn){
+  var name = ADMIN_EDIT;
+  if (!name) return;
+  var tel  = $('admTel')  ? $('admTel').value  : '';
+  var mail = $('admMail') ? $('admMail').value : '';
+  var memo = $('admMemo') ? $('admMemo').value : '';
+  admBusy_(btn);
+  admSay_('変えています…');
+  api('POST', { action: 'adminSetContact', deviceId: deviceId(), name: myName,
+                target: name, tel: tel, mail: mail, memo: memo },
+    function(err, data){
+      admBusyEnd_();
+      if (err || !data || data.error){
+        var back = (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。';
+        if (adminFind_(name)) adminEditMember(name);
+        admSay_(back, true);
+        return;
+      }
+      if (admApplyView_(data)){
+        ADMIN_EDIT = null;
+        ADMIN_PANE = 'roles';
+        if (adminFind_(name)){
+          adminEditMember(name);
+          admSay_(name + 'さんの連絡先を変えました。');
+        } else {
+          renderRoles_();
+        }
         var bt1 = $('admBtn_roles');
         if (bt1){ try { bt1.scrollIntoView({ block: 'start' }); } catch (eV){} }
       } else {
