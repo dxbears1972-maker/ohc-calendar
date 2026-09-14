@@ -881,7 +881,7 @@
     <div id="adminBox" style="display:none">
       <h2 style="margin-top:4px">管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類ごとの顔ぶれは、
+        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類（足す・消す・顔ぶれ）は、
         ここで変えられます。</b></p>
       <button type="button" class="subbtn" id="admBtn_logs"
               onclick="showAdminView('logs')">操作の記録を見る</button>
@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14d';
+var APP_VER = '2026-09-14e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4944,28 +4944,77 @@ function adminSaveContact(btn){
     });
 }
 
-/* --- 予定の種類ごとの顔ぶれ（作業マスタ） ---
+/* --- 予定の種類と顔ぶれ（作業マスタ） ---
    ★2026-09-08（工事E-1f）　只隈さんのご指摘：「役員とかは係じゃない気がしますが」。
    　そのとおりで、この表は係の表ではなく、★予定の「種類」ごとに
    　『毎回同じ顔ぶれ』を決める表です（あしあと印刷＝係／役員会＝会合）。
    　2026-09-03に「役員会は作業マスタで決める」と決めたのが、ここに効いています。
-   　★種類そのものを足す・消すのは、いまはシートの1行目（アプリへ移すのは E-4）。 */
+   　★★2026-09-14（工事E-4）　種類そのものを足す・消すを、ここへ移しました。
+   　　スプレッドシートの1行目に書く必要はもうありません。 */
+
+/* ★画面を描き直しても、打っていただいた文字が消えないように持っておきます */
+var ADM_NEWWORK_ = '';
+
+/* ★★2026-09-14（工事E-4）　答えは押したその場に出し、★画面は動かしません。
+   　where … 'list'（一覧を描き直す）／'edit'（その種類の画面を描き直す）
+   　★E-2b と同じ考え方です。 */
+function admSayWork_(sec, text, isErr, where, name){
+  ADM_MSG_AT_ = { sec: sec, text: text, err: !!isErr };
+  var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+  if (where === 'edit' && name) adminEditWork(name); else renderWorks_();
+  ADM_MSG_AT_ = null;
+  try { window.scrollTo(0, y); } catch (eY){}
+  if (isErr) alert(text);
+}
+
 function renderWorks_(){
   var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], h = '';
-  admMsg_().textContent = '顔ぶれを決めたい種類の「変える」を押してください。';
+  ADMIN_EDIT = null;
+  admMsg_().textContent = wk.length
+    ? '顔ぶれを決めたい種類の「変える」を押してください。'
+    : 'まだ、予定の種類はひとつもありません。';
   for (var i = 0; i < wk.length; i++){
+    /* ★名前を onclick の中に直に書くのをやめ、並びの番号で渡します。
+       　esc() はアポストロフを逃がしません。種類の名前を手で入れられるように
+       　なった以上、ここは番号で渡すのが安全です。 */
     h += '<div style="padding:10px;border-bottom:1px solid #e3e8e3">' +
            '<div><b>' + esc(wk[i].name) + '</b></div>' +
            '<div style="font-size:15px;color:#666">' +
              esc(wk[i].members.length ? wk[i].members.join('、') : '（まだ決まっていません）') +
            '</div>' +
            '<button type="button" class="subbtn" style="margin-top:6px"' +
-             ' onclick="adminEditWork(\'' + esc(wk[i].name) + '\')">変える</button>' +
+             ' onclick="adminEditWorkAt(' + i + ')">変える</button>' +
          '</div>';
   }
-  if (!wk.length) h = '<p class="note">まだ作られていません。' +
-                      'スプレッドシートの「作業」シートの1行目に、種類の名前を書いてください。</p>';
+  if (!wk.length){
+    h = '<p class="note" style="padding:4px 10px">下の「新しい種類を足す」から、' +
+        '「役員会」のように、毎回同じ方が集まる予定の名前を入れてください。</p>';
+  }
+
+  /* ★★2026-09-14（工事E-4）　新しい種類を足す */
+  h += '<div class="admsec">' +
+         '<div class="admsec-h">新しい種類を足す</div>' +
+         '<input type="text" id="admNewWork" maxlength="20" autocomplete="off"' +
+           ' placeholder="例）役員会" value="' + esc(ADM_NEWWORK_) + '"' +
+           ' oninput="ADM_NEWWORK_ = this.value">' +
+         '<p class="note" style="margin-top:2px">「役員会」のように、' +
+           '<b>毎回同じ顔ぶれ</b>が集まる予定に使います。<br>' +
+           '足したあと、その種類の「変える」で、' +
+           '<b>必ず顔ぶれを選んでください。</b>' +
+           '選ばないと、その予定は登録した方お一人にしか届きません。</p>' +
+         '<button type="button" class="bigbtn" style="margin-top:8px"' +
+           ' onclick="adminAddWork(this)">この名前で足す</button>' +
+         admSecMsg_('workadd') +
+       '</div>';
+
   admList_().innerHTML = h + admCloseBtn_();
+}
+
+/* ★一覧の並びの番号から、その種類の画面へ */
+function adminEditWorkAt(i){
+  var wk = (ADMIN_DATA && ADMIN_DATA.works) || [];
+  if (i < 0 || i >= wk.length) return;
+  adminEditWork(wk[i].name);
 }
 
 function adminEditWork(name){
@@ -4980,15 +5029,30 @@ function adminEditWork(name){
            '<input type="checkbox" class="admWk" value="' + esc(mb[k].name) + '"' +
            (on ? ' checked' : '') + '> ' + esc(mb[k].name) + '</label>';
   }
-  admMsg_().textContent = esc(name) + 'の顔ぶれを選んでください。';
+  admMsg_().textContent = name + 'の画面です。';
   admList_().innerHTML =
     '<div style="padding:10px">' +
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
-      h +
-      '<button type="button" class="bigbtn" style="margin-top:8px"' +
-        ' onclick="adminSaveWork(this)">この内容で変える</button>' +
-      admSecMsg_('work') +
-      '<button type="button" class="cancelbtn" style="margin-top:8px"' +
+      /* ① 毎回入る方 */
+      '<div class="admsec">' +
+        '<div class="admsec-h">毎回入る方</div>' +
+        h +
+        '<button type="button" class="bigbtn" style="margin-top:8px"' +
+          ' onclick="adminSaveWork(this)">この内容で変える</button>' +
+        admSecMsg_('work') +
+      '</div>' +
+      /* ★★② この種類をやめる（2026-09-14 工事E-4） */
+      '<div class="admsec">' +
+        '<div class="admsec-h">この種類をやめる</div>' +
+        '<p class="note" style="margin-top:0">消すと、予定を登録するときの' +
+          '「予定の種類」に出なくなります。<br>' +
+          '<b>この種類を使っている予定が残っているあいだは、消せません。</b><br>' +
+          '過去の記録は残ります。</p>' +
+        '<button type="button" class="carebtn"' +
+          ' onclick="adminDelWork(this)">この種類を消す</button>' +
+        admSecMsg_('workdel') +
+      '</div>' +
+      '<button type="button" class="cancelbtn" style="margin-top:14px"' +
         ' onclick="showAdminView(\'works\', true)">やめる</button>' +
     '</div>';
 }
@@ -5006,25 +5070,80 @@ function adminSaveWork(btn){
          　ボタンが「変えています…」のまま、押せない状態で残っていました。 */
       admBusyEnd_();
       if (err || !data || data.error){
-        /* ★答えは押したその場に。画面は動かしません（E-2b） */
-        ADM_MSG_AT_ = { sec: 'work',
-          text: (data && data.error) ? data.error :
-            '変えられませんでした。電波の良いところで、もう一度お試しください。',
-          err: true };
-        var yW = window.pageYOffset || document.documentElement.scrollTop || 0;
-        adminEditWork(name);
-        ADM_MSG_AT_ = null;
-        try { window.scrollTo(0, yW); } catch (eY2){}
-        alert((data && data.error) ? data.error :
-          '変えられませんでした。電波の良いところで、もう一度お試しください。');
+        admSayWork_('work', (data && data.error) ? data.error :
+          '変えられませんでした。電波の良いところで、もう一度お試しください。',
+          true, 'edit', name);
         return;
       }
       if (admApplyView_(data)){
+        /* ★★2026-09-14（工事E-4）　ここは以前、一覧へ戻ってから
+           　「予定の種類と顔ぶれ」のボタンまで画面が飛んでいました。
+           　★会員の画面と同じく、そのままで結果を見せます（E-2b）。 */
+        admSayWork_('work', name + 'の顔ぶれを変えました。', false, 'edit', name);
+      } else {
+        admBack_('works');
+      }
+    });
+}
+
+/* ★★2026-09-14（工事E-4）　新しい種類を足す */
+function adminAddWork(btn){
+  var el = $('admNewWork');
+  var nm = el ? el.value : ADM_NEWWORK_;
+  ADM_NEWWORK_ = nm;
+  if (!String(nm).replace(/[\s　]/g, '')){
+    admSayWork_('workadd', '予定の種類の名前を入れてください。', true, 'list');
+    return;
+  }
+  admBusy_(btn);
+  api('POST', { action: 'adminWorkOp', deviceId: deviceId(), name: myName,
+                op: 'add', work: nm },
+    function(err, data){
+      admBusyEnd_();
+      if (err || !data || data.error){
+        admSayWork_('workadd', (data && data.error) ? data.error :
+          '足せませんでした。電波の良いところで、もう一度お試しください。',
+          true, 'list');
+        return;
+      }
+      var added = (data.work || nm);
+      ADM_NEWWORK_ = '';     /* ★入ったので、入力欄は空に戻します */
+      if (admApplyView_(data)){
+        admSayWork_('workadd', '「' + added + '」を足しました。' +
+          'つづけて「変える」を押し、顔ぶれを選んでください。', false, 'list');
+      } else {
+        admBack_('works');
+      }
+    });
+}
+
+/* ★★2026-09-14（工事E-4）　種類を消す。
+   　★使われているときは、サーバーが件数を添えて断ります。 */
+function adminDelWork(btn){
+  var name = ADMIN_EDIT;
+  if (!name) return;
+  admBusy_(btn);
+  api('POST', { action: 'adminWorkOp', deviceId: deviceId(), name: myName,
+                op: 'del', work: name },
+    function(err, data){
+      admBusyEnd_();
+      if (err || !data || data.error){
+        admSayWork_('workdel', (data && data.error) ? data.error :
+          '消せませんでした。電波の良いところで、もう一度お試しください。',
+          true, 'edit', name);
+        return;
+      }
+      if (admApplyView_(data)){
+        /* ★その種類はもう無いので、一覧へ戻ります。
+           　★画面の長さが変わるので、答えが見えるように
+           　　「予定の種類と顔ぶれ」のボタンの位置まで戻します。
+           　　そのすぐ下に、今の答えが出ます。 */
         ADMIN_EDIT = null;
         ADMIN_PANE = 'works';
         renderWorks_();
-        var bt2 = $('admBtn_works');
-        if (bt2){ try { bt2.scrollIntoView({ block: 'start' }); } catch (eW2){} }
+        admMsg_().textContent = '「' + name + '」を消しました。';
+        var bt3 = $('admBtn_works');
+        if (bt3){ try { bt3.scrollIntoView({ block: 'start' }); } catch (eW3){} }
       } else {
         admBack_('works');
       }
