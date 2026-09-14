@@ -507,6 +507,16 @@
   .bhint.ng { color: #a3231f; font-weight: bold; }
   .bsample { font-size: 14px; color: #777; background: #f4f8f4;
              border-radius: 8px; padding: 8px 10px; margin-top: 6px; line-height: 1.6; }
+  /* ★★2026-09-15（工事F）　まとめて登録の画面を、管理者メニュー（工事E-1〜E-6）と
+     　同じ部品で作り直しました。只隈さんのご指摘：「デザインも古い、先ほどから
+     　管理者メニューで採用したデザインに踏襲したい」。
+     　★ドロップ枠だけは直書きの style だったので、クラスに移しました。
+     　　枠の緑は .admsec-h の縦線と同じ #2e6b34 系にそろえています。 */
+  .dropzone {
+    border: 3px dashed #7aa87e; border-radius: 10px; background: #f4f9f4;
+    text-align: center; padding: 16px 10px; margin-top: 8px;
+    color: #2e6b34; font-size: 16px;
+  }
 </style>
 </head>
 <body>
@@ -829,10 +839,15 @@
   <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
+    <!-- ★★2026-09-15（工事F）　管理者の画面（#adminBox）とまったく同じ入れ子にします。
+         　.card（白）の中に .cfgsec（うすい緑の部屋）を置き、その中に白い .admsec を並べる。
+         　★白い箱が白い地に乗ると境目が見えないため、部屋が要ります。 -->
+    <div class="cfgsec">
 
     <!-- ★★2026-09-03　入力表。1行＝1つの予定のパターン。
          　くり返しを使えば、1行で1年分が入ります。 -->
-    <h3 style="margin:6px 0 4px; font-size:17px">① 毎月の定例行事も、1回の入力で1年分</h3>
+    <div class="admsec">
+    <div class="admsec-h">① 毎月の定例行事も、1回の入力で1年分</div>
     <p class="note"><b>1件ぶんを書いて、「くり返し」を選ぶだけです。</b><br>
       何件できるかは、書いたそばにすぐ出ます。届く相手も、その場に出ます。</p>
     <div class="bsample">
@@ -843,10 +858,25 @@
     <button class="refbtn" id="bulkAddRow" type="button" style="width:auto; padding:8px 20px; margin-top:2px">＋ もう1件ぶん足す</button>
     <p class="note" id="bulkPreview" style="margin-top:10px"></p>
     <button class="subbtn" id="bulkBtn" type="button">この内容で登録する</button>
+    </div>
 
-    <h3 style="margin:18px 0 4px; font-size:17px">② Excelから貼り付けて登録する</h3>
-    <p class="note">Excelの表を<b>見出し行ごと</b>範囲コピーして貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
-    <div id="dropZone" style="border:3px dashed #7aa87e; border-radius:10px; background:#f4f9f4; text-align:center; padding:16px 10px; margin-top:8px; color:#2e6b34; font-size:16px;">
+    <!-- ★★2026-09-15（工事F）　ダウンロードを、貼り付けより先に置きました。
+         　Excelで作るときの手順が「①ダウンロード → ②Excelで直す → ③読み込む」だからです。
+         　★予定がまだ1件も無いクラブでは、見出し＋「例」の1行のひな形が出ます。
+         　　只隈さんのご発案：「エクセルに最新情報をダウンロードする機能がすでにあるので、
+         　　それをひな形にできないですか？」——列は16列とも一致していました。 -->
+    <div class="admsec">
+    <div class="admsec-h">② 入力用のExcelをダウンロードする</div>
+    <p class="note">いまの予定が入ったExcelファイルが出ます。<b>これが、そのまま入力用のひな形です。</b>Excelで手直しして、下の③に読み込ませてください。日付やタイトルの食い違いが起きず、出欠もそのまま残ります。<br>
+      予定がまだ1件も無いときは、<b>見出しと「例」の1行だけ</b>が入ったものが出ます。<b>「例」の行は、そのままにしておいて大丈夫です</b>（読み込んでも登録されません）。</p>
+    <button class="refbtn" id="exportFileBtn" type="button">⬇ Excelファイルで保存する</button>
+    <button class="refbtn" id="exportBtn" type="button" style="margin-top:8px">表をコピーする（Excelに貼り付け用）</button>
+    </div>
+
+    <div class="admsec">
+    <div class="admsec-h">③ Excelから読み込んで登録する</div>
+    <p class="note">ファイルをドロップするか、Excelの表を<b>見出し行ごと</b>範囲コピーして下の欄に貼り付けてください。「司会」「受付」など係の列は名前だけでOK（自動で「受付：永野」の形になります）。空欄の項目は登録済みの内容を上書きしません。</p>
+    <div id="dropZone" class="dropzone">
       📂 ここにExcel（.xlsx）やCSVのファイルをドロップ<br>
       <span style="font-size:14px; color:#666">または</span><br>
       <button type="button" class="refbtn" id="filePickBtn" style="width:auto; padding:8px 24px; margin-top:6px">参照（ファイルを選ぶ）</button>
@@ -855,9 +885,9 @@
     <p class="note">ファイルを読み込むと下の欄に表が入ります。内容を確認して「まとめて登録する」を押してください。</p>
     <textarea id="importText" rows="8" placeholder="2026/8/9	高尾山	8:00	新宿駅	雨天中止"></textarea>
     <button class="subbtn" id="importBtn" type="button">まとめて登録する</button>
-    <button class="refbtn" id="exportFileBtn" type="button" style="margin-top:10px">⬇ 今の予定をExcelファイルで保存</button>
-    <button class="refbtn" id="exportBtn" type="button" style="margin-top:8px">今の予定をコピーする（Excel貼り付け用）</button>
-    <p class="note">「保存」は予定の一覧をExcelファイル（.xlsx）にして保存します。Excelで手直しして、上の枠にドロップすれば、日付やタイトルの食い違いなく更新できます（出欠はそのまま残ります）。</p>
+    </div>
+    </div>
+
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
@@ -3670,6 +3700,13 @@ function parseImport(text){
       continue;
     }
 
+    /* ★★2026-09-15（工事F）　ひな形に入れた「例」の行は、読んでも登録しない。
+       　★エラーにもしない。黙って飛ばす。
+       　只隈さんのご指摘：「見出しと例は触れないようにしておいて、
+       　　　　　　　　　　その例は予定に登録されないようにすればいいのでは？」
+       　★狙いは「消してください」と書かせないこと。消し忘れの事故が起きない。 */
+    if (dRaw.indexOf('例') === 0) continue;
+
     /* 列の値を取り出す（見出しがあれば列名で、なければ位置で） */
     function val(field, defIdx){
       if (headers){
@@ -4111,6 +4148,14 @@ function closeImport(){
    日付・タイトルの食い違いなく上書き更新できる */
 var EXPORT_ROLE_COLS = ['リーダー', '班長', '留守宅', '司会', '書記', '受付', '自己PR'];
 
+/* ★★2026-09-15（工事F）　予定がまだ1件も無いクラブ向けの「例」の1行。
+   　★見出しだけの表だと、何をどう書けばよいのか分かりません。
+   　★この行は `parseImport` が黙って飛ばすので、消さずに残したまま登録できます。
+   　★日付を「例）」で始めることが、飛ばす印そのものです（書き換えないでください）。 */
+var EXPORT_SAMPLE_ROW = ['例）2026/4/5', '高良山', '8:00', '○○公園 駐車場',
+                         '雨天のときは中止します', '', '',
+                         '山田', '', '', '', '', '', '', '', ''];
+
 function buildExportRows(){
   var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
               '計画表リンク', '報告書リンク'].concat(EXPORT_ROLE_COLS).concat(['係・担当', '種類']);
@@ -4147,6 +4192,10 @@ function buildExportRows(){
     row.push(targetToKind_(ev.target));
     rows.push(row);
   }
+  /* ★★2026-09-15（工事F）　1件も無いときだけ、書き方の見本を1行入れます。
+     　★予定がある方には見本は要らず、見慣れない行が混ざると問い合わせになるため、
+     　　0件のときに限ります。 */
+  if (evs.length === 0) rows.push(EXPORT_SAMPLE_ROW.slice());
   return { rows: rows, count: evs.length };
 }
 
@@ -4160,18 +4209,22 @@ function buildExportText(){
 /* 今の予定をExcelファイル(.xlsx)にして保存する */
 function exportEventsFile(){
   var r = buildExportRows();
-  if (r.count === 0){ alert('保存する予定がまだありません'); return; }
+  /* ★★2026-09-15（工事F）　0件でも止めません。見出し＋例の1行のひな形が出ます。
+     　★これで「ひな形が見つからず手動で入力いたしました」（8/31の問い合わせ①）が終わります。 */
   loadSheetJS(function(){
     try {
       var ws = XLSX.utils.aoa_to_sheet(r.rows);
       /* 列の幅をほどよく */
-      var wch = [11, 16, 7, 16, 14, 14, 14, 8, 8, 8, 8, 8, 8, 8, 18];
+      /* ★2026-09-15（工事F）　16列あるのに15個しか無く、「種類」だけ既定の幅でした */
+      var wch = [11, 16, 7, 16, 14, 14, 14, 8, 8, 8, 8, 8, 8, 8, 18, 10];
       ws['!cols'] = [];
       for (var i = 0; i < wch.length; i++) ws['!cols'].push({ wch: wch[i] });
       var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '予定入力');
       var now = new Date();
-      var fname = '予定一覧_' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) + '.xlsx';
+      /* ★2026-09-15（工事F）　中身が見本だけのときは、名前でもそう分かるようにします */
+      var fname = (r.count === 0 ? '予定入力のひな形_' : '予定一覧_')
+                + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) + '.xlsx';
       var out = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
       var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       if (window.showSaveFilePicker){
@@ -4184,7 +4237,9 @@ function exportEventsFile(){
             return w.write(blob).then(function(){ return w.close(); });
           });
         }).then(function(){
-          setStatus(r.count + '件の予定をExcelファイルに保存しました');
+          setStatus(r.count === 0
+            ? '入力用のひな形を保存しました（「例」の行は、そのままで大丈夫です）'
+            : r.count + '件の予定をExcelファイルに保存しました');
         }).catch(function(e){
           if (e && e.name === 'AbortError') return; /* 保存をやめただけ */
           saveBlobFallback_(blob, fname, r.count);
@@ -4206,14 +4261,18 @@ function saveBlobFallback_(blob, fname, count){
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setStatus(count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
+  setStatus(count === 0
+    ? '入力用のひな形をダウンロードしました（「例」の行は、そのままで大丈夫です）'
+    : count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
 }
 
 function exportEvents(){
   var r = buildExportText();
-  if (r.count === 0){ alert('コピーする予定がまだありません'); return; }
+  /* ★2026-09-15（工事F）　0件でも止めません。見出し＋例の1行がコピーされます */
   function done(){
-    alert(r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
+    alert(r.count === 0
+      ? '入力用のひな形をコピーしました。\nExcelのA1を選んで貼り付けてください。\n「例」の行は、そのままにしておいて大丈夫です（登録されません）。'
+      : r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
   }
   function fallback(){
     /* コピーできない環境では、貼り付け欄に表を出して手動コピーしてもらう */
