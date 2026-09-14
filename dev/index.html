@@ -1074,7 +1074,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14a';
+var APP_VER = '2026-09-14b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4620,7 +4620,7 @@ function adminEditMember(name){
            '<p class="note" style="margin-top:0">会員の一覧にも、出欠のお相手にも出てきません。' +
              '過去の記録は、お名前のまま残っています。</p>' +
            '<button type="button" class="bigbtn"' +
-             ' onclick="adminMemberOp(\'rejoin\')">退会を取り消す</button>' +
+             ' onclick="adminMemberOp(\'rejoin\', this)">退会を取り消す</button>' +
          '</div>';
   } else {
     admMsg_().textContent = name + 'さんの設定を変えます。';
@@ -4642,7 +4642,7 @@ function adminEditMember(name){
              ' 連絡窓口にする（困ったときの宛先に出ます）</label>' +
            '<p class="note">「連絡窓口」は権限ではありません。役割がなくても決められます。</p>' +
            '<button type="button" class="bigbtn"' +
-             ' onclick="adminSaveMember()">この内容で変える</button>' +
+             ' onclick="adminSaveMember(this)">この内容で変える</button>' +
          '</div>';
 
     /* ② 端末（機種変更のとき） */
@@ -4654,7 +4654,7 @@ function adminEditMember(name){
       h += '<p class="note" style="margin-top:0">機種を変えて、新しい端末から入れないときに' +
              'いったん空にします。そのあと、新しい端末でお名前を選び直していただきます。</p>' +
            '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'resetDevice\')">端末の登録をリセットする</button>';
+             ' onclick="adminMemberOp(\'resetDevice\', this)">端末の登録をリセットする</button>';
     } else {
       h += '<p class="note" style="margin-top:0">まだ、どの端末からもお使いになっていません。</p>';
     }
@@ -4669,7 +4669,7 @@ function adminEditMember(name){
              '消したあと、ふだんお使いの端末の⚙設定から決め直していただきます。<br>' +
              '<b>番号そのものは、この画面には出ません。</b></p>' +
            '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'resetCode\')">確認番号をリセットする</button>';
+             ' onclick="adminMemberOp(\'resetCode\', this)">確認番号をリセットする</button>';
     } else {
       h += '<p class="note" style="margin-top:0">2台目をお使いになる方だけが決める番号です。' +
              '決めていなくてかまいません。</p>';
@@ -4688,7 +4688,7 @@ function adminEditMember(name){
              '出なくなります。<b>その方は、いつもの端末からアプリを開けなくなります。</b><br>' +
              '過去の記録は残ります。<b>あとで取り消せます。</b></p>' +
            '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'leave\')">この方を退会にする</button>';
+             ' onclick="adminMemberOp(\'leave\', this)">この方を退会にする</button>';
     }
     h += '</div>';
   }
@@ -4698,8 +4698,40 @@ function adminEditMember(name){
   admList_().innerHTML = h;
 }
 
+/* ==================================================================
+   ★★2026-09-14（工事E-1O）　押したボタンそのものを「変えています…」にする
+
+   　只隈さん「この内容で変えるを押すと、ものすごく反応が遅く、
+   　　　　　　動いているか動いていないかが分かりません」。
+
+   　知らせ（admSay_）は画面のずっと上に出るので、指の下では
+   　★何も起きていないように見えていました。
+   　★E-1の#10（サーバーの断りが623px上に出ていた）と同じ性質の見落としです。
+   　サーバーは3〜5秒かかります。速さはここで止めると決めているので、
+   　★「いま動いている」ことを、押したその場で見せます。
+   ================================================================== */
+var ADM_BUSY_ = null;
+function admBusy_(btn){
+  if (!btn) return;
+  ADM_BUSY_ = { el: btn, text: btn.textContent };
+  try {
+    btn.disabled = true;
+    btn.style.opacity = '0.55';
+    btn.textContent = '変えています…';
+  } catch (e) {}
+}
+function admBusyEnd_(){
+  if (!ADM_BUSY_) return;
+  try {
+    ADM_BUSY_.el.disabled = false;
+    ADM_BUSY_.el.style.opacity = '';
+    ADM_BUSY_.el.textContent = ADM_BUSY_.text;
+  } catch (e) {}   /* 画面が描き直されていたら、もう無いので何もしません */
+  ADM_BUSY_ = null;
+}
+
 /* ★2026-09-08（工事E-1）　退会・端末リセット・確認番号リセット */
-function adminMemberOp(op){
+function adminMemberOp(op, btn){
   var name = ADMIN_EDIT;
   if (!name) return;
   var q = '';
@@ -4717,10 +4749,12 @@ function adminMemberOp(op){
         '役割は「なし」で戻ります。\n\nよろしいですか？';
   if (!q || !confirm(q)) return;
 
+  admBusy_(btn);
   admSay_('変えています…');
   api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
                 target: name, op: op },
     function(err, data){
+      admBusyEnd_();
       if (err || !data || data.error){
         admSay_((data && data.error) ? data.error :
           '変えられませんでした。電波の良いところで、もう一度お試しください。', true);
@@ -4738,16 +4772,18 @@ function adminMemberOp(op){
     });
 }
 
-function adminSaveMember(){
+function adminSaveMember(btn){
   var name = ADMIN_EDIT;
   if (!name) return;
   var rs = document.getElementsByName('admRole'), role = '';
   for (var i = 0; i < rs.length; i++){ if (rs[i].checked) role = rs[i].value; }
   var ct = $('admContact') ? $('admContact').checked : false;
+  admBusy_(btn);
   admSay_('変えています…');
   api('POST', { action: 'adminSetMember', deviceId: deviceId(), name: myName,
                 target: name, role: role, contact: ct },
     function(err, data){
+      admBusyEnd_();
       if (err || !data || data.error){
         /* ★2026-09-14（工事E-1M・案2）　断られたときは、★画面を本当の姿に戻します。
            　これまでは知らせを出すだけで、選んだ丸がそのまま残っていたため、
@@ -4813,17 +4849,18 @@ function adminEditWork(name){
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
       h +
       '<button type="button" class="bigbtn" style="margin-top:8px"' +
-        ' onclick="adminSaveWork()">この内容で変える</button>' +
+        ' onclick="adminSaveWork(this)">この内容で変える</button>' +
       '<button type="button" class="cancelbtn" style="margin-top:8px"' +
         ' onclick="showAdminView(\'works\', true)">やめる</button>' +
     '</div>';
 }
 
-function adminSaveWork(){
+function adminSaveWork(btn){
   var name = ADMIN_EDIT;
   if (!name) return;
   var cbs = document.getElementsByClassName('admWk'), list = [];
   for (var i = 0; i < cbs.length; i++){ if (cbs[i].checked) list.push(cbs[i].value); }
+  admBusy_(btn);
   admSay_('変えています…');
   api('POST', { action: 'adminSetWork', deviceId: deviceId(), name: myName,
                 work: name, members: list },
