@@ -1084,7 +1084,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14h';
+var APP_VER = '2026-09-14i';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4640,7 +4640,7 @@ function renderNoticeLog_(){
   for (var c = 0; c < ns.length; c++){ if (ns[c].state === 'live') liveN++; }
   admMsg_().textContent = ns.length
     ? '新しい順に ' + ns.length + ' 件です（いま出ているもの ' + liveN + ' 件）。'
-    : 'お知らせの記録はまだありません。';
+    : 'お知らせの記録は、まだありません。';
 
   var h = '';
   for (var i = 0; i < ns.length; i++){
@@ -4672,9 +4672,6 @@ function renderNoticeLog_(){
            '</div>';
     }
     h += '</div>';
-  }
-  if (!ns.length){
-    h = '<p class="note">お知らせの記録がありません。</p>';
   }
   admList_().innerHTML = h + admCloseBtn_();
 }
