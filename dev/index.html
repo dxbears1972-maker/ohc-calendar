@@ -78,6 +78,35 @@
     padding-left: 10px;
     margin-bottom: 10px;
   }
+  /* ★★2026-09-14（工事E-5c）　只隈さんのご指摘：
+     　「設定ボタンの下はすべて設定に関するところですよね。なのに設定と
+     　　会員に電話をかけるのボタンが同じ大きさであり、同じデザインというのは
+     　　わかりづらくないですか？」
+     　①「設定」は画面ぜんぶの題。その下の2つは、その中の部屋。
+     　　同じ形だと、3つが横並びの兄弟に見えて、上下の関係が読めませんでした。
+     　②部屋の切れ目が無いので、「パソコンなど、べつの端末でも使う」が
+     　　★6つ目の管理者ボタンに見えていました（これは管理者の機能ではありません）。 */
+  #cfgCard > h2 {                 /* ①この画面の題 */
+    font-size: 23px;
+    border-left-width: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dfe8df;
+    margin-bottom: 12px;
+  }
+  .cfgsec {                       /* ②中の部屋。ここで終わり、と目で分かるように */
+    background: #f4f8f4;
+    border: 1px solid #dbe6db;
+    border-radius: 10px;
+    padding: 10px 10px 12px;
+    margin: 14px 0;
+  }
+  .cfgsec h2 {                    /* ①部屋の小見出し。題より一段下げる */
+    font-size: 17px;
+    color: #4a7a4f;
+    border-left: 4px solid #8fb394;
+    padding-left: 8px;
+    margin: 2px 0 6px;
+  }
   label { font-size: 16px; font-weight: bold; display: block; margin-top: 10px; }
   input[type=text], select {
     width: 100%;
@@ -322,11 +351,11 @@
      　　灰色の箱が5つ並ぶと重たくなるため）。 */
   .admgrp.on {
     margin-top: 8px;
-    background: #eef2ee;
-    border: 1px solid #cfdacf;
+    background: #e9efe9;                 /* ★部屋の地（#f4f8f4）より少し濃く */
+    border: 1px solid #c2d0c2;
     border-radius: 10px;
     padding: 8px 10px 10px;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.16);
   }
   .admgrp.on .subbtn { margin-top: 0; }
   /* 枠が二重にならないように、中の入れ物からは枠とくぼみを外します */
@@ -887,8 +916,8 @@
     </div>
 
     <!-- 会員に電話をかける（幹事・管理者だけに出す） -->
-    <div id="telBook" style="display:none">
-      <h2 style="margin-top:4px">会員に電話をかける</h2>
+    <div id="telBook" class="cfgsec" style="display:none">
+      <h2>会員に電話をかける</h2>
       <p class="note">名字を押すと、そのまま電話がかかります。<br>
         番号は名簿シートの「電話」の欄から取っています。<b>幹事・管理者にしか出ません。</b></p>
       <div id="telBookList" class="unreadlist"></div>
@@ -898,8 +927,8 @@
          これまでスプレッドシートを開いて見ていたものを、ここで見られるようにします。
          シートを開けるということは名簿を書き換えられるということなので、
          「見るだけ」ならアプリで足りるようにするのが目的です。 -->
-    <div id="adminBox" style="display:none">
-      <h2 style="margin-top:4px">管理者の画面</h2>
+    <div id="adminBox" class="cfgsec" style="display:none">
+      <h2>管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
         <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類（足す・消す・顔ぶれ）は、
         ここで変えられます。</b></p>
@@ -1114,7 +1143,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-14j';
+var APP_VER = '2026-09-14k';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
