@@ -913,15 +913,16 @@
        　名簿を触ることになっていたため、ご本人に決めていただけるようにした。
        　押しつけにならないよう、閉じたら二度と出さない。 -->
   <div class="card" id="codeTip" style="display:none; background:#fff3e0; border:2px solid #e8a000">
-    <p style="font-size:17px; font-weight:bold; color:#8a5a00; margin-bottom:6px">
+    <p id="codeTipTitle" style="font-size:17px; font-weight:bold; color:#8a5a00; margin-bottom:6px">
       機種変更やスマホの故障に備えて</p>
-    <p class="note" style="color:#8a5a00">
+    <p class="note" id="codeTipBody" style="color:#8a5a00">
       <b>4けたの数字</b>を決めておくと、新しいスマホやパソコンでも
       <b>ご自分で名乗れます。</b><br>
       決めていないと、そのときクラブの管理者にお願いすることになります。<br>
       1分で終わります。お誕生日の月日がおすすめです（4月12日なら 0412）。</p>
     <button type="button" class="subbtn" onclick="codeTipGo()">4けたの数字を決める</button>
-    <button type="button" class="cancelbtn" onclick="codeTipLater()">あとで（もう出しません）</button>
+    <button type="button" class="cancelbtn" id="codeTipLaterBtn"
+      onclick="codeTipLater()">あとで（もう出しません）</button>
   </div>
 
   <!-- 設定（めったに使わないものは、ここにまとめる） -->
@@ -1175,7 +1176,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-21b';
+var APP_VER = '2026-09-21c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1758,6 +1759,10 @@ function applyData(data){
 
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
+
+    /* ★★2026-09-21（工事G-2 (b) 追補）　管理者なのに4けたがまだ無い方に、
+       　この場で決めていただくためのお誘いを出します（1回だけ聞きます）。 */
+    try { askMustSetCode_(); } catch (eMC) {}
 
     /* サーバー（GAS）の版も画面いちばん下に出す。
        貼り替えとデプロイができているかを、目で確かめられるように。 */
@@ -4462,11 +4467,58 @@ function pickFile(fileId){
    ・「あとで」を押したら二度と出さない（この端末に記憶する）
    ・番号を決めたら、それ以降は出ない
    ------------------------------------------------------------------ */
+/* ★★2026-09-21（工事G-2 (b) 追補）　「管理者なのに確認番号がまだ無い」かどうか。
+   　サーバー（needCode）が教えてくれます。★値そのものは受け取りません。 */
+var MUST_SET_CODE = false;
+var CODE_ASKED_   = false;
+
 function renderCodeTip(){
   var el = $('codeTip');
   if (!el) return;
-  var show = !!myName && (lsGet(LSK.claimed) === myName) && !lsGet(LSK.codeTip);
+  /* ★管理者で番号がまだ無い方は、「あとで」で閉じても次に開いたときまた出します。
+     　機種を変えたときにご自分で名乗り直せなくなるのは、この方だけだからです。 */
+  var mine = !!myName && (lsGet(LSK.claimed) === myName);
+  var show = MUST_SET_CODE ? mine : (mine && !lsGet(LSK.codeTip));
   el.style.display = show ? 'block' : 'none';
+
+  var t = $('codeTipTitle'), b = $('codeTipBody'), l = $('codeTipLaterBtn');
+  if (!t || !b || !l) return;
+  if (MUST_SET_CODE){
+    t.innerHTML = 'クラブの管理をされる方へ';
+    b.innerHTML =
+      '<b>4けたの数字</b>が、まだ決まっていません。<br>' +
+      '決めておかないと、<b>機種を変えたときにご自分で名乗り直せません。</b><br>' +
+      'そのときは、ほかの管理者の方に戻していただくことになります。<br>' +
+      '1分で終わります。お誕生日の月日がおすすめです（4月12日なら 0412）。';
+    l.innerHTML = 'あとで';
+  } else {
+    t.innerHTML = '機種変更やスマホの故障に備えて';
+    b.innerHTML =
+      '<b>4けたの数字</b>を決めておくと、新しいスマホやパソコンでも' +
+      '<b>ご自分で名乗れます。</b><br>' +
+      '決めていないと、そのときクラブの管理者にお願いすることになります。<br>' +
+      '1分で終わります。お誕生日の月日がおすすめです（4月12日なら 0412）。';
+    l.innerHTML = 'あとで（もう出しません）';
+  }
+}
+
+/* ★★2026-09-21（工事G-2 (b) 追補）　名簿が届いたあとに1回だけ、サーバーへ聞きます。
+   　★すでに名乗りずみの端末は claimName を送り直さないので、
+   　　ここが無いと「あとから管理者にした方」に気づいていただく機会がありません。
+   　★needCode は読むだけです（名簿を書き換えません）。 */
+function askMustSetCode_(){
+  if (CODE_ASKED_) return;
+  if (!myName || !isAdmin_(myName)) return;
+  if (lsGet(LSK.claimed) !== myName) return;
+  CODE_ASKED_ = true;
+  try {
+    api('POST', { action: 'needCode', deviceId: deviceId(), name: myName },
+      function(err, data){
+        if (err || !data) return;
+        MUST_SET_CODE = !!data.need;
+        renderCodeTip();
+      });
+  } catch(e){}
 }
 
 function codeTipGo(){
@@ -5903,7 +5955,8 @@ function pickName(name, code, retry){
            　この場で4けたを決めていただきます。機種を変えたときに
            　ご自分で名乗れるようにするためです。 */
         if (data.mustSetCode){
-          lsSet(LSK.codeTip, '');
+          MUST_SET_CODE = true;
+          CODE_ASKED_   = true;
           renderCodeTip();
           alert('「' + name + '」さんは、クラブの管理をされる方です。\n\n' +
                 '機種を変えたときにご自分で名乗り直せるよう、\n' +
@@ -6034,6 +6087,7 @@ function submitSetCode(){
               '「' + myName + '」を選んで、いま決めた4けたの数字を入れてください。\n\n' +
               '※数字は忘れないようにしてください');
         lsSet(LSK.codeTip, '1');
+        MUST_SET_CODE = false;   /* ★決まったので、お誘いは下ろします */
         renderCodeTip();
         closeCodeForm();
         closeCfg();
@@ -6173,7 +6227,9 @@ function init(){
             lsSet(LSK.claimed, myName);
             /* ★★2026-09-21（工事G-2 (b)）　管理者で確認番号がまだ無い方には、
                　4けたのお誘いを必ず出します（「あとで」で閉じた印も外します）。 */
-            if (data.mustSetCode){ lsSet(LSK.codeTip, ''); renderCodeTip(); }
+            if (data.mustSetCode){
+              MUST_SET_CODE = true; CODE_ASKED_ = true; renderCodeTip();
+            }
           } else {
             /* 登録できなかった（すでに別の端末のものになっている等）。
                毎回送り直さないよう、しばらく間を置く印を付けておく */
