@@ -1144,6 +1144,8 @@ var CLUB = {
      　その結果、2台以上お使いの方（上口・竹田・松田・宮本）の確認番号が
      　全員空欄のままになり、忘れたときの救済ができない状態だった。
 
+     ★★2026-09-21（工事G-1）　サーバー側の抜け道（viaKey）を消しました。
+     　これで ?key= で開いても、確認番号の確認を飛ばすことはできません。
      ▼戻したいときは、この1行を true にするだけ。 */
   useKeyUrl: false,
 
@@ -1173,7 +1175,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-15a';
+var APP_VER = '2026-09-21a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4950,26 +4952,28 @@ function adminEditMember(name){
            '<div class="admsec-h">端末　' + (m.devices || 0) + '台' +
              (m.status ? '<span style="font-weight:normal;font-size:14px;color:#666">　' +
                          esc(m.status) + '</span>' : '') + '</div>';
-    if (m.devices){
-      h += '<p class="note" style="margin-top:0">機種を変えて、新しい端末から入れないときに' +
-             'いったん空にします。そのあと、新しい端末でお名前を選び直していただきます。</p>' +
+    /* ★★2026-09-21（工事G-2 決定1）　リセットのボタンは1つだけにしました。
+       　端末・登録状況・登録日時・確認番号を、いっしょに空にします。 */
+    if (m.devices || m.hasCode){
+      h += '<p class="note" style="margin-top:0">機種を変えて新しい端末から入れないときや、' +
+             '4けたの数字を忘れられたときに押します。<br>' +
+             '<b>登録された端末と確認番号を、いっしょに空にします。</b>' +
+             'そのあと、新しい端末でお名前を選び直していただきます。</p>' +
            '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'resetDevice\', this)">端末の登録をリセットする</button>';
+             ' onclick="adminMemberOp(\'resetDevice\', this)">この方を、はじめて使う状態に戻す</button>';
     } else {
       h += '<p class="note" style="margin-top:0">まだ、どの端末からもお使いになっていません。</p>';
     }
     h += admSecMsg_('device') + '</div>';
 
-    /* ④ 確認番号（4けたを忘れたとき） */
+    /* ④ 確認番号（★2026-09-21 工事G-2 決定1　見るだけ。リセットは③にまとめました） */
     h += '<div class="admsec">' +
            '<div class="admsec-h">確認番号　' +
              (m.hasCode ? 'あり' : 'まだ決めていません') + '</div>';
     if (m.hasCode){
-      h += '<p class="note" style="margin-top:0">4けたの数字を忘れた方に使います。' +
-             '消したあと、ふだんお使いの端末の⚙設定から決め直していただきます。<br>' +
-             '<b>番号そのものは、この画面には出ません。</b></p>' +
-           '<button type="button" class="carebtn"' +
-             ' onclick="adminMemberOp(\'resetCode\', this)">確認番号をリセットする</button>';
+      h += '<p class="note" style="margin-top:0">2台目をお使いになるときの数字です。' +
+             '忘れられたときは、上の<b>「この方を、はじめて使う状態に戻す」</b>を押してください。<br>' +
+             '<b>番号そのものは、この画面には出ません。</b></p>';
     } else {
       h += '<p class="note" style="margin-top:0">2台目をお使いになる方だけが決める番号です。' +
              '決めていなくてかまいません。</p>';
@@ -5089,11 +5093,9 @@ function adminMemberOp(op, btn){
   if (!name) return;
   var q = '';
   if (op === 'resetDevice')
-    q = '「' + name + '」さんの端末の登録を、すべて消します。\n' +
+    q = '「' + name + '」さんを、はじめて使う状態に戻します。\n' +
+        '登録された端末と、4けたの確認番号を、いっしょに消します。\n' +
         'そのあと、新しい端末でお名前を選び直していただきます。\n\nよろしいですか？';
-  if (op === 'resetCode')
-    q = '「' + name + '」さんの確認番号を消します。\n' +
-        'そのあと、ご本人に決め直していただきます。\n\nよろしいですか？';
   if (op === 'leave')
     q = '「' + name + '」さんを退会にします。\n' +
         '会員の一覧にも、出欠のお相手にも出なくなります。\n\nよろしいですか？';
@@ -5103,8 +5105,7 @@ function adminMemberOp(op, btn){
   if (!q || !confirm(q)) return;
 
   admBusy_(btn);
-  var sec = (op === 'resetDevice') ? 'device'
-          : (op === 'resetCode')   ? 'code' : 'leave';
+  var sec = (op === 'resetDevice') ? 'device' : 'leave';
   api('POST', { action: 'adminMemberOp', deviceId: deviceId(), name: myName,
                 target: name, op: op },
     function(err, data){
@@ -5118,8 +5119,7 @@ function adminMemberOp(op, btn){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
         admSayAt_(sec,
-          (op === 'resetDevice') ? '端末の登録をリセットしました。' :
-          (op === 'resetCode')   ? '確認番号をリセットしました。' :
+          (op === 'resetDevice') ? '端末と確認番号をリセットしました。はじめて使う状態に戻りました。' :
           (op === 'leave')       ? '退会にしました。' : '退会を取り消しました。',
           false, name);
       } else {
@@ -5730,7 +5730,6 @@ function renderInstallCard(){
    ================================================================== */
 
 var namePickRow = '';   /* 選ばれている行（'あ' 'か' … 空なら全員） */
-var cameFromKey = false;  /* 専用URL（?key=）で開いたか */
 var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが判定） */
 var lineGroupUrl = '';       /* クラブのLINEグループを開くURL（「設定」シート） */
 var lineLeft = null;         /* 今月あと何通送れるか（幹事・管理者だけ受け取る。2026-08-24） */
@@ -5898,6 +5897,18 @@ function pickName(name, code, retry){
         setStatus(name + 'さんとして開いています');
         render();
         renderInstallCard();
+        /* ★★2026-09-21（工事G-2 (b)）　管理者で確認番号がまだ無い方は、
+           　この場で4けたを決めていただきます。機種を変えたときに
+           　ご自分で名乗れるようにするためです。 */
+        if (data.mustSetCode){
+          lsSet(LSK.codeTip, '');
+          renderCodeTip();
+          alert('「' + name + '」さんは、クラブの管理をされる方です。\n\n' +
+                '機種を変えたときにご自分で名乗り直せるよう、\n' +
+                'この場で4けたの数字を決めてください。');
+          openCfg();
+          askSetCode();
+        }
         return;
       }
       if (data.needCode){
@@ -5984,7 +5995,11 @@ function closeCodeForm(){
   $('codeForm').style.display = 'none';
   $('setCodeNote').style.display = 'block';
   /* ボタンを出してよいかは openCfg が決める */
-  var canSet = !!myName && !isStaff(myName) && (lsGet(LSK.claimed) === myName);
+  /* ★★2026-09-21（工事G 3-1）　開くとき（openCfg）と同じ条件にそろえました。
+     　2026-08-23 に「幹事・管理者も会員と同じ扱い」と決めたとき、
+     　閉じる側だけ !isStaff(myName) が残っていて、幹事・管理者が
+     　フォームを閉じるとボタンが消えていました。 */
+  var canSet = !!myName && (lsGet(LSK.claimed) === myName);
   $('setCodeBtn').style.display = canSet ? 'block' : 'none';
 }
 
@@ -6070,7 +6085,6 @@ function init(){
       var mk = q ? q.match(/[?&]key=([a-z0-9]+)/) : null;
       if (mk && KEYS[mk[1]]){
         lsSet(LSK.name, KEYS[mk[1]]);
-        cameFromKey = true;
       } else {
         /* 旧形式 ?name=○○ にも当面対応
            ★これは「名前を打てば誰にでもなれる」いちばん古い抜け道。
@@ -6151,10 +6165,13 @@ function init(){
     var claimedMark = lsGet(LSK.claimed);
     if (myName && claimedMark !== myName && claimedMark !== ('-' + myName)){
       api('POST', { action: 'claimName', name: myName, deviceId: deviceId(),
-                    devName: deviceName(), silent: 1, viaKey: (cameFromKey ? 1 : 0) },
+                    devName: deviceName(), silent: 1 },
         function(err, data){
           if (!err && data && data.ok){
             lsSet(LSK.claimed, myName);
+            /* ★★2026-09-21（工事G-2 (b)）　管理者で確認番号がまだ無い方には、
+               　4けたのお誘いを必ず出します（「あとで」で閉じた印も外します）。 */
+            if (data.mustSetCode){ lsSet(LSK.codeTip, ''); renderCodeTip(); }
           } else {
             /* 登録できなかった（すでに別の端末のものになっている等）。
                毎回送り直さないよう、しばらく間を置く印を付けておく */
