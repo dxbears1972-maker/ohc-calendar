@@ -1175,7 +1175,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-21a';
+var APP_VER = '2026-09-21b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -5119,7 +5119,9 @@ function adminMemberOp(op, btn){
         ADMIN_EDIT = null;
         ADMIN_PANE = 'roles';
         admSayAt_(sec,
-          (op === 'resetDevice') ? '端末と確認番号をリセットしました。はじめて使う状態に戻りました。' :
+          (op === 'resetDevice')
+            ? ((data.hadCode ? '端末と確認番号を' : '端末の登録を') +
+               'リセットしました。はじめて使う状態に戻りました。') :
           (op === 'leave')       ? '退会にしました。' : '退会を取り消しました。',
           false, name);
       } else {
