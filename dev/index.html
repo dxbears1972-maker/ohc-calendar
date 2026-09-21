@@ -784,11 +784,11 @@
     <label>集合場所</label>
     <input type="text" id="addPlace" placeholder="例）○○駅 改札前">
     <label>係・担当（いれば）</label>
-    <select id="staffType">
-      <option value="山行">山行の係</option>
-      <option value="定例会">定例会の係</option>
-      <option value="懇親会">懇親会の係</option>
-    </select>
+    <!-- ★★2026-09-21（係の名前をクラブごとに）
+         　山行／定例会／懇親会の切り替えを外しました。
+         　係の名前はサーバーの「設定」シートから受け取り、1本の選び箱に並べます。
+         　切り替えがあると、リーダーと司会が同じ予定に入ったときに
+         　片方が選び箱から消えて見えていました（本番に4件）。 -->
     <div id="staffRows"></div>
     <label>メモ</label>
     <input type="text" id="addMemo" placeholder="例）雨天中止">
@@ -1132,6 +1132,13 @@ var CLUB = {
   /* マイカー精算アプリのURL（★サーバーの「設定」シートから受け取ります） */
   carpoolUrl: '',
 
+  /* ★★2026-09-21（係の名前をクラブごとに）
+     　係の名前と、予定を任される係。★サーバーの「設定」シートから受け取ります。
+     ★ここにOHCの名前を予備として書きません。他クラブの画面にOHCの言葉が
+     　一瞬でも出ないようにするためです（見た目の予備と同じ考え方）。 */
+  staffRoles: [],
+  staffLeads: [],
+
   /* ★2026-08-23：専用URL（?key=…／?name=…）で名乗れるようにするか。
      　false ＝ 使わない。どのクラブでも
      　　　　　 1台目＝お名前を選ぶだけ／2台目＝お名前＋4けたの確認番号、に統一する。
@@ -1176,7 +1183,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-21e';
+var APP_VER = '2026-09-21f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1196,6 +1203,12 @@ function applyClubConfig(){
     if (tc) tc.setAttribute('content', CLUB.themeColor);
     var at = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (at) at.setAttribute('content', CLUB.homeTitle);
+    /* ★★2026-09-21　係の名前があとから届いたとき、
+       　「予定を追加」を開いたままなら、選び箱を作り直します。 */
+    try {
+      var ac = $('addCard');
+      if (ac && ac.style.display === 'block') renderStaffRows();
+    } catch(e1){}
   } catch(e){}
 }
 
@@ -1209,7 +1222,8 @@ function applyClubConfig(){
 /* ★管理者・幹事はここに入れません。名簿シートが正で、
    　data.admins / data.editors として別に届きます（2-5の訂正）。 */
 var CLUB_CFG_KEYS = ['appTitle','homeTitle','shareTag','themeColor',
-                     'contactLabel','carpoolUrl'];
+                     'contactLabel','carpoolUrl',
+                     'staffRoles','staffLeads'];   /* ★2026-09-21 */
 
 function setClubCfg_(c, save){
   if (!c) return;
@@ -3110,21 +3124,28 @@ function delEvent(evId, title){
   });
 }
 
-/* ---------- 係・担当の入力（種別ごとのプルダウン） ----------
-   保存は「係：名前、係：名前」の文字列（今まで通りの形式） */
-var STAFF_ROLES = {
-  '山行':   ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅'],
-  '定例会': ['司会', '書記', '受付', '自己PR'],
-  '懇親会': ['幹事']
-};
+/* ---------- 係・担当の入力 ----------
+   保存は「係：名前、係：名前」の文字列（今まで通りの形式）
 
-/* 係の表示順（この順に並び替えて表示する。一覧にない係は最後） */
-var STAFF_ORDER = ['リーダー', 'サブリーダー', '班長', 'カメラ', '記録', '会計', '留守宅', '司会', '書記', '受付', '自己PR'];
+   ★★2026-09-21（係の名前をクラブごとに）
+   　係の名前は、サーバーの「設定」シートから CLUB.staffRoles として届きます。
+   　★この並びが、選び箱の順・画面の表示順・Excelのひな形の列の順、すべてになります。
+   　★まだ受け取れていないとき（古いGAS・初回の圏外）は空です。
+   　　そのときは「その他」の手入力だけになり、権限のボタンは出しません
+   　　（サーバーが正しく判定するので、押せないだけで害はありません）。 */
+function staffRoles_(){
+  return (CLUB && CLUB.staffRoles && CLUB.staffRoles.length) ? CLUB.staffRoles : [];
+}
+
+/* その予定を任される係（変更・削除・中止・締め切り・代理回答・お知らせ） */
+function staffLeads_(){
+  return (CLUB && CLUB.staffLeads && CLUB.staffLeads.length) ? CLUB.staffLeads : [];
+}
 
 function staffOrderOf_(item){
   var kv = item.split(/[：:]/);
   var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
-  var i = STAFF_ORDER.indexOf(role);
+  var i = staffRoles_().indexOf(role);
   return i < 0 ? 999 : i;
 }
 
@@ -3145,16 +3166,19 @@ function sortStaffStr(s){
 }
 
 /* その予定の係の中で、編集・代理の権限を持つ人か？
-   （山行の「リーダー」、定例会の「司会」、懇親会の「幹事」が対象） */
+   ★★2026-09-21　対象の係は「設定」シートの「予定を任される係」。
+   　★これはボタンを出すかどうかだけ。守りの本体はサーバー（staffCanEdit_）。 */
 function staffCanEdit(ev, name){
   if (!name || !ev || !ev.staff) return false;
+  var leads = staffLeads_();
+  if (!leads.length) return false;
   var items = String(ev.staff).split(/[、,，]/);
   for (var i = 0; i < items.length; i++){
     var kv = items[i].split(/[：:]/);
     if (kv.length < 2) continue;
     var role = kv[0].replace(/^\s+|\s+$/g, '');
     var nm = kv[1].replace(/^\s+|\s+$/g, '');
-    if (nm === name && (role === 'リーダー' || role === '司会' || role === '幹事')) return true;
+    if (nm === name && leads.indexOf(role) >= 0) return true;
   }
   return false;
 }
@@ -3162,12 +3186,11 @@ var staffRows = [];
 
 function resetStaff(){
   staffRows = [];
-  if ($('staffType')) $('staffType').value = '山行';
   renderStaffRows();
 }
 
 function currentRoles_(){
-  return STAFF_ROLES[$('staffType').value] || STAFF_ROLES['山行'];
+  return staffRoles_();
 }
 
 function renderStaffRows(){
@@ -3339,7 +3362,6 @@ function serializeStaff(){
 
 function parseStaff(s){
   staffRows = [];
-  var type = '山行';
   s = sortStaffStr(String(s || ''));
   if (s){
     var items = s.split(/[、,，]/);
@@ -3349,17 +3371,11 @@ function parseStaff(s){
       var role = kv[0].replace(/^\s+|\s+$/g, '');
       var name = kv[1].replace(/^\s+|\s+$/g, '');
       if (!role || !name) continue;
-      var known = false;
-      for (var t in STAFF_ROLES){
-        if (STAFF_ROLES[t].indexOf(role) >= 0){
-          known = true;
-          if (t !== '山行') type = t;
-        }
-      }
+      /* ★★2026-09-21　「設定」の係の名前にあれば選び箱、無ければ「その他」の手入力 */
+      var known = staffRoles_().indexOf(role) >= 0;
       staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
     }
   }
-  if ($('staffType')) $('staffType').value = type;
   renderStaffRows();
 }
 
@@ -3863,7 +3879,7 @@ function renderBulkTable(){
       '<div class="bhint" id="bdates' + i + '"></div>' +
 
       '<div class="bfield"><label>係・担当（いなければ空のまま）</label>' +
-        '<input type="text" value="' + esc(r.staff) + '" placeholder="例：リーダー：後藤" onchange="bulkChg(' + i + ',\'staff\',this.value)"></div>' +
+        '<input type="text" value="' + esc(r.staff) + '" placeholder="' + esc('例：' + (staffRoles_()[0] || '係') + '：山田') + '" onchange="bulkChg(' + i + ',\'staff\',this.value)"></div>' +
 
       '</div>';
   }
@@ -4153,19 +4169,29 @@ function closeImport(){
    登録済みの予定を、一括登録フォーマットと同じ列の表（タブ区切り）にして
    コピーする。Excelに貼り付けて手直し→コピーして貼り戻せば、
    日付・タイトルの食い違いなく上書き更新できる */
-var EXPORT_ROLE_COLS = ['リーダー', '班長', '留守宅', '司会', '書記', '受付', '自己PR'];
+/* ★★2026-09-21（係の名前をクラブごとに）
+   　列は「設定」シートの係の名前をそのまま、書いてある順に並べます（決定4）。
+   　OHCは16列→21列になります。★貼り戻しは見出しの名前で読むので、列が増えても通ります。 */
+function exportRoleCols_(){ return staffRoles_().slice(); }
 
 /* ★★2026-09-15（工事F）　予定がまだ1件も無いクラブ向けの「例」の1行。
    　★見出しだけの表だと、何をどう書けばよいのか分かりません。
    　★この行は `parseImport` が黙って飛ばすので、消さずに残したまま登録できます。
    　★日付を「例）」で始めることが、飛ばす印そのものです（書き換えないでください）。 */
-var EXPORT_SAMPLE_ROW = ['例）2026/4/5', '高良山', '8:00', '○○公園 駐車場',
-                         '雨天のときは中止します', '', '',
-                         '山田', '', '', '', '', '', '', '', ''];
+function exportSampleRow_(roleCols){
+  var row = ['例）2026/4/5', '高良山', '8:00', '○○公園 駐車場',
+             '雨天のときは中止します', '', ''];
+  /* 係の列。★一番左の係にだけ例を入れます */
+  for (var i = 0; i < roleCols.length; i++) row.push(i === 0 ? '山田' : '');
+  row.push('');   /* 係・担当 */
+  row.push('');   /* 種類 */
+  return row;
+}
 
 function buildExportRows(){
+  var roleCols = exportRoleCols_();
   var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
-              '計画表リンク', '報告書リンク'].concat(EXPORT_ROLE_COLS).concat(['係・担当', '種類']);
+              '計画表リンク', '報告書リンク'].concat(roleCols).concat(['係・担当', '種類']);
   var rows = [head];
   var evs = state.events.slice();
   evs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
@@ -4182,7 +4208,7 @@ function buildExportRows(){
       var kv = it.split(/[：:]/);
       var role = (kv[0] || '').replace(/^\s+|\s+$/g, '');
       var nm = (kv[1] || '').replace(/^\s+|\s+$/g, '');
-      if (nm && EXPORT_ROLE_COLS.indexOf(role) >= 0){
+      if (nm && roleCols.indexOf(role) >= 0){
         roleMap[role] = roleMap[role] ? roleMap[role] + '、' + nm : nm;
       } else {
         others.push(it);
@@ -4191,8 +4217,8 @@ function buildExportRows(){
     function cl(s){ return String(s == null ? '' : s).replace(/[\t\r\n]+/g, ' '); }
     var row = [dateStr, cl(ev.title), cl(ev.time), cl(ev.place), cl(ev.memo),
                cl(ev.plan), cl(ev.report)];
-    for (var k = 0; k < EXPORT_ROLE_COLS.length; k++){
-      row.push(roleMap[EXPORT_ROLE_COLS[k]] || '');
+    for (var k = 0; k < roleCols.length; k++){
+      row.push(roleMap[roleCols[k]] || '');
     }
     row.push(others.join('、'));
     /* ★2026-09-02　種類（対象から逆算。空＝山行） */
@@ -4202,7 +4228,7 @@ function buildExportRows(){
   /* ★★2026-09-15（工事F）　1件も無いときだけ、書き方の見本を1行入れます。
      　★予定がある方には見本は要らず、見慣れない行が混ざると問い合わせになるため、
      　　0件のときに限ります。 */
-  if (evs.length === 0) rows.push(EXPORT_SAMPLE_ROW.slice());
+  if (evs.length === 0) rows.push(exportSampleRow_(roleCols));
   return { rows: rows, count: evs.length };
 }
 
@@ -4222,8 +4248,12 @@ function exportEventsFile(){
     try {
       var ws = XLSX.utils.aoa_to_sheet(r.rows);
       /* 列の幅をほどよく */
-      /* ★2026-09-15（工事F）　16列あるのに15個しか無く、「種類」だけ既定の幅でした */
-      var wch = [11, 16, 7, 16, 14, 14, 14, 8, 8, 8, 8, 8, 8, 8, 18, 10];
+      /* ★2026-09-15（工事F）　16列あるのに15個しか無く、「種類」だけ既定の幅でした
+         ★★2026-09-21　係の列の数はクラブで変わるので、列の数に合わせて組み立てます */
+      var wch = [11, 16, 7, 16, 14, 14, 14];
+      for (var rc0 = 0; rc0 < exportRoleCols_().length; rc0++) wch.push(8);
+      wch.push(18);   /* 係・担当 */
+      wch.push(10);   /* 種類 */
       ws['!cols'] = [];
       for (var i = 0; i < wch.length; i++) ws['!cols'].push({ wch: wch[i] });
       var wb = XLSX.utils.book_new();
@@ -6348,10 +6378,6 @@ function init(){
   $('addY').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('addM').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('addD').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
-  $('staffType').onchange = function(){
-    staffRows = [];
-    renderStaffRows();
-  };
   $('reloadBtn').onclick = function(){ load(true); };
   $('cfgBtn').onclick = openCfg;
 
