@@ -1,0 +1,486 @@
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 18px;
+    background: #eef3ee;
+    color: #222;
+    line-height: 1.6;
+    padding-bottom: 30px;
+  }
+  header {
+    background: #2e6b34;
+    color: #fff;
+    padding: 6px 12px;
+  }
+  header table { width: 100%; border-collapse: collapse; }
+  header h1 { font-size: 20px; text-align: left; }
+  header .hdrbtn {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: 8px;
+    padding: 5px 9px;
+    margin-right: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  header .hdrbtn svg { display: block; }
+  header a.hdrbtn { text-decoration: none; }
+  header #appTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  header #whoami { font-size: 15px; font-weight: bold; text-align: right; white-space: nowrap; }
+  main { max-width: 640px; margin: 0 auto; padding: 0 10px 12px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px 10px;
+    margin-top: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card h2 {
+    font-size: 20px;
+    color: #2e6b34;
+    border-left: 6px solid #2e6b34;
+    padding-left: 10px;
+    margin-bottom: 10px;
+  }
+  /* ★★2026-09-14（工事E-5c）　只隈さんのご指摘：
+     　「設定ボタンの下はすべて設定に関するところですよね。なのに設定と
+     　　会員に電話をかけるのボタンが同じ大きさであり、同じデザインというのは
+     　　わかりづらくないですか？」
+     　①「設定」は画面ぜんぶの題。その下の2つは、その中の部屋。
+     　　同じ形だと、3つが横並びの兄弟に見えて、上下の関係が読めませんでした。
+     　②部屋の切れ目が無いので、「パソコンなど、べつの端末でも使う」が
+     　　★6つ目の管理者ボタンに見えていました（これは管理者の機能ではありません）。 */
+  #cfgCard > h2 {                 /* ①この画面の題 */
+    font-size: 23px;
+    border-left-width: 8px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dfe8df;
+    margin-bottom: 12px;
+  }
+  .cfgsec {                       /* ②中の部屋。ここで終わり、と目で分かるように */
+    background: #f4f8f4;
+    border: 1px solid #dbe6db;
+    border-radius: 10px;
+    padding: 10px 10px 12px;
+    margin: 14px 0;
+  }
+  .cfgsec h2 {                    /* ①部屋の小見出し。題より一段下げる */
+    font-size: 17px;
+    color: #4a7a4f;
+    border-left: 4px solid #8fb394;
+    padding-left: 8px;
+    margin: 2px 0 6px;
+  }
+  label { font-size: 16px; font-weight: bold; display: block; margin-top: 10px; }
+  input[type=text], select {
+    width: 100%;
+    font-size: 20px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+  }
+  textarea {
+    width: 100%;
+    font-size: 15px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #2e6b34; outline: none; }
+
+  /* 状態表示 */
+  #status {
+    text-align: center;
+    font-size: 14px;
+    padding: 2px;
+    color: #555;
+    min-height: 22px;
+  }
+  #status.err { color: #b00020; font-weight: bold; }
+
+  /* 月ナビ */
+  .monthnav { width: 100%; border-collapse: collapse; }
+  .monthnav td { text-align: center; vertical-align: middle; }
+  .monthnav .mv {
+    width: 70px; height: 44px;
+    font-size: 22px;
+    border: 2px solid #2e6b34;
+    background: #fff;
+    color: #2e6b34;
+    border-radius: 8px;
+  }
+  .monthnav .ym { font-size: 22px; font-weight: bold; color: #2e6b34; }
+
+  /* カレンダー本体 */
+  table.cal { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+  table.cal th {
+    font-size: 14px; padding: 4px 0;
+    background: #e3eee4; color: #444;
+    border: 1px solid #cdd8ce;
+  }
+  table.cal th.sun, table.cal td.sun .dnum { color: #c62828; }
+  table.cal th.sat, table.cal td.sat .dnum { color: #1565c0; }
+  table.cal td {
+    border: 1px solid #cdd8ce;
+    height: 56px;
+    vertical-align: top;
+    padding: 2px;
+    background: #fff;
+  }
+  table.cal td.out { background: #f2f2f2; }
+  table.cal td.today { background: #fff8d6; }
+  table.cal td .dnum { font-size: 15px; }
+  table.cal td .marks { font-size: 13px; color: #2e6b34; line-height: 1.2; word-break: break-all; }
+  table.cal td.hasev { background: #e8f4e9; }
+  table.cal td.hasev.today { background: #fff8d6; }
+  /* その日の予定がすべて中止のときは、緑を薄くして目立たせない */
+  table.cal td.hasev.allcancel { background: #f4f4f4; }
+  table.cal td .marks s { color: #999; }
+
+  /* 予定カード */
+  .ev { border: 2px solid #cfe0d0; border-radius: 12px; padding: 10px; margin-top: 10px; background: #fff; }
+  .ev .evdate { font-size: 16px; font-weight: bold; color: #2e6b34; margin-right: 8px; }
+  .ev .evdate .sun { color: #c62828; }
+  .ev .evdate .sat { color: #1565c0; }
+  .ev .evtitle { font-size: 20px; font-weight: bold; }
+  .ev .evinfo { font-size: 15px; color: #444; margin-top: 2px; }
+  .ev .evowner { font-size: 14px; color: #888; }
+
+  /* 出欠ボタン */
+  .attbtns { margin-top: 8px; }
+  .attbtns button {
+    width: 32%;
+    font-size: 18px;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: 2px solid #aaa;
+    background: #fff;
+    margin-right: 1%;
+  }
+  .attbtns button.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; font-weight: bold; }
+  .attbtns button.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; font-weight: bold; }
+  .attbtns button.on-no { background: #888; border-color: #888; color: #fff; font-weight: bold; }
+  .proxybox { margin-top: 8px; padding: 6px 8px; background: #eef5ef; border: 1px dashed #7aa87e; border-radius: 8px; }
+  table.proxytbl { width: 100%; border-collapse: collapse; }
+  .proxytbl td { padding: 2px 0; vertical-align: middle; }
+  .proxytbl td.pname { font-size: 16px; font-weight: bold; }
+  .proxytbl td.pb { width: 52px; text-align: right; }
+  .pbtn {
+    width: 46px; height: 40px; font-size: 18px; font-weight: bold;
+    border-radius: 8px; border: 2px solid #aaa; background: #fff; color: #444;
+  }
+  .pbtn.on-yes { background: #2e6b34; border-color: #2e6b34; color: #fff; }
+  .pbtn.on-maybe { background: #e8a000; border-color: #e8a000; color: #fff; }
+  .pbtn.on-no { background: #888; border-color: #888; color: #fff; }
+  .pnote, .pfoot { font-size: 14px; color: #555; }
+  .pfoot { text-align: right; margin-top: 4px; }
+  a.pset { color: #2e6b34; font-weight: bold; }
+  .psetlbl { font-size: 14px; font-weight: bold; color: #2e6b34; margin-bottom: 4px; }
+  label.pchk { display: inline-block; margin: 4px 12px 4px 0; font-size: 17px; }
+  label.pchk input { transform: scale(1.4); margin-right: 6px; }
+  .psavebtn {
+    width: 100%; font-size: 17px; font-weight: bold; padding: 10px 0; margin-top: 8px;
+    background: #2e6b34; color: #fff; border: none; border-radius: 8px;
+  }
+  .attlist { font-size: 15px; margin-top: 6px; background: #f5f8f5; border-radius: 8px; padding: 6px 10px; }
+  .attlist b.yes { color: #2e6b34; }
+  .attlist b.maybe { color: #b57e00; }
+  .attlist b.no { color: #666; }
+  .attlist b.pending { color: #b00020; }
+  .attlist a.attdel {
+    color: inherit; text-decoration: none;
+    border-bottom: 1px dotted #b00020;
+  }
+  .refbtn {
+    width: 100%; font-size: 18px; font-weight: bold;
+    padding: 12px 0; margin-top: 4px;
+    background: #e8f4e9; color: #2e6b34;
+    border: 2px solid #2e6b34; border-radius: 8px;
+  }
+  .pickitem {
+    display: block; width: 100%; text-align: left;
+    font-size: 17px; padding: 10px; margin-top: 6px;
+    background: #fff; border: 2px solid #cfe0d0; border-radius: 8px;
+    word-break: break-all;
+  }
+  .filelinks { margin-top: 6px; }
+  pre.settle {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: inherit;
+    font-size: 15px;
+    background: #f5f8f5;
+    border: 2px solid #cfe0d0;
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+  }
+  .filelinks a.filebtn {
+    display: inline-block;
+    font-size: 16px; font-weight: bold;
+    color: #2e6b34; background: #e8f4e9;
+    border: 2px solid #2e6b34; border-radius: 8px;
+    padding: 6px 14px; margin-right: 8px; margin-top: 4px;
+    text-decoration: none;
+  }
+  /* 山行グループLINEボタン（緑で区別） */
+  .filelinks a.linebtn {
+    color: #fff; background: #06C755; border-color: #06C755;
+  }
+  /* 予定の表題行（左＝日付・山名、右＝アイコンボタン） */
+  table.evhead { width: 100%; border-collapse: collapse; }
+  table.evhead td { vertical-align: top; }
+  table.evhead td.evicons { text-align: right; white-space: nowrap; width: 1%; }
+  td.evicons a { display: inline-block; margin-left: 10px; text-decoration: none; line-height: 1; }
+  /* 予定の下にならぶ操作。1つの言葉が途中で折り返さないようにする */
+  .evdel {
+    margin-top: 6px;
+    display: flex; flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 14px;
+  }
+  .evdel a {
+    font-size: 14px; color: #b00020;
+    white-space: nowrap;
+  }
+  .evdel a.lock { color: #2e6b34; font-weight: bold; }
+  /* 中止になった予定 */
+  .ev.cancelled .evtitle { text-decoration: line-through; color: #999; }
+  .ev.cancelled .evdate  { color: #999; }
+  .cancelbadge {
+    display: inline-block; background: #c0392b; color: #fff;
+    font-size: 14px; font-weight: bold; border-radius: 5px;
+    padding: 2px 9px; margin-right: 7px;
+  }
+  .cancelnote {
+    margin-top: 8px; background: #fdecea; border: 2px solid #e8b4ae;
+    border-radius: 8px; padding: 9px 11px;
+    font-size: 16px; color: #8a2b20; white-space: pre-wrap;
+  }
+  .lockedmsg {
+    margin-top: 10px;
+    background: #fff3e0;
+    border: 2px solid #e8a000;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #8a5a00;
+    text-align: center;
+  }
+
+  /* 追加ボタン・フォーム */
+  .bigbtn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 14px 0;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 12px;
+    margin-top: 16px;
+  }
+  .bigbtn.gray { background: #789a7c; }
+  a.bigbtn { text-align: center; text-decoration: none; box-sizing: border-box; }
+  .row3 { width: 100%; border-collapse: collapse; }
+  .row3 td { padding-right: 6px; }
+  .row3 td:last-child { padding-right: 0; }
+  .subbtn {
+    width: 100%; font-size: 20px; font-weight: bold;
+    padding: 12px 0; margin-top: 14px;
+    background: #2e6b34; color: #fff;
+    border: none; border-radius: 10px;
+  }
+  /* ★2026-09-08（工事E-1d）管理者の画面。
+     　只隈さんのご指摘：「押したボタンの下に一覧が出るほうが分かりやすい。
+     　縁取り・くぼみ感を出すと、そのボタンの一覧だと分かる」 */
+  .admpane {
+    display: none;
+    margin-top: 8px;
+    background: #eef2ee;
+    border: 1px solid #cfdacf;
+    border-radius: 10px;
+    padding: 4px 10px 10px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.13);
+  }
+  .admpane.on { display: block; }
+  /* ★★2026-09-14（工事E-5b）　只隈さんのご指摘：
+     　「くぼんだような□の枠の中に、それ用のボタンも入った方が分かりやすいのでは？」
+     　くぼみ枠は 9/8 に「そのボタンの一覧だと分かるように」と入れたものですが、
+     　★肝心のボタンが枠の外にあり、狙いが半分しか効いていませんでした。
+     　★開いたときだけ、ボタンごと1つの枠に入れます（閉じているときは枠を出しません。
+     　　灰色の箱が5つ並ぶと重たくなるため）。 */
+  .admgrp.on {
+    margin-top: 8px;
+    background: #e9efe9;                 /* ★部屋の地（#f4f8f4）より少し濃く */
+    border: 1px solid #c2d0c2;
+    border-radius: 10px;
+    padding: 8px 10px 10px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.16);
+  }
+  .admgrp.on .subbtn { margin-top: 0; }
+  /* 枠が二重にならないように、中の入れ物からは枠とくぼみを外します */
+  .admgrp.on .admpane {
+    background: transparent; border: none; box-shadow: none;
+    padding: 0; margin-top: 6px;
+  }
+  /* ★2026-09-08（工事E-1e）ひとかたまりごとに白い箱で区切る。
+     　只隈さんのご指摘：「全部緑だと、どのボタンがどの一覧のものか分かりづらい」 */
+  .admsec {
+    background: #fff; border: 1px solid #d5ded5; border-radius: 10px;
+    padding: 6px 10px 12px; margin-top: 12px;
+  }
+  .admsec-h {
+    font-size: 16px; font-weight: bold; color: #2e6b34;
+    border-left: 5px solid #2e6b34; padding-left: 8px; margin: 4px 0 6px;
+  }
+  /* 気をつけて押すボタン（リセット・退会）。緑の「決める」ボタンと分ける */
+  .carebtn {
+    width: 100%; font-size: 18px; font-weight: bold;
+    padding: 10px 0; margin-top: 10px;
+    background: #fff; color: #8a5a00;
+    border: 2px solid #e8a000; border-radius: 10px;
+  }
+  .subbtn.on { box-shadow: inset 0 3px 6px rgba(0,0,0,.40); }
+  .cancelbtn {
+    width: 100%; font-size: 16px;
+    padding: 8px 0; margin-top: 8px;
+    background: #fff; color: #666;
+    border: 2px solid #bbb; border-radius: 10px;
+  }
+  /* ★2026-09-08（工事E-1j）　只隈さんのご指摘：
+     　「文字が枠いっぱいになるわけではないので、もっと幅せまくてよくないですか？」
+     　★ボタンの幅に上限を付けて、真ん中に置く。
+     　★スマホ（画面390px＝中身370px）では今までどおり画面いっぱいのまま。
+     　　パソコン（中身620px）でだけ細くなります。70代の方の指の当たりは変えません。 */
+  .bigbtn, .subbtn, .cancelbtn, .carebtn {
+    max-width: 380px;
+    margin-left: auto; margin-right: auto;
+    display: block;
+  }
+  .note { font-size: 14px; color: #777; margin-top: 6px; }
+
+  /* お知らせ（クラブからの連絡。LINEのように流れない） */
+  .ntc {
+    background: #fff; border-radius: 10px; padding: 9px 11px;
+    margin-top: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.10);
+    border-left: 6px solid #c9d8c9;
+  }
+  .ntc.unread { border-left-color: #d2691e; background: #fffaf2; }
+  .ntc .nhead { font-size: 13px; color: #888; }
+  .ntc .nbody {
+    font-size: 17px; margin-top: 3px; white-space: pre-wrap; word-break: break-all;
+  }
+  .minibtn {
+    font-size: 14px; padding: 6px 10px; margin-top: 8px; margin-right: 6px;
+    background: #fff; color: #2e6b34;
+    border: 2px solid #9bbd9f; border-radius: 8px;
+  }
+  .seen {
+    font-size: 13px; color: #6a8a6a; margin-top: 6px; cursor: pointer;
+    display: inline-block; border-bottom: 1px dotted #9bbd9f;
+  }
+  .telbtn {
+    display: inline-block; text-decoration: none;
+    background: #fff; color: #1a5c3d;
+    border: 1px solid #9bbd9f; border-radius: 6px;
+    padding: 2px 8px; margin: 2px 3px 0 0; font-size: 14px;
+  }
+  .nagrow { margin-top: 5px; font-size: 15px; }
+  .nagrow b { display: inline-block; min-width: 4.5em; }
+  .notel { font-size: 12px; color: #aaa; margin-left: 4px; }
+  .unreadlist {
+    font-size: 14px; background: #f4f7f4; border-radius: 8px;
+    padding: 7px 9px; margin-top: 6px; line-height: 1.6;
+  }
+  .chkrow { margin-top: 12px; font-size: 16px; line-height: 1.5; }
+  .chkrow input { width: 22px; height: 22px; vertical-align: -4px; margin-right: 6px; }
+
+  /* 名前を選ぶ画面 */
+  .rowfilter { margin: 8px 0 4px; }
+  .rowfilter .rowbtn {
+    font-size: 16px; padding: 8px 10px; margin: 0 4px 6px 0;
+    border: 2px solid #7aa87e; background: #fff; color: #2e6b34;
+    border-radius: 8px; min-width: 58px;
+  }
+  .rowfilter .rowbtn.on { background: #2e6b34; color: #fff; border-color: #2e6b34; font-weight: bold; }
+  .namegrid { display: flex; flex-wrap: wrap; margin-top: 6px; }
+  .namegrid .namebtn {
+    width: 48%; margin: 0 4% 8px 0; min-height: 58px;
+    font-size: 21px; font-weight: bold;
+    border: 2px solid #cfe0d0; border-radius: 10px;
+    background: #fff; color: #222;
+  }
+  .namegrid .namebtn:nth-child(2n) { margin-right: 0; }
+  .namegrid .namebtn:active { background: #e8f4e9; }
+  .namegrid .namebtn.mine { border-color: #2e6b34; background: #f2f8f2; }
+  .instep {
+    font-size: 17px; line-height: 1.8; margin-top: 10px;
+    background: #f4f8f4; border-radius: 8px; padding: 10px 12px 10px 46px;
+    position: relative;
+  }
+  .instep b:first-child {
+    position: absolute; left: 10px; top: 10px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #2e6b34; color: #fff; text-align: center; line-height: 28px;
+    font-size: 16px;
+  }
+  .cfgbtn {
+    font-size: 15px; color: #789a7c; background: transparent;
+    border: 1px solid #b9ccbb; border-radius: 8px; padding: 6px 16px;
+  }
+  /* ★2026-08-30：「❓ 使い方」はリンクなので、ボタンと同じ見た目にそろえる */
+  a.cfgbtn { display: inline-block; text-decoration: none; margin-right: 8px;
+             line-height: normal; vertical-align: middle; }
+  button.cfgbtn { vertical-align: middle; }
+  /* 4けたの数字だけを入れる欄 */
+  input.pin {
+    width: 100%; font-size: 34px; font-weight: bold;
+    letter-spacing: 0.45em; text-align: center;
+    padding: 12px 0 12px 0.45em;
+    border: 3px solid #2e6b34; border-radius: 10px;
+    margin-top: 4px; background: #fff;
+    -moz-appearance: textfield;
+  }
+  input.pin::-webkit-outer-spin-button,
+  input.pin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pinbox { background: #f4f8f4; border-radius: 10px; padding: 14px; margin-top: 10px; }
+  .namegrid .namebtn .mtag { display: block; font-size: 11px; font-weight: normal; color: #2e6b34; }
+  #noev { text-align: center; color: #888; padding: 16px 0; }
+
+  /* ★★2026-09-04　まとめて登録の入力表。
+     　只隈さんのご指摘：横にスライドさせるのは絶対にやめる。
+     　→ 表（横に9列）をやめ、1件＝1枚のカードに縦積みしました。 */
+  .bcard { border: 2px solid #cfe0d0; border-radius: 10px;
+           padding: 10px 12px 12px; margin-bottom: 12px; background: #fbfdfb; }
+  .bcard-h { display: flex; align-items: center; justify-content: space-between;
+             color: #2e6b34; font-size: 15px; }
+  .bcard-x { width: auto !important; padding: 4px 12px !important; font-size: 14px; }
+  .bfield { margin-top: 9px; }
+  .bfield > label { display: block; font-size: 14px; color: #555; margin-bottom: 3px; }
+  .bfield input, .bfield select { font-size: 16px; padding: 7px 6px;
+                                  box-sizing: border-box; max-width: 100%;
+                                  margin-top: 0; width: 100%; }
+  .brow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .brow .bfield { margin-top: 0; }
+  .bhint { font-size: 14px; color: #2e6b34; margin-top: 5px;
+           line-height: 1.55; word-break: break-word; }
+  .bhint.ng { color: #a3231f; font-weight: bold; }
+  .bsample { font-size: 14px; color: #777; background: #f4f8f4;
+             border-radius: 8px; padding: 8px 10px; margin-top: 6px; line-height: 1.6; }
+  /* ★★2026-09-15（工事F）　まとめて登録の画面を、管理者メニュー（工事E-1〜E-6）と
+     　同じ部品で作り直しました。只隈さんのご指摘：「デザインも古い、先ほどから
+     　管理者メニューで採用したデザインに踏襲したい」。
+     　★ドロップ枠だけは直書きの style だったので、クラスに移しました。
+     　　枠の緑は .admsec-h の縦線と同じ #2e6b34 系にそろえています。 */
+  .dropzone {
+    border: 3px dashed #7aa87e; border-radius: 10px; background: #f4f9f4;
+    text-align: center; padding: 16px 10px; margin-top: 8px;
+    color: #2e6b34; font-size: 16px;
+  }
