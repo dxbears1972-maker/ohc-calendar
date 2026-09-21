@@ -1176,7 +1176,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-21c';
+var APP_VER = '2026-09-21d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -4471,6 +4471,9 @@ function pickFile(fileId){
    　サーバー（needCode）が教えてくれます。★値そのものは受け取りません。 */
 var MUST_SET_CODE = false;
 var CODE_ASKED_   = false;
+/* ★★2026-09-21　「あとで」で、いまこの画面だけ下ろすための印。
+   　★覚えません。次に開いたときは、また出ます。 */
+var CODE_TIP_HIDDEN_ = false;
 
 function renderCodeTip(){
   var el = $('codeTip');
@@ -4478,7 +4481,9 @@ function renderCodeTip(){
   /* ★管理者で番号がまだ無い方は、「あとで」で閉じても次に開いたときまた出します。
      　機種を変えたときにご自分で名乗り直せなくなるのは、この方だけだからです。 */
   var mine = !!myName && (lsGet(LSK.claimed) === myName);
-  var show = MUST_SET_CODE ? mine : (mine && !lsGet(LSK.codeTip));
+  var show = MUST_SET_CODE
+    ? (mine && !CODE_TIP_HIDDEN_)          /* ★「あとで」は今回だけ。次に開けばまた出る */
+    : (mine && !lsGet(LSK.codeTip));       /* ★ふつうの会員は、閉じたら二度と出さない */
   el.style.display = show ? 'block' : 'none';
 
   var t = $('codeTipTitle'), b = $('codeTipBody'), l = $('codeTipLaterBtn');
@@ -4522,14 +4527,18 @@ function askMustSetCode_(){
 }
 
 function codeTipGo(){
-  lsSet(LSK.codeTip, '1');
+  if (!MUST_SET_CODE) lsSet(LSK.codeTip, '1');
+  CODE_TIP_HIDDEN_ = true;
   renderCodeTip();
   openCfg();
   askSetCode();
 }
 
 function codeTipLater(){
-  lsSet(LSK.codeTip, '1');
+  /* ★管理者で4けたがまだ無いときは、覚えません（次に開けばまた出ます）。
+     　ふつうの会員のときだけ、これまでどおり「もう出しません」にします。 */
+  if (!MUST_SET_CODE) lsSet(LSK.codeTip, '1');
+  CODE_TIP_HIDDEN_ = true;
   renderCodeTip();
 }
 
