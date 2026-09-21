@@ -1025,7 +1025,7 @@
       <label style="margin-top:12px">確認のため、もう一度</label>
       <input type="tel" class="pin" id="code2" inputmode="numeric" pattern="[0-9]*"
              maxlength="4" autocomplete="off" placeholder="････">
-      <button type="button" class="subbtn" onclick="submitSetCode()">この番号で登録する</button>
+      <button type="button" class="subbtn" onclick="submitSetCode(this)">この番号で登録する</button>
       <button type="button" class="cancelbtn" onclick="closeCodeForm()">やめる</button>
     </div>
 
@@ -1176,7 +1176,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-21d';
+var APP_VER = '2026-09-21e';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -6067,7 +6067,7 @@ function closeCodeForm(){
   $('setCodeBtn').style.display = canSet ? 'block' : 'none';
 }
 
-function submitSetCode(){
+function submitSetCode(btn){
   var c1 = $('code1').value.replace(/[^0-9]/g, '');
   var c2 = $('code2').value.replace(/[^0-9]/g, '');
   if (c1.length !== 4){
@@ -6082,11 +6082,17 @@ function submitSetCode(){
     return;
   }
 
+  /* ★★2026-09-21（只隈さんのご指摘）　押したその場で、押したことが分かるようにします。
+     　只隈さん「決めるを押した時、OKがでるまで無反応なので、押したかどうかよく分からない」。
+     　★画面いちばん上の「…しています」は、設定の画面からは見えません。 */
+  admBusy_(btn, '登録しています…');
   setStatus('登録しています…');
   api('POST', { action: 'setCode', name: myName, deviceId: deviceId(), code: c1 },
     function(err, data){
+      admBusyEnd_();
       if (err || !data){
         setStatus('通信に失敗しました。電波の良い場所でもう一度お試しください。', true);
+        alert('通信に失敗しました。\n電波の良い場所で、もう一度お試しください。');
         return;
       }
       if (data.ok){
