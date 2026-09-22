@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-21f">
+<link rel="stylesheet" href="css/app.css?v=2026-09-22a">
 </head>
 <body>
 
@@ -243,6 +243,15 @@
       <label><input type="checkbox" id="noticeMail" checked>
         メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
     </p>
+    <!-- ★★2026-09-22　LINEへ流すかどうか。★既定はオフ（2026-09-01 只隈さん決定）。
+         これまでは選び方そのものが無く、お知らせを書くたびに群の人数ぶん減っていました。 -->
+    <p class="chkrow">
+      <label><input type="checkbox" id="noticeLine">
+        LINEグループにも流す（<span id="noticeLineCnt">通数を使います</span>）</label>
+    </p>
+    <p class="note">※このお知らせは、アプリを開けば「読んだ」記録が残ります。<br>
+      LINEは通数（無料枠 月200通）を使いますので、
+      <b>いち早く、絶対に見てほしいとき</b>だけお使いください。</p>
     <button class="subbtn" id="noticeSave" type="button">この内容で出す</button>
     <button class="cancelbtn" id="noticeCancel" type="button">やめる</button>
   </div>
@@ -259,6 +268,9 @@
   </div>
 
   <!-- 予定追加 -->
+  <!-- ★★2026-09-22　LINEの通数（幹事・管理者にだけ出ます） -->
+  <div id="lineQuota" class="linequota" style="display:none"></div>
+
   <button class="bigbtn" id="showAdd" type="button">＋ 予定を追加する</button>
   <div class="card" id="addCard" style="display:none">
     <h2 id="addTitleH">予定を追加</h2>
@@ -558,20 +570,20 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-21f"></script>
-<script src="js/02_kind-target.js?v=2026-09-21f"></script>
-<script src="js/03_core-api.js?v=2026-09-21f"></script>
-<script src="js/04_render.js?v=2026-09-21f"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-21f"></script>
-<script src="js/06_notice-line.js?v=2026-09-21f"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-21f"></script>
-<script src="js/08_event-form.js?v=2026-09-21f"></script>
-<script src="js/09_bulk-add.js?v=2026-09-21f"></script>
-<script src="js/10_export-pick.js?v=2026-09-21f"></script>
-<script src="js/11_code-name.js?v=2026-09-21f"></script>
-<script src="js/12_admin-view.js?v=2026-09-21f"></script>
-<script src="js/13_admin-edit.js?v=2026-09-21f"></script>
-<script src="js/14_install-card.js?v=2026-09-21f"></script>
-<script src="js/15_namepick-init.js?v=2026-09-21f"></script>
+<script src="js/01_club-config.js?v=2026-09-22a"></script>
+<script src="js/02_kind-target.js?v=2026-09-22a"></script>
+<script src="js/03_core-api.js?v=2026-09-22a"></script>
+<script src="js/04_render.js?v=2026-09-22a"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-22a"></script>
+<script src="js/06_notice-line.js?v=2026-09-22a"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-22a"></script>
+<script src="js/08_event-form.js?v=2026-09-22a"></script>
+<script src="js/09_bulk-add.js?v=2026-09-22a"></script>
+<script src="js/10_export-pick.js?v=2026-09-22a"></script>
+<script src="js/11_code-name.js?v=2026-09-22a"></script>
+<script src="js/12_admin-view.js?v=2026-09-22a"></script>
+<script src="js/13_admin-edit.js?v=2026-09-22a"></script>
+<script src="js/14_install-card.js?v=2026-09-22a"></script>
+<script src="js/15_namepick-init.js?v=2026-09-22a"></script>
 </body>
 </html>

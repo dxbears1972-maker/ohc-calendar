@@ -402,6 +402,7 @@ function renderList(){
 function render(){
   renderNotices();
   renderTelBook();
+  try { renderLineQuota(); } catch (eLQ) {}   /* ★2026-09-22　LINEの通数 */
   renderCalendar();
   renderList();
 }

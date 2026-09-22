@@ -167,3 +167,90 @@ function eventShareText(ev){
   return t;
 }
 
+
+/* ==================================================================
+   ★★2026-09-22　LINEの通数の見える化
+   ------------------------------------------------------------------
+   LINE公式アカウントの自動配信は、無料枠が**月200通**です。
+   群へ1回流すと「群にいる人数」ぶん減ります（16名なら1回で16通）。
+
+   これまで残りの通数は、「未回答の方へ催促」の確認ダイアログの中にしか
+   出ていませんでした。お知らせや予定の登録では、黙って減っていました。
+   ここでは幹事・管理者の画面に、**いつでも見える形**で出します。
+
+   ★数字はこちらで数えた**概算**です（LINE側の実数と少しずれることがあります）。
+   ================================================================== */
+
+/* 群へ1回流すと使う通数。スイッチが on でなければ 0（通数は減りません） */
+function lineCostOnce_(){
+  if (lineMode !== 'on') return 0;
+  return (lineSize != null && !isNaN(+lineSize)) ? +lineSize : 0;
+}
+
+/* 確認ダイアログに入れる「■ 使う通数：…」。催促の文言にそろえています */
+function lineCostLines_(n){
+  var t = '■ 使う通数：' + n + '通';
+  if (lineLeft != null) t += '（今月あと ' + lineLeft + '通 送れます）';
+  if (lineLeft != null && lineLimit != null && lineUsed != null){
+    t += '\n　送ったあとは ' + (lineUsed + n) + '／' + lineLimit + '通 になります';
+  }
+  if (lineMode === 'test') t += '\n　※いまは動作確認中（test）です。群には出ません';
+  else if (lineMode === 'off') t += '\n　※いまLINEの自動配信は止まっています（off）';
+  return t;
+}
+
+/* 「7日前と前日」のような言い方を作る */
+function lineDaysText_(){
+  if (!lineDays || !lineDays.length) return '';
+  var a = [];
+  for (var i = 0; i < lineDays.length; i++){
+    a.push((+lineDays[i] === 1) ? '前日' : (+lineDays[i] + '日前'));
+  }
+  return a.join('と');
+}
+
+/* 幹事・管理者の画面に、今月の通数を1枚で出す */
+function renderLineQuota(){
+  var box = $('lineQuota');
+  if (!box) return;
+  if (!isStaff(getName()) || lineLimit == null || lineUsed == null){
+    box.style.display = 'none';
+    return;
+  }
+  var left = (lineLeft != null) ? lineLeft : Math.max(0, lineLimit - lineUsed);
+  var h = '<b>LINEの自動配信　今月 ' + lineUsed + '／' + lineLimit + '通（残り ' +
+          left + '通・概算）</b>';
+  if (lineMode === 'on'){
+    if (lineSize != null){
+      h += '<br>クラブのLINEグループへ1回流すと <b>' + lineSize + '通</b>（いま群にいる人数）。';
+    }
+    var d = lineDaysText_();
+    if (d) h += '予定のある日の ' + d + ' にも、自動で流れます。';
+  } else if (lineMode === 'test'){
+    h += '<br>いまは<b>動作確認中（test）</b>です。群には出ないので、通数は減りません。';
+  } else {
+    h += '<br>いまLINEの自動配信は<b>止まっています（off）</b>。通数は減りません。';
+  }
+  h += '<br>通数を使いたくないときは、「LINEグループに貼る（0通）」をお使いください。' +
+       'ご自分のLINEから貼るやり方で、いくら送っても0通です。';
+  box.innerHTML = h;
+  box.style.display = 'block';
+}
+
+/* お知らせの画面を開くたびに、チェックを外して通数を出し直す */
+function refreshNoticeLine_(){
+  var cb = $('noticeLine');
+  if (cb) cb.checked = false;          /* ★既定はオフ（2026-09-01 只隈さん決定） */
+  var sp = $('noticeLineCnt');
+  if (!sp) return;
+  var n = lineCostOnce_();
+  if (n > 0){
+    sp.innerHTML = n + '通' + (lineLeft != null ? '・今月あと' + lineLeft + '通' : '');
+  } else if (lineMode === 'test'){
+    sp.innerHTML = 'いまは動作確認中・0通';
+  } else if (lineMode === 'off'){
+    sp.innerHTML = 'いまは止まっています・0通';
+  } else {
+    sp.innerHTML = '通数を使います';
+  }
+}

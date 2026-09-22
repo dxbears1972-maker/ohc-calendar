@@ -13,6 +13,11 @@ var canWriteNotice = false;  /* お知らせを書ける人か（サーバーが
 var lineGroupUrl = '';       /* クラブのLINEグループを開くURL（「設定」シート） */
 var lineLeft = null;         /* 今月あと何通送れるか（幹事・管理者だけ受け取る。2026-08-24） */
 var lineMode = '';           /* off / test / on（同上） */
+/* ★2026-09-22（LINE通数の見える化）　画面に常時出すための3つ＋自動の連絡の日 */
+var lineUsed  = null;        /* 今月すでに使った通数（概算） */
+var lineLimit = null;        /* 無料枠（ふつうは200） */
+var lineSize  = null;        /* 群にいる人数＝群へ1回流すと使う通数 */
+var lineDays  = null;        /* 自動の連絡が群へ流れる日（既定は [7,1]） */
 var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
 var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */
 var adminWarned  = false;  /* 管理者が1人もいないことを知らせたか */
@@ -497,6 +502,9 @@ function init(){
     $('noticeCell').style.display = 'none';
     $('noticeText').value = '';
     $('noticeUntil').value = '';
+    /* ★2026-09-22　LINEへ流すかどうかは、★毎回オフから始めます。
+       　前に流したから今回も流す、が起きないようにするためです。 */
+    try { refreshNoticeLine_(); } catch (eNL) {}
     $('noticeText').focus();
   };
   $('noticeCancel').onclick = function(){
@@ -507,8 +515,18 @@ function init(){
     var t = $('noticeText').value.replace(/^[\s　]+|[\s　]+$/g, '');
     if (!t){ alert('お知らせの内容を書いてください'); return; }
     $('noticeCard').style.display = 'none';
+    /* ★2026-09-22　LINEへ流すときだけ、押す前に通数をお見せします */
+    var wantLine = !!($('noticeLine') && $('noticeLine').checked);
+    if (wantLine && lineCostOnce_() > 0){
+      if (!confirm('このお知らせを、クラブのLINEグループへも流します。\n\n' +
+                   lineCostLines_(lineCostOnce_()) + '\n\n' +
+                   '※アプリを開けば「読んだ」記録が残ります。\n' +
+                   '　LINEは、いち早く絶対に見てほしいときだけお使いください。\n\n' +
+                   'よろしいですか？')) return;
+    }
     post({ action: 'addNotice', text: t, until: $('noticeUntil').value || '',
            mail: $('noticeMail').checked,
+           line: wantLine,
            name: getName(), memberId: idOf(getName()) }, 'お知らせを出しました', function(){
       offerShare('【' + CLUB.shareTag + '】お知らせ\n' + t +
                  '\n\nアプリを開くと、いちばん上に出ています。\n' +

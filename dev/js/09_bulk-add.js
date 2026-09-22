@@ -445,8 +445,14 @@ function confirmAndPostEvents_(events, name){
   if (newList.length) msg += '\n【新しく入る予定】' + newList.length + '件\n' + newList.join('\n') + '\n';
   if (ovList.length)  msg += '\n【すでにある予定を書き換えます】' + ovList.length + '件\n' + ovList.join('\n') +
                              '\n　　※出欠のご回答はそのまま残ります\n';
-  msg += '\nお知らせが届く数：のべ' + total + '名';
-  if (lineLeft != null) msg += '（LINEは今月あと' + lineLeft + '通）';
+  msg += '\n出欠をお願いする方：のべ' + total + '名';
+  /* ★★2026-09-22（LINE通数の見える化 2）　実物に合わせて書き直しました。
+     　このやり方（Excel貼り付けのまとめて登録）は、サーバー側で
+     　★メールもLINEも1通も送っていません（actImportEvents_ を実機のコードで確認）。
+     　これまでは「お知らせが届く数：のべ○名（LINEは今月あと○通）」と出ていて、
+     　自動で知らせが行くように読めました。★通数は1通も使いません。 */
+  msg += '\n★このやり方では、メールもLINEも自動では送りません（LINEは0通）。' +
+         '\n　登録したあと、予定の「LINEグループに貼る（0通）」でお知らせください。';
   /* ★修正5　LINE未登録の方を、押す前に名指しでお見せする */
   if (missAll.length){
     msg += '\n★このうち のべ' + missTotal + '名分は、LINEでは届きません\n' +

@@ -107,6 +107,11 @@ function applyData(data){
   /* ★2026-08-24　LINEの残り通数（幹事・管理者にだけ届きます） */
   if (data && typeof data.lineLeft !== 'undefined') lineLeft = data.lineLeft;
   if (data && typeof data.lineMode !== 'undefined') lineMode = data.lineMode;
+  /* ★2026-09-22（LINE通数の見える化）　今月の使用・枠・群の人数・自動の連絡の日 */
+  if (data && typeof data.lineUsed  !== 'undefined') lineUsed  = data.lineUsed;
+  if (data && typeof data.lineLimit !== 'undefined') lineLimit = data.lineLimit;
+  if (data && typeof data.lineSize  !== 'undefined') lineSize  = data.lineSize;
+  if (data && typeof data.lineDays  !== 'undefined') lineDays  = data.lineDays;
   state.events = data.events || [];
   state.attendance = data.attendance || [];
   if (data.notices) state.notices = data.notices;

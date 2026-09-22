@@ -484,3 +484,15 @@
     text-align: center; padding: 16px 10px; margin-top: 8px;
     color: #2e6b34; font-size: 16px;
   }
+
+/* ★2026-09-22　LINEの通数（幹事・管理者にだけ出る1枚） */
+.linequota {
+  background: #fffdf2;
+  border: 1px solid #e6dcb8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #5a5340;
+}
