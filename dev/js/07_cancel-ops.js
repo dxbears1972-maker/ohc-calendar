@@ -109,6 +109,20 @@ function moveMonth(diff){
   if (m > 12){ m = 1; state.year++; }
   state.month = m;
   render();
+  /* ★★2026-09-28　月の帯を上に残すようにしたので、下のほうからでも月を切り替えられる。
+     　そのときは、切り替えた月のカレンダーが帯のすぐ下に来るように戻す（只隈さんのご指摘）。
+     　カレンダーが見えている位置（まだ下へ動かしていない）なら、画面は動かさない。 */
+  try {
+    var bar = $('monthBar'), cal = $('calTable');
+    if (bar && cal){
+      var barBottom = bar.getBoundingClientRect().bottom;
+      var calTop = cal.getBoundingClientRect().top;
+      if (calTop < barBottom){
+        var y = calTop + window.pageYOffset - barBottom - 4;
+        window.scrollTo(0, y < 0 ? 0 : y);
+      }
+    }
+  } catch (eMM) {}
 }
 
 function answer(evId, st){
