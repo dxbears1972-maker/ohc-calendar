@@ -290,6 +290,7 @@ function renderList(){
   var myn = getName();
   var isAdmin = isAdmin_(myn);
   var html = '';
+  var nowD = new Date(), todayK = dkey(nowD.getFullYear(), nowD.getMonth() + 1, nowD.getDate());
   for (var j = 0; j < list.length; j++){
     var ev = list[j];
     var att = attOf(ev.id);
@@ -394,6 +395,11 @@ function renderList(){
               (locked ? '締切を解除' : '出欠を締切る') + '</a>') +
           '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">削除</a>' +
         '</div>' : '') +
+      /* ★★2026-09-28　この日に、もう1件入れる入口（★だれでも。只隈さん「本来誰でも予定は入れるべき」）。
+         　予定がある日を押すとこのカードへ飛ぶので、その場から日付入りで入力画面を開けます。
+         　終わった日には出しません。 */
+      (ev.date >= todayK ?
+        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="addSameDay(\'' + esc(ev.date) + '\')">＋ この日に別の予定を入れる</a></div>' : '') +
     '</div>';
   }
   $('evList').innerHTML = html + oldBtn;

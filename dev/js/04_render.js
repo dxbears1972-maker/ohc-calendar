@@ -65,6 +65,8 @@ function renderCalendar(){
 }
 
 function tapDay(d){
+  /* ★2026-09-28　最後に押した日を覚えておき、「＋予定を追加する」をその日付で開く */
+  state.lastTap = { y: state.year, m: state.month, d: d };
   var key = dkey(state.year, state.month, d);
   var evs = eventsOn(key);
   if (evs.length > 0){
@@ -79,6 +81,15 @@ function tapDay(d){
     /* 予定がない日 → 追加フォームをその日付で開く */
     openAddForm(state.year, state.month, d);
   }
+}
+
+/* ★★2026-09-28　予定のカードの「＋この日に別の予定を入れる」から、その日付で入力画面を開く */
+function addSameDay(key){
+  var p = String(key || '').split('-');
+  var y = parseInt(p[0], 10), m = parseInt(p[1], 10), d = parseInt(p[2], 10);
+  if (!y || !m || !d) return;
+  state.lastTap = { y: y, m: m, d: d };
+  openAddForm(y, m, d);
 }
 
 /* ---------- 予定一覧描画 ---------- */
