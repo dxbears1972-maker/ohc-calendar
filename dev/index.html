@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-22a">
+<link rel="stylesheet" href="css/app.css?v=2026-09-28a">
 </head>
 <body>
 
@@ -51,6 +51,21 @@
   ⚠ これは開発版です（本番ではありません）
   <span class="sub">ここでの操作は、本番のカレンダーには影響しません</span>
 </div>
+<script>
+/* ★2026-09-28　この赤い帯も上に残るので、月の切り替えの帯（#monthBar）をそのすぐ下に止める。
+   　帯の高さは文字の折り返しで変わるので、測って --stickTop に入れる（開発版だけの仕掛け）。 */
+(function(){
+  function setTop(){
+    try {
+      var b = document.getElementById('devBanner');
+      document.documentElement.style.setProperty('--stickTop', (b ? b.offsetHeight : 0) + 'px');
+    } catch(e){}
+  }
+  setTop();
+  window.addEventListener('resize', setTop);
+  window.addEventListener('load', setTop);
+})();
+</script>
 
 <!-- LINE内ブラウザで開いたときの案内（外部ブラウザへ誘導） -->
 <div id="lineWarn" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; background:#eef3ee; padding:24px 18px; overflow:auto;">
@@ -257,17 +272,42 @@
   </div>
 
   <!-- カレンダー -->
-  <div class="card">
+  <!-- ★★2026-09-28　月の切り替え（◀ ○年○月 ▶）を、画面を上下に動かしても上に残す（只隈さん）。
+       　カードの中に置いたままだと、カードが画面から出たところで一緒に消えるので、
+       　カードの外（main の直下）へ出して position: sticky にしています。 -->
+  <div class="monthbar" id="monthBar">
     <table class="monthnav"><tr>
       <td><button class="mv" id="prevM" type="button">◀</button></td>
       <td class="ym" id="ymLabel"></td>
       <td><button class="mv" id="nextM" type="button">▶</button></td>
     </tr></table>
+  </div>
+  <div class="card calcard">
     <table class="cal" id="calTable"></table>
-    <p class="note">緑色の日は予定あり。日付を押すとその予定に移動します。</p>
+    <p class="note">緑色の日は予定あり。日付を押すとその予定に移動します。<br>
+      <b>空いている日を押すと、その日の予定を入れる画面が開きます。</b></p>
+  </div>
+
+  <!-- Googleカレンダー連携の設定 -->
+  <div class="card" style="padding:10px 12px">
+    <label style="font-size:16px; display:flex; align-items:center; margin:0;">
+      <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
+      参加した予定をGoogleカレンダーにも追加する
+    </label>
+    <p class="note" style="margin-top:6px">チェックを入れると、「参加」を押したときにGoogleカレンダーの追加画面が開きます。外すと開きません。（この設定はこの端末に記憶されます）</p>
+  </div>
+
+  <!-- 予定一覧 -->
+  <div class="card">
+    <h2 id="listTitle">今月の予定</h2>
+    <div id="evList"></div>
   </div>
 
   <!-- 予定追加 -->
+  <!-- ★★2026-09-28　カレンダーのすぐ下から、予定一覧の下へ移しました（只隈さん）。
+       　会員の多くは出欠を押すだけなので、カレンダーと予定一覧のあいだに挟まると邪魔になる。
+       　予定を入れる入口は2つ：①空いている日を押す（日付が入った状態で開く）
+       　②このボタン（予定がすでにある日に、もう1件入れるとき）。 -->
   <!-- ★★2026-09-22　LINEの通数（幹事・管理者にだけ出ます） -->
   <div id="lineQuota" class="linequota" style="display:none"></div>
 
@@ -416,21 +456,6 @@
     <button class="cancelbtn" id="importCancel" type="button">やめる</button>
   </div>
 
-  <!-- Googleカレンダー連携の設定 -->
-  <div class="card" style="padding:10px 12px">
-    <label style="font-size:16px; display:flex; align-items:center; margin:0;">
-      <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
-      参加した予定をGoogleカレンダーにも追加する
-    </label>
-    <p class="note" style="margin-top:6px">チェックを入れると、「参加」を押したときにGoogleカレンダーの追加画面が開きます。外すと開きません。（この設定はこの端末に記憶されます）</p>
-  </div>
-
-  <!-- 予定一覧 -->
-  <div class="card">
-    <h2 id="listTitle">今月の予定</h2>
-    <div id="evList"></div>
-  </div>
-
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
 
   <!-- ★2026-08-23：4けたの確認番号を決めていただくお誘い。
@@ -570,20 +595,20 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-22a"></script>
-<script src="js/02_kind-target.js?v=2026-09-22a"></script>
-<script src="js/03_core-api.js?v=2026-09-22a"></script>
-<script src="js/04_render.js?v=2026-09-22a"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-22a"></script>
-<script src="js/06_notice-line.js?v=2026-09-22a"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-22a"></script>
-<script src="js/08_event-form.js?v=2026-09-22a"></script>
-<script src="js/09_bulk-add.js?v=2026-09-22a"></script>
-<script src="js/10_export-pick.js?v=2026-09-22a"></script>
-<script src="js/11_code-name.js?v=2026-09-22a"></script>
-<script src="js/12_admin-view.js?v=2026-09-22a"></script>
-<script src="js/13_admin-edit.js?v=2026-09-22a"></script>
-<script src="js/14_install-card.js?v=2026-09-22a"></script>
-<script src="js/15_namepick-init.js?v=2026-09-22a"></script>
+<script src="js/01_club-config.js?v=2026-09-28a"></script>
+<script src="js/02_kind-target.js?v=2026-09-28a"></script>
+<script src="js/03_core-api.js?v=2026-09-28a"></script>
+<script src="js/04_render.js?v=2026-09-28a"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-28a"></script>
+<script src="js/06_notice-line.js?v=2026-09-28a"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-28a"></script>
+<script src="js/08_event-form.js?v=2026-09-28a"></script>
+<script src="js/09_bulk-add.js?v=2026-09-28a"></script>
+<script src="js/10_export-pick.js?v=2026-09-28a"></script>
+<script src="js/11_code-name.js?v=2026-09-28a"></script>
+<script src="js/12_admin-view.js?v=2026-09-28a"></script>
+<script src="js/13_admin-edit.js?v=2026-09-28a"></script>
+<script src="js/14_install-card.js?v=2026-09-28a"></script>
+<script src="js/15_namepick-init.js?v=2026-09-28a"></script>
 </body>
 </html>

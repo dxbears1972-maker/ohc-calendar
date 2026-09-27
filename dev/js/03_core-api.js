@@ -418,7 +418,10 @@ function scrollToEv(id){
   var el = $('ev-' + id);
   if (!el) return;
   try {
-    var y = el.getBoundingClientRect().top + window.pageYOffset - 12;
+    /* ★2026-09-28　上に残る月の帯（#monthBar）の下に、見出しが隠れないようにする */
+    var bar = $('monthBar'), barH = 0;
+    if (bar) barH = bar.offsetHeight + (parseFloat(getComputedStyle(bar).top) || 0);
+    var y = el.getBoundingClientRect().top + window.pageYOffset - 12 - barH;
     window.scrollTo(0, y < 0 ? 0 : y);
   } catch(e){
     if (el.scrollIntoView) el.scrollIntoView(true);

@@ -118,6 +118,21 @@
     border-radius: 8px;
   }
   .monthnav .ym { font-size: 22px; font-weight: bold; color: #2e6b34; }
+  /* ★★2026-09-28　月の切り替えの帯を、画面を動かしても上に残す（只隈さん）。
+     　帯はカードの外に出してあり、下のカレンダー（.calcard）と1枚に見えるよう角を分けています。 */
+  .monthbar {
+    position: -webkit-sticky; position: sticky; top: var(--stickTop, 0px); z-index: 50;
+    background: #fff;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #dfe8df;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card.calcard { margin-top: 0; border-radius: 0 0 12px 12px; padding-top: 0; }
+  /* 帯の下に、飛んだ先の見出しが隠れないように（scrollIntoView が使う余白）。
+     　--stickTop は開発版の赤い帯の高さ（本番・新クラブ用には無いので 0） */
+  html { scroll-padding-top: calc(var(--stickTop, 0px) + 72px); }
 
   /* カレンダー本体 */
   table.cal { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
