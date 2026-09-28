@@ -52,8 +52,14 @@ function api(method, body, cb, tryNo, fresh){
   function fail(){
     if (done) return;
     done = true;
-    if (tryNo < 2 && method === 'GET'){
-      setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000);
+    /* ★★2026-09-28　読み込み（GET）のやり直しを、1回から3回に増やしました。
+       　本番の実行数では、サーバーは毎回「完了」しているのに、
+       　「通信できませんでした」が出ていました＝返事が途中で届いていない。
+       　間を 2秒・4秒・6秒 と空けて取り直します。
+       　★その間も、端末の控え（前回の内容）は表示されたままです。
+       　★書き換え（POST）は、これまでどおり1回だけです（下の説明のとおり）。 */
+    if (tryNo < 4 && method === 'GET'){
+      setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000 * tryNo);
       return;
     }
     cb(true);
