@@ -144,9 +144,12 @@ function answer(evId, st){
   var found = false;
   for (var j = 0; j < state.attendance.length; j++){
     var a = state.attendance[j];
-    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+    if (a.eventId === evId && a.name === name){
+      a.status = st; found = true;
+      if (st !== 'yes') a.car = '';   /* ★2026-09-28h　参加でなくなったら車も出さない（サーバーも消します） */
+    }
   }
-  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });
   render();
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
          status: st, by: getName() }, '回答を送りました');

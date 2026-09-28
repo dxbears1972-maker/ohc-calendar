@@ -511,3 +511,68 @@
   line-height: 1.7;
   color: #5a5340;
 }
+
+/* ★★2026-09-28h（山行の段取り 段1）　車を出せるか・計画書の下書き */
+.carpick { margin-top: 8px; font-size: 16px; color: #333; }
+.carpick select { font-size: 16px; padding: 6px 8px; border-radius: 8px; border: 1px solid #9bb89e; background: #fff; }
+.carhint { font-size: 13px; color: #777; margin-top: 3px; }
+.attlist b.car { color: #1f5f8b; }
+.attlist .carsum { font-size: 14px; color: #555; }
+.attlist b.carng { color: #b00020; }
+
+#planSheet { display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 20000; background: #eef1ee; overflow: auto; -webkit-overflow-scrolling: touch; }
+body.planopen { overflow: hidden; }
+.plantools { max-width: 760px; margin: 0 auto; padding: 10px 12px 6px; }
+.plantitle { font-size: 18px; font-weight: bold; color: #2e6b34; }
+.planbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.planbtns button { font-size: 16px; padding: 8px 14px; border-radius: 8px;
+  border: 1px solid #9bb89e; background: #fff; color: #2e6b34; }
+.planbtns button.on { background: #2e6b34; color: #fff; font-weight: bold; }
+.planbtns button.pprint { background: #1f5f8b; border-color: #1f5f8b; color: #fff; font-weight: bold; }
+.planhint { font-size: 14px; color: #555; line-height: 1.6; margin-top: 8px; }
+.plansheet { background: #fff; max-width: 740px; margin: 6px auto 30px; padding: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15); color: #111; }
+.pform { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.pform td { border: 1px solid #333; padding: 4px 5px; vertical-align: middle; word-break: break-all; }
+.pform td.pl { text-align: center; background: #fff; }
+.pform td.pv { text-align: center; min-height: 1.6em; }
+.pform td.pv:focus { outline: 2px solid #e8a000; background: #fffbe8; }
+.pform td.pbig { font-size: 1.1em; font-weight: bold; }
+.pform td.ptitle { font-size: 1.05em; }
+.pform td.pcourse { height: 9em; text-align: left; vertical-align: top; }
+.pform td.pnote { height: 8em; text-align: left; vertical-align: top; }
+.pform td.pother { height: 7em; text-align: left; vertical-align: top; }
+.pform td.pkey { font-weight: bold; font-size: .95em; }
+.pform td.pmem { padding: 0; }
+.pform .psmall { font-size: .8em; }
+.pmaru { display: inline-block; padding: 1px 4px; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
+.pmaru.on { border-color: #111; }
+.pgrid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pgrid td { border: 0; border-right: 1px solid #333; border-bottom: 1px solid #333;
+  height: 1.9em; text-align: center; padding: 2px 4px; }
+.pgrid td:last-child { border-right: 0; }
+.pgrid tr:last-child td { border-bottom: 0; }
+.pcar { font-size: .85em; white-space: nowrap; }
+.pfootnote { font-size: 13px; margin-top: 6px; line-height: 1.6; }
+@media (max-width: 480px) {
+  .plansheet { padding: 6px; }
+  .pform { font-size: 11px; }
+  .pform td { padding: 3px 2px; }
+}
+@media print {
+  body.planopen > *:not(#planSheet) { display: none !important; }
+  body.planopen { overflow: visible; background: #fff; }
+  #planSheet { position: static; overflow: visible; background: #fff; }
+  #planSheet .plantools { display: none; }
+  #planSheet .plansheet { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+  .pform { font-size: 9.5pt; }
+  .pform td { padding: 2px 3px; }
+  .pform td.pcourse { height: 7.5em; }
+  .pform td.pnote { height: 6.5em; }
+  .pform td.pother { height: 5.5em; }
+  .pgrid td { height: 1.7em; }
+  .pfootnote { font-size: 9pt; }
+  .pform td.pv:focus { outline: 0; background: #fff; }
+  @page { size: B5; margin: 10mm; }
+}

@@ -188,9 +188,12 @@ function proxySet(evId, name, st){
   var found = false;
   for (var j = 0; j < state.attendance.length; j++){
     var a = state.attendance[j];
-    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+    if (a.eventId === evId && a.name === name){
+      a.status = st; found = true;
+      if (st !== 'yes') a.car = '';   /* ★2026-09-28h */
+    }
   }
-  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });
   render();
   var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
@@ -372,7 +375,9 @@ function renderList(){
           '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
           '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
-        '</div>'
+        '</div>' +
+        /* ★★2026-09-28h（山行の段取り 段1）　参加と答えた方にだけ「車を出せますか」 */
+        (mine === 'yes' && !isCancel ? carPickHtml_(ev.id, myn) : '')
       ) +
       (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
@@ -383,6 +388,8 @@ function renderList(){
           ('<br><b class="pending">未回答 ' + att.pending.length + '人</b>：' +
             attNamesHtml(att.pending, ev.id, false, '') )
           : '') +
+        /* ★★2026-09-28h（山行の段取り 段1）　車の台数と席（出せる方がいるとき。係の方には0台でも出す） */
+        carLineHtml_(ev.id, att.yes.length, canSettle_) +
       '</div>' +
       /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
          　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
@@ -405,6 +412,9 @@ function renderList(){
       /* ★★2026-09-28　この日に、もう1件入れる入口（★だれでも。只隈さん「本来誰でも予定は入れるべき」）。
          　予定がある日を押すとこのカードへ飛ぶので、その場から日付入りで入力画面を開けます。
          　終わった日には出しません。 */
+      /* ★★2026-09-28h（山行の段取り 段1）　計画書・報告書の下書き（係・登録者・幹事・管理者） */
+      (canSettle_ && !isCancel ?
+        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a></div>' : '') +
       (ev.date >= todayK ?
         '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="addSameDay(\'' + esc(ev.date) + '\')">＋ この日に別の予定を入れる</a></div>' : '') +
     '</div>';

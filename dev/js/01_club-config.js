@@ -95,6 +95,10 @@ var CLUB = {
      　★サーバーから受け取ります。フォルダが設定されていないクラブは false。 */
   hasFolder: true,
 
+  /* ★★2026-09-28h（山行の段取り 段1）　計画書・報告書の下書きの「団体名」。
+     　★サーバーの「設定」シート「計画書の団体名」から受け取ります（空欄ならクラブ名） */
+  planOrg: '',
+
   /* ★2026-08-23：専用URL（?key=…／?name=…）で名乗れるようにするか。
      　false ＝ 使わない。どのクラブでも
      　　　　　 1台目＝お名前を選ぶだけ／2台目＝お名前＋4けたの確認番号、に統一する。
@@ -139,7 +143,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-28g';
+var APP_VER = '2026-09-28h';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -188,7 +192,8 @@ function applyClubConfig(){
 var CLUB_CFG_KEYS = ['appTitle','homeTitle','shareTag','themeColor',
                      'contactLabel','carpoolUrl',
                      'staffRoles','staffLeads',
-                     'hasFolder'];   /* ★2026-09-28 */   /* ★2026-09-21 */
+                     'hasFolder',
+                     'planOrg'];   /* ★2026-09-28h（山行の段取り 段1）計画書の団体名 */   /* ★2026-09-28 */   /* ★2026-09-21 */
 
 function setClubCfg_(c, save){
   if (!c) return;
