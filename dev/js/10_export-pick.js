@@ -311,7 +311,9 @@ function pickFile(fileId){
   $('pickerList').innerHTML = '<p class="note">リンクを取得しています…</p>';
   api('POST', { action: 'pickFile', fileId: fileId }, function(err, data){
     if (err || !data || !data.url){
-      $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。</p>';
+      /* ★2026-09-28　断られた理由（名乗っていない・フォルダの外）を、そのまま出します */
+      $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。' +
+        (data && data.error ? '<br>詳細：' + esc(data.error) : '') + '</p>';
       return;
     }
     $(pickTarget === 'report' ? 'addReport' : 'addPlan').value = data.url;

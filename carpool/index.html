@@ -373,7 +373,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:var(--club);color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-09-07b</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-09-28a</p>
 
 </main>
 
@@ -545,7 +545,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-09-07b";
+var APP_VER = "2026-09-28a";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -629,6 +629,16 @@ function apiPost(body, cb) {
       cb(data ? null : true, data);
     } else { cb(true, null); }
   };
+  /* ★★2026-09-28（窓口の穴をふさぐ）　カレンダーで名乗った端末の記号を添えます。
+     　サーバーは、名乗った端末からの精算・料金表・地図・距離しか受け付けなくなりました。
+     　記号はカレンダーと同じ控え（device_<クラブID>）を読みます（同じ github.io の中なので読めます）。
+     　★古いサーバーは、この項目を無視するだけです。 */
+  try {
+    if (body && !body.deviceId) {
+      var dv = localStorage.getItem("device_" + CLUB_ID);
+      if (dv) body.deviceId = dv;
+    }
+  } catch (eDv) {}
   try { xhr.send(JSON.stringify(body)); } catch (e) { cb(true, null); }
 }
 
@@ -1454,7 +1464,10 @@ function saveEtc() {
     apiPost({ action: "saveRoutes", routes: getEtcRoutes() }, function (err, data) {
       var m = document.getElementById("etcSyncMsg");
       if (!m) return;
-      m.textContent = err ? "共有の保存に失敗しました。電波の良い所でもう一度直してください" : "みんなの料金表に保存しました";
+      /* ★2026-09-28　サーバーが断ったとき（名乗っていない端末など）も、失敗として知らせます */
+      m.textContent = err ? "共有の保存に失敗しました。電波の良い所でもう一度直してください"
+                    : (data && data.error) ? "共有の保存ができませんでした：" + data.error
+                    : "みんなの料金表に保存しました";
       m.style.display = "block";
       setTimeout(function () { m.style.display = "none"; }, 3000);
     });
@@ -2645,7 +2658,13 @@ function saveHistory() {
       id: EVENT_ID,
       text: lastResultText,
       form: JSON.stringify(getFormData())
-    }, function (err) {
+    }, function (err, data) {
+      /* ★2026-09-28　サーバーが断ったとき（名乗っていない端末など）は、記録できていません。
+         　これまでは「記録しました」と出てカレンダーへ戻っていました。 */
+      if (!err && data && data.error) {
+        m0.textContent = "カレンダーに記録できませんでした：" + data.error;
+        return;
+      }
       if (!err) {
         m0.textContent = "カレンダーに記録しました！カレンダーに戻ります…";
         setTimeout(function () { location.href = CAL_PAGE + "?goto=" + EVENT_ID; }, 1200);

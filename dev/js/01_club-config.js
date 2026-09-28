@@ -91,6 +91,10 @@ var CLUB = {
   staffRoles: [],
   staffLeads: [],
 
+  /* ★★2026-09-28（窓口の穴をふさぐ）　計画表・報告書の「参照」ボタンを出すか。
+     　★サーバーから受け取ります。フォルダが設定されていないクラブは false。 */
+  hasFolder: true,
+
   /* ★2026-08-23：専用URL（?key=…／?name=…）で名乗れるようにするか。
      　false ＝ 使わない。どのクラブでも
      　　　　　 1台目＝お名前を選ぶだけ／2台目＝お名前＋4けたの確認番号、に統一する。
@@ -135,7 +139,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-28e';
+var APP_VER = '2026-09-28f';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -161,6 +165,14 @@ function applyClubConfig(){
       var ac = $('addCard');
       if (ac && ac.style.display === 'block') renderStaffRows();
     } catch(e1){}
+    /* ★★2026-09-28（窓口の穴をふさぐ）　フォルダの無いクラブは「参照」を出しません
+       　（リンクを手で貼る欄は、そのまま使えます） */
+    try {
+      var showRef = (CLUB.hasFolder !== false);
+      var rp = $('refPlan'), rr = $('refReport');
+      if (rp) rp.style.display = showRef ? '' : 'none';
+      if (rr) rr.style.display = showRef ? '' : 'none';
+    } catch(e3){}
   } catch(e){}
 }
 
@@ -175,7 +187,8 @@ function applyClubConfig(){
    　data.admins / data.editors として別に届きます（2-5の訂正）。 */
 var CLUB_CFG_KEYS = ['appTitle','homeTitle','shareTag','themeColor',
                      'contactLabel','carpoolUrl',
-                     'staffRoles','staffLeads'];   /* ★2026-09-21 */
+                     'staffRoles','staffLeads',
+                     'hasFolder'];   /* ★2026-09-28 */   /* ★2026-09-21 */
 
 function setClubCfg_(c, save){
   if (!c) return;
