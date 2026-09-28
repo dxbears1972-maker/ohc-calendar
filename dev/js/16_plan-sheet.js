@@ -446,10 +446,11 @@ function renderCourse_(msg){
     h += '</table>' +
       '<div class="crssum" id="crsSum"></div>' +
       '<div class="planbtns">' +
-        '<button type="button" class="on" onclick="courseSave()">💾 この表を保存</button>' +
+        '<button type="button" class="on" id="crsSaveBtn" onclick="courseSave()">💾 この表を保存</button>' +
         (c.saved ? '<button type="button" onclick="courseDelete()">コースを消す</button>' : '') +
         '<button type="button" onclick="closePlanSheet()">閉じる</button>' +
       '</div>' +
+      '<div id="crsSaveMsg" class="crssavemsg"></div>' +
       (c.saved ? '' : '<div class="planhint"><b>まだ保存していません。</b>閉じると、読み取った表は消えます。</div>') +
     '</div>';
   } else {
@@ -659,9 +660,30 @@ function courseSave(){
   if (courseHmApp_(c.start) === null){ alert('出発時刻を入れてください'); return; }
   var name = getName();
   if (!name){ showNamePick(); return; }
+  /* ★★2026-09-29g　押したかどうかが分かるように（只隈さん「押したか押してないかがよくわからない」）。
+     　いつもの知らせ（画面上の status）はこの画面の裏に隠れるので、この画面の中に出す。 */
+  courseSaving_(true, '保存しています…（10秒ほどかかることがあります）');
   post({ action: 'saveCourse', id: COURSE_EV, by: name,
          course: { start: c.start, pace: +c.pace || 100, dist: c.dist, up: c.up, down: c.down, pts: pts } },
-       'コースの時刻表を保存しました', function(){ closePlanSheet(); });
+       'コースの時刻表を保存しました',
+       function(){ courseSaved_('✅ 保存しました。予定のカードに「🗺」の1行が出ます。'); },
+       function(){ courseSaving_(false, '<b>⚠ ' + (($('status') || {}).innerHTML || '保存できませんでした') + '</b>'); });
+}
+
+/* 保存中は押せなくして、この画面の中に知らせる */
+function courseSaving_(busy, msg){
+  var b = $('crsSaveBtn');
+  if (b){ b.disabled = !!busy; b.innerHTML = busy ? '⏳ 保存しています…' : '💾 この表を保存'; }
+  var m = $('crsSaveMsg');
+  if (m){ m.innerHTML = msg || ''; m.className = 'crssavemsg' + (busy ? ' busy' : (msg ? ' ng' : '')); }
+}
+/* 済んだら、この画面の中に「保存しました」を2秒出してから閉じる */
+function courseSaved_(msg){
+  var b = $('crsSaveBtn');
+  if (b){ b.disabled = true; b.innerHTML = '✅ 保存しました'; }
+  var m = $('crsSaveMsg');
+  if (m){ m.innerHTML = msg; m.className = 'crssavemsg ok'; }
+  setTimeout(function(){ closePlanSheet(); }, 2000);
 }
 
 function courseDelete(){
