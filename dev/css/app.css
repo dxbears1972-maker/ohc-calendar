@@ -593,6 +593,7 @@ body.planopen { overflow: hidden; }
 .crsstep { background: #fff; border-radius: 10px; padding: 12px; margin: 8px 0; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
 .crshead { font-size: 16px; font-weight: bold; color: #2e6b34; margin: 8px 0 4px; }
 .crsfile, .crssel { font-size: 16px; margin: 4px 0; }
+.crsurl { width: 100%; box-sizing: border-box; font-size: 16px; margin: 4px 0; padding: 8px; word-break: break-all; }   /* ★2026-09-29f YAMAP の共有URL */
 .crsctl { font-size: 16px; margin: 6px 0; }
 .crsctl input, .crsctl select { font-size: 16px; padding: 4px; }
 .crswarn { background: #fff6d6; border: 1px solid #e0c060; padding: 8px; border-radius: 8px; font-size: 14px; margin: 8px 0; line-height: 1.6; }

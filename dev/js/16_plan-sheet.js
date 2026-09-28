@@ -408,14 +408,13 @@ function renderCourse_(msg){
     '</div>' +
     '<div class="crsbox">' +
     '<div class="crsstep">' +
-      '<div class="crshead">① YAMAP の「登山計画」の画面を撮った写真を選ぶ</div>' +
-      '<div class="planhint">地点と時刻が並んだ画面です。1枚に入りきらないときは、下へずらして撮った写真を<b>上から順に何枚でも</b>選んでください。</div>' +
-      '<input type="file" id="crsFiles" accept="image/*" multiple class="crsfile">' +
-      '<div class="crshead">② YAMAP で設定したペース</div>' +
-      '<select id="crsYpace" class="crssel" onchange="COURSE_YPACE = parseInt(this.value, 10) || 100">' + coursePaceOpts_(COURSE_YPACE) + '</select>' +
-      '<div class="planhint">YAMAP の画面の時間には、このペースがもう掛かっています。分からなければ 100% のままで。</div>' +
-      '<div class="planbtns"><button type="button" class="on" id="crsReadBtn" onclick="courseRead()"' +
-        (COURSE_BUSY ? ' disabled' : '') + '>📷 写真を読み取る</button></div>' +
+      /* ★★2026-09-29f　入口は YAMAP の共有URLだけ（只隈さん「スクショは年配の方には何を撮ればよいか分かりにくい」）。
+         　写真の読み取り（courseRead）は作りだけ残し、画面には出さない。 */
+      '<div class="crshead">① YAMAP の登山計画のURLを貼る</div>' +
+      '<div class="planhint">YAMAP の登山計画の画面で<b>「共有URLコピー」</b>（アプリでは「共有」）を押し、ここに貼り付けてください。送られてきた文ごと貼っても大丈夫です。</div>' +
+      '<textarea id="crsUrl" class="crsurl" rows="3" placeholder="https://yamap.com/plans/code/…">' + esc(COURSE_URL) + '</textarea>' +
+      '<div class="planbtns"><button type="button" class="on" id="crsReadBtn" onclick="courseReadUrl()"' +
+        (COURSE_BUSY ? ' disabled' : '') + '>🔗 YAMAP から取り込む</button></div>' +
       '<div id="crsMsg" class="planhint">' + (msg || '') + '</div>' +
     '</div>';
 
@@ -611,6 +610,40 @@ function courseRead(){
       list.push(d); k++; next();
     });
   })();
+}
+
+/* ★★2026-09-29f　YAMAP の共有URLから取り込む。★返ってくる「前から」は標準（100%）の分・ペースは YAMAP の値 */
+var COURSE_URL = '';
+function courseReadUrl(){
+  if (COURSE_BUSY) return;
+  if (!getName()){ showNamePick(); return; }
+  var t = String(($('crsUrl') || {}).value || '');
+  COURSE_URL = t;
+  if (!/yamap\.com\/plans\/code\//.test(t)){
+    $('crsMsg').innerHTML = '<b>YAMAP の登山計画のURL（https://yamap.com/plans/code/… で始まるもの）を貼ってください。</b>';
+    return;
+  }
+  COURSE_BUSY = true;
+  var btn = $('crsReadBtn'); if (btn) btn.disabled = true;
+  $('crsMsg').innerHTML = 'YAMAP から取り込んでいます…（10〜30秒ほどかかることがあります）';
+  courseApi_({ action: 'readCourseUrl', id: COURSE_EV, url: t }, function(err, data){
+    COURSE_BUSY = false;
+    if (err || !data){ renderCourse_('<b>返事が届きませんでした。</b>電波の良い所で、もう一度「YAMAP から取り込む」を押してください（何度押しても大丈夫です）。'); return; }
+    if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>'); return; }
+    var r = data.read || {};
+    var pts = [];
+    for (var i = 0; i < (r.pts || []).length; i++){
+      var p = r.pts[i];
+      pts.push({ n: String(p.n || ''), m: i ? (+p.m || 0) : 0, r: +p.r || 0 });
+    }
+    if (pts.length < 2){ renderCourse_('<b>地点を2つ以上取り込めませんでした。</b>'); return; }
+    var ev = eventOf_(COURSE_EV) || {};
+    COURSE_EDIT = { start: courseHHMM_(r.start) || courseHHMM_(ev.time) || '08:00',
+                    pace: +r.pace || 100, dist: r.dist || '', up: r.up || '', down: r.down || '',
+                    pts: pts, warn: r.warn || [], saved: false };
+    renderCourse_('取り込みました（' + (r.title ? '「' + esc(r.title) + '」・' : '') + pts.length + '地点・ペース ' + (+r.pace || 100) + '%）。' +
+                  '下の表を YAMAP の画面と見比べてから保存してください。');
+  });
 }
 
 function courseSave(){
