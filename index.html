@@ -908,7 +908,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-08-30a';
+var APP_VER = '2026-09-28a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1233,8 +1233,14 @@ function api(method, body, cb, tryNo, fresh){
   function fail(){
     if (done) return;
     done = true;
-    if (tryNo < 2){
-      setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000);
+    /* ★★2026-09-28　送り直すのは★読み込み（GET）だけ。回数は1回から3回に。
+       　・書き換え（POST）を送り直すと、サーバーには1回目が入っているのに
+       　　もう1回入り、予定が二重になり、会員へのメールとLINEも2回飛びます
+       　　（開発版で 2026-09-14 に実際に起きました）。→ POST は1回だけ。
+       　・読み込みは何度やっても同じなので、2秒・4秒・6秒と間を空けて取り直します。
+       　　（サーバーは毎回「完了」しているのに、返事が途中で届かないことがあるため） */
+    if (tryNo < 4 && method === 'GET'){
+      setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000 * tryNo);
       return;
     }
     cb(true);
@@ -1574,7 +1580,11 @@ function post(body, doneMsg, after, onFail){
   try { if (body && !body.deviceId) body.deviceId = deviceId(); } catch(eP){}
   api('POST', body, function(err, data){
     if (err){
-      setStatus('送信に失敗しました。もう一度お試しください。', true);
+      /* ★★2026-09-28　返事が届かなかっただけで、サーバーには入っていることがあります。
+         　そのまま押し直すと二重に入るので、先に確かめていただく言い方にしました。 */
+      setStatus('送れたかどうか分かりません。' +
+                '★「最新の情報に更新する」を押して、' +
+                '入っているか確かめてから、もう一度お願いします。', true);
       if (onFail) { try { onFail(); } catch(eF){} }
       return;
     }
