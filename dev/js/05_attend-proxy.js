@@ -392,7 +392,7 @@ function renderList(){
         carLineHtml_(ev.id, att.yes.length, canSettle_) +
       '</div>' +
       /* ★★2026-09-29c（山行の段取り 段2）　コースの時刻表（入っていれば、だれにでも） */
-      (isCancel ? '' : courseLineHtml_(ev)) +
+      (isCancel || !CLUB.optCourse ? '' : courseLineHtml_(ev)) +   /* ★2026-09-29e 有料オプション */
       /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
          　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
       (att.pending.length && myn !== '' && isStaff(myn) && !locked ?
@@ -415,9 +415,12 @@ function renderList(){
          　予定がある日を押すとこのカードへ飛ぶので、その場から日付入りで入力画面を開けます。
          　終わった日には出しません。 */
       /* ★★2026-09-28h（山行の段取り 段1）　計画書・報告書の下書き（係・登録者・幹事・管理者） */
-      (canSettle_ && !isCancel ?
-        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a>' +
-          '<a href="javascript:void(0)" class="lock" onclick="openCourse(\'' + ev.id + '\')">🗺 コースの時刻表（YAMAP）</a></div>' : '') +
+      /* ★★2026-09-29e（有料オプション）　どちらも只隈さんの表「有料オプションの切り替え」で○のクラブだけ */
+      (canSettle_ && !isCancel && (CLUB.optPlan || CLUB.optCourse) ?
+        '<div class="evdel">' +
+          (CLUB.optPlan ? '<a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a>' : '') +
+          (CLUB.optCourse ? '<a href="javascript:void(0)" class="lock" onclick="openCourse(\'' + ev.id + '\')">🗺 コースの時刻表（YAMAP）</a>' : '') +
+        '</div>' : '') +
       (ev.date >= todayK ?
         '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="addSameDay(\'' + esc(ev.date) + '\')">＋ この日に別の予定を入れる</a></div>' : '') +
     '</div>';
