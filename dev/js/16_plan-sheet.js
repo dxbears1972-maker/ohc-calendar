@@ -218,6 +218,14 @@ function openPlanSheet(evId, mode){
   var memo = esc(ev.memo || '').replace(/\n/g, '<br>');
   var carNote = cars.length ? ('マイカー（' + cars.length + '台）') : '';
 
+  /* ★★2026-09-29h　行先（標高）・難易度は YAMAP の計画から（コースの時刻表を取り込んだとき）。
+     　参加費はマイカー精算の「一人あたり」（只隈さん：車を出す方は相殺されて0。マイカーでなければ手書き） */
+  var dest = crs && crs.dest ? esc(crs.dest) : '';
+  var level = crs && crs.cc ? 'コース定数 ' + esc(crs.cc) : '';
+  var fee = '';
+  var fm = String(ev.settle || '').match(/一人あたり[：:]\s*([\d,，]+)\s*円/);
+  if (fm) fee = esc(fm[1]) + '円<br><span class="psmall">（マイカー精算・車を出す方は0円）</span>';
+
   var h = '<div class="plantools">' +
       '<div class="plantitle">📄 計画書・報告書の下書き</div>' +
       '<div class="planbtns">' +
@@ -244,11 +252,11 @@ function openPlanSheet(evId, mode){
         pl_('団体名') + pvs_('<b>' + esc(CLUB.planOrg || '') + '</b>', 3) + '</tr>' +
       '<tr>' + pl_('月日曜') + pv_(planDate_(ev.date)) + pl_('集合場所') + pv_(esc(ev.place || '')) +
         pl_('集合時間') + pvs_(esc(ev.time || ''), 3) + '</tr>' +
-      '<tr>' + pl_('行先<br>(標高)', ' rowspan="3"') + pv_('', 'ptall" rowspan="3') +
+      '<tr>' + pl_('行先<br>(標高)', ' rowspan="3"') + pv_(dest, 'ptall" rowspan="3') +
         pl_('帰着場所') + pv_(esc(crsEndP)) + pl_('<b>帰着時間</b>') + pvs_(crsEndT, 3) + '</tr>' +
       '<tr>' + pl_('CL') + pv_(esc(cl)) + pl_('TEL') + pvs_(esc(planTel_(cl)), 3) + '</tr>' +
       '<tr>' + pl_('留守宅') + pv_(esc(rusu)) + pl_('TEL') + pvs_(esc(planTel_(rusu)), 3) + '</tr>' +
-      '<tr>' + pl_('難易度') + pv_('') + pl_('交通手段') + pv_(carNote) + pl_('参加費') + pvs_('', 3) + '</tr>' +
+      '<tr>' + pl_('難易度') + pv_(level) + pl_('交通手段') + pv_(carNote) + pl_('参加費') + pvs_(fee, 3) + '</tr>' +
       '<tr>' + pl_('標高差') + pv_('<span class="psmall">' + (crsUpDn || '登り　　ｍ、下り　　ｍ') + '</span>') +
         pl_('<b>歩行時間</b>') + pv_(crsWalk) + pl_('<b>参加人数</b>') + pvs_(att.yes.length + ' 人', 3) + '</tr>' +
       '<tr>' + pl_('<b>コース</b>') + pvs_(crsLine, 7, 'pcourse') + '</tr>' +
@@ -641,6 +649,7 @@ function courseReadUrl(){
     var ev = eventOf_(COURSE_EV) || {};
     COURSE_EDIT = { start: courseHHMM_(r.start) || courseHHMM_(ev.time) || '08:00',
                     pace: +r.pace || 100, dist: r.dist || '', up: r.up || '', down: r.down || '',
+                    dest: r.dest || '', cc: r.cc || '',
                     pts: pts, warn: r.warn || [], saved: false };
     renderCourse_('取り込みました（' + (r.title ? '「' + esc(r.title) + '」・' : '') + pts.length + '地点・ペース ' + (+r.pace || 100) + '%）。' +
                   '下の表を YAMAP の画面と見比べてから保存してください。');
@@ -664,7 +673,8 @@ function courseSave(){
      　いつもの知らせ（画面上の status）はこの画面の裏に隠れるので、この画面の中に出す。 */
   courseSaving_(true, '保存しています…（10秒ほどかかることがあります）');
   post({ action: 'saveCourse', id: COURSE_EV, by: name,
-         course: { start: c.start, pace: +c.pace || 100, dist: c.dist, up: c.up, down: c.down, pts: pts } },
+         course: { start: c.start, pace: +c.pace || 100, dist: c.dist, up: c.up, down: c.down,
+                   dest: c.dest || '', cc: c.cc || '', pts: pts } },
        'コースの時刻表を保存しました',
        function(){ courseSaved_('✅ 保存しました。予定のカードに「🗺」の1行が出ます。'); },
        function(){ courseSaving_(false, '<b>⚠ ' + (($('status') || {}).innerHTML || '保存できませんでした') + '</b>'); });
