@@ -272,7 +272,7 @@ function byName_(a, b){
 
 function loadPickerFolder(folderId){
   $('pickerList').innerHTML = '<p class="note">読み込み中…</p>';
-  api('POST', { action: 'listFiles', folderId: folderId }, function(err, data){
+  api('POST', { action: 'listFiles', folderId: folderId, deviceId: deviceId() }, function(err, data){
     if (err || !data || data.error || !data.folderId){
       $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。' +
         (data && data.error ? '<br>詳細：' + esc(data.error) : '') +
@@ -309,7 +309,7 @@ function loadPickerFolder(folderId){
 
 function pickFile(fileId){
   $('pickerList').innerHTML = '<p class="note">リンクを取得しています…</p>';
-  api('POST', { action: 'pickFile', fileId: fileId }, function(err, data){
+  api('POST', { action: 'pickFile', fileId: fileId, deviceId: deviceId() }, function(err, data){
     if (err || !data || !data.url){
       /* ★2026-09-28　断られた理由（名乗っていない・フォルダの外）を、そのまま出します */
       $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。' +
