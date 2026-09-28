@@ -14,7 +14,7 @@ var ADMIN_STALE = false;
 /* ★2026-09-08（工事E-1b）　開いた一覧を閉じるボタン。
    　只隈さんのご指摘：31名の一覧が開きっぱなしになると、下まで送るのが大変。 */
 var ADMIN_PANE = '';
-var ADMIN_KEYS = ['logs', 'members', 'roles', 'works', 'notices'];
+var ADMIN_KEYS = ['logs', 'members', 'roles', 'works', 'notices', 'stats'];
 
 /* いま開いている入れ物 */
 function admList_(){ return $('adminList_' + ADMIN_PANE); }
@@ -155,6 +155,7 @@ function renderAdmin_(which){
   if (which === 'roles'){ renderRoles_(); return; }
   if (which === 'works'){ renderWorks_(); return; }
   if (which === 'notices'){ renderNoticeLog_(); return; }
+  if (which === 'stats'){ ADMIN_STATS = {}; renderStats_(); return; }   /* 開き直すたびに数え直す */
   if (which === 'logs'){
     var lg = (ADMIN_DATA && ADMIN_DATA.logs) || [];
     admMsg_().textContent = '新しい順に ' + lg.length + ' 件です。';
@@ -525,3 +526,133 @@ function adminEditMember(name){
   admList_().innerHTML = h;
 }
 
+
+/* ==================================================================
+   ★★2026-09-28（貢献度の集計）　📊 貢献度
+   　決定：`★貢献度の集計_設計と決定_20260928.md`（Claude のプロジェクト文書）
+   　・管理者だけ。サーバー（adminStats）が予定と出欠を全部読んで、数だけ返します
+   　・数えるのは終わった予定だけ。削除・中止は数えません
+   　・係は会員IDで数えます（名前が変わっても回数は消えません）
+   ================================================================== */
+var ADMIN_STATS = {};          /* 期間 → サーバーの返事（開いているあいだの控え） */
+var STATS_FY = '';             /* 選んでいる期間（'' ＝今年度） */
+var STATS_BY = 'lead';         /* 何で並べるか */
+
+function statsLoad_(fy, cb){
+  var key = String(fy || '');
+  if (ADMIN_STATS[key]){ cb(null, ADMIN_STATS[key]); return; }
+  api('POST', { action: 'adminStats', deviceId: deviceId(), name: myName, fy: key },
+    function(err, data){
+      if (err || !data || data.error || !data.stats){
+        cb((data && data.error) ? data.error :
+           '読み込めませんでした。電波の良いところで、もう一度押してください。');
+        return;
+      }
+      ADMIN_STATS[key] = data.stats;
+      if (!key) ADMIN_STATS[String(data.stats.fy)] = data.stats;
+      cb(null, data.stats);
+    });
+}
+
+function renderStats_(){
+  var msgEl = $('adminMsg_stats');
+  msgEl.textContent = '数えています…（予定と出欠を全部読むので、少しかかります）';
+  statsLoad_(STATS_FY, function(msg, st){
+    if (ADMIN_PANE !== 'stats') return;
+    if (msg){ msgEl.textContent = msg; return; }
+    drawStats_(st);
+  });
+}
+
+function statsPick(kind, v){
+  if (kind === 'fy') { STATS_FY = v; renderStats_(); }
+  else { STATS_BY = v; var st = ADMIN_STATS[String(STATS_FY || '')]; if (st) drawStats_(st); }
+}
+
+function statsLeadLabel_(st){
+  var l = (st && st.leads) || [];
+  return l.length ? l.join('・') : 'リーダーなど';
+}
+
+function drawStats_(st){
+  var col = CLUB.themeColor || '#2e6b34';
+  var fyName = function(y){
+    return (y === 'all') ? 'すべての年' :
+           (y + '年度（' + y + '年' + st.fyStart + '月〜）');
+  };
+  $('adminMsg_stats').textContent = fyName(st.fy) + '　数えた予定 ' + st.events + '件（' +
+    st.today.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1年$2月$3日') + 'より前・中止を除く）';
+
+  var BY = [
+    { k: 'lead',   t: '任される係' },
+    { k: 'staff',  t: '係ぜんぶ' },
+    { k: 'attend', t: '参加' },
+    { k: 'owner',  t: '予定の登録' }
+  ];
+
+  var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">';
+  h += '<label style="flex:1 1 140px">期間<br><select onchange="statsPick(\'fy\', this.value)">';
+  var ys = st.years || [];
+  for (var i = 0; i < ys.length; i++){
+    var sel = (String(st.fy) === String(ys[i])) ? ' selected' : '';
+    h += '<option value="' + ys[i] + '"' + sel + '>' + esc(ys[i] + '年度' + (ys[i] === st.curFy ? '（今年度）' : '')) + '</option>';
+  }
+  h += '<option value="all"' + (st.fy === 'all' ? ' selected' : '') + '>すべての年</option></select></label>';
+  h += '<label style="flex:2 1 200px">並べ方<br><select onchange="statsPick(\'by\', this.value)">';
+  for (var b = 0; b < BY.length; b++){
+    h += '<option value="' + BY[b].k + '"' + (STATS_BY === BY[b].k ? ' selected' : '') + '>' + esc(BY[b].t) + '</option>';
+  }
+  h += '</select></label></div>';
+
+  var list = (st.members || []).slice();
+  list.sort(function(p, q){
+    if (q[STATS_BY] !== p[STATS_BY]) return q[STATS_BY] - p[STATS_BY];
+    return (q.lead + q.staff + q.attend) - (p.lead + p.staff + p.attend);
+  });
+  var max = 0;
+  for (var m = 0; m < list.length; m++) if (list[m][STATS_BY] > max) max = list[m][STATS_BY];
+
+  /* 横棒のグラフ（外の部品は使いません） */
+  h += '<div style="margin:4px 0 14px">';
+  for (var j = 0; j < list.length; j++){
+    var x = list[j], v = x[STATS_BY];
+    var w = max ? Math.round(v / max * 100) : 0;
+    var parts = [];
+    for (var r = 0; r < (st.roles || []).length; r++){
+      var rn = st.roles[r];
+      if (x.roles && x.roles[rn]) parts.push(rn + ' ' + x.roles[rn]);
+    }
+    h += '<div style="padding:6px 0;border-bottom:1px solid #e3e8e3' + (x.retired ? ';opacity:.6' : '') + '">' +
+           '<div style="display:flex;justify-content:space-between;gap:8px">' +
+             '<b>' + esc(x.name) + (x.retired ? '<span style="font-size:13px;color:#777">（退会）</span>' : '') + '</b>' +
+             '<b style="color:' + col + '">' + v + '回</b>' +
+           '</div>' +
+           '<div style="background:#eef2ee;border-radius:4px;height:12px;margin:3px 0">' +
+             '<div style="background:' + col + ';width:' + w + '%;height:12px;border-radius:4px"></div>' +
+           '</div>' +
+           '<div style="font-size:13px;color:#666">' +
+             '任される係 ' + x.lead + '・係 ' + x.staff + '・参加 ' + x.attend + '・登録 ' + x.owner +
+             (parts.length ? '<br>（' + esc(parts.join('、')) + '）' : '') +
+           '</div>' +
+         '</div>';
+  }
+  if (!list.length) h += '<p class="note">数える予定がありません。</p>';
+  h += '</div>';
+
+  var un = st.unknown || [];
+  if (un.length){
+    h += '<p class="note"><b>名簿にない名前（' + un.length + '件）</b>：係の欄の名前が、名簿の名字と一字でも違うと数えられません。' +
+         'その予定を開いて、係の名前を選び直すと、次から数えます。</p>';
+    for (var u = 0; u < un.length; u++){
+      h += '<div style="font-size:14px;padding:4px 0;border-bottom:1px dashed #ddd">' +
+             esc(un[u].date.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1/$2/$3')) + '　' + esc(un[u].title) +
+             '　<b>' + esc(un[u].role + '：' + un[u].name) + '</b></div>';
+    }
+  }
+
+  h += '<p class="note" style="margin-top:10px">★数え方：終わった予定だけ（今日より前）。中止・削除した予定は数えません。' +
+       '「任される係」は ' + esc(statsLeadLabel_(st)) + ' です。' +
+       '「参加」は、参加と答えた回数です（当日来られたかは分かりません）。' +
+       '係は、予定に書いてあった係です。「登録」は、その予定をアプリで入れた方です。</p>';
+  $('adminList_stats').innerHTML = h + admCloseBtn_();
+}
