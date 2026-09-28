@@ -26,7 +26,13 @@ function buildExportRows(){
   var head = ['日付', '山名・タイトル', '時間', '集合場所', 'メモ',
               '計画表リンク', '報告書リンク'].concat(roleCols).concat(['係・担当', '種類']);
   var rows = [head];
-  var evs = state.events.slice();
+  /* ★★2026-09-28e（ウ）　出すのは「先月1日から先」だけ（只隈さん決定）。
+  　古い月を開いて取ってきた予定があっても、出しません（いつも同じ範囲にするため） */
+  var evs = [];
+  for (var w0 = 0; w0 < state.events.length; w0++){
+    var dw = String(state.events[w0].date || '');
+    if (!state.winFrom || !/^\d{4}-\d{2}/.test(dw) || dw >= state.winFrom) evs.push(state.events[w0]);
+  }
   evs.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
   for (var i = 0; i < evs.length; i++){
     var ev = evs[i];
@@ -109,7 +115,7 @@ function exportEventsFile(){
         }).then(function(){
           setStatus(r.count === 0
             ? '入力用のひな形を保存しました（「例」の行は、そのままで大丈夫です）'
-            : r.count + '件の予定をExcelファイルに保存しました');
+            : '先月1日から先の ' + r.count + '件の予定をExcelファイルに保存しました');
         }).catch(function(e){
           if (e && e.name === 'AbortError') return; /* 保存をやめただけ */
           saveBlobFallback_(blob, fname, r.count);
@@ -133,7 +139,7 @@ function saveBlobFallback_(blob, fname, count){
   document.body.removeChild(a);
   setStatus(count === 0
     ? '入力用のひな形をダウンロードしました（「例」の行は、そのままで大丈夫です）'
-    : count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
+    : '先月1日から先の ' + count + '件の予定をダウンロードしました（ダウンロードフォルダをご確認ください）');
 }
 
 function exportEvents(){
@@ -142,7 +148,7 @@ function exportEvents(){
   function done(){
     alert(r.count === 0
       ? '入力用のひな形をコピーしました。\nExcelのA1を選んで貼り付けてください。\n「例」の行は、そのままにしておいて大丈夫です（登録されません）。'
-      : r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
+      : '先月1日から先の ' + r.count + '件の予定をコピーしました。\nExcelの「予定入力」シートのA1を選んで貼り付けてください。\n手直ししたら、見出し行ごとコピーして「まとめて登録」の欄に貼り戻せばOKです。');
   }
   function fallback(){
     /* コピーできない環境では、貼り付け欄に表を出して手動コピーしてもらう */

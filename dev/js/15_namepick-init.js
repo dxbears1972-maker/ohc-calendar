@@ -402,6 +402,7 @@ function init(){
     state.events     = cd0.events || [];
     state.attendance = cd0.attendance || [];
     state.notices    = cd0.notices || [];
+    state.winFrom    = cd0.winFrom || '';   /* ★2026-09-28e（ウ） */
     if (cd0.members && cd0.members.length){
       MEMBERS  = cd0.members;
       ADMINS   = (cd0.admins && cd0.admins.length) ? cd0.admins : [];

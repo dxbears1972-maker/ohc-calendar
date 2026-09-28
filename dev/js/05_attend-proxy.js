@@ -261,7 +261,14 @@ function renderList(){
   });
 
   if (list.length === 0){
-    $('evList').innerHTML = '<div id="noev">この月の予定はまだありません</div>';
+    /* ★2026-09-28e（ウ）　古い月で、まだ取ってきていないとき */
+    var msg0 = 'この月の予定はまだありません';
+    if (monthNeedsFetch_(prefix)){
+      msg0 = MONTH_FAIL[prefix]
+        ? 'この月の予定を読み込めませんでした。電波の良い場所で、いったん別の月へ切り替えてから、もう一度この月を開いてください。'
+        : 'この月の予定を読み込んでいます…';
+    }
+    $('evList').innerHTML = '<div id="noev">' + msg0 + '</div>';
     return;
   }
 
@@ -411,5 +418,10 @@ function render(){
   try { renderLineQuota(); } catch (eLQ) {}   /* ★2026-09-22　LINEの通数 */
   renderCalendar();
   renderList();
+  /* ★2026-09-28e（ウ）　先月より前の月を開いたら、その月の分を取りに行く */
+  try {
+    var ymR = monthKey_();
+    if (monthNeedsFetch_(ymR) && !MONTH_FAIL[ymR] && !MONTH_BUSY[ymR]) ensureMonth_(ymR);
+  } catch (eWM) {}
 }
 

@@ -77,6 +77,15 @@ function api(method, body, cb, tryNo, fresh){
     /* 「最新の情報に更新する」を押したときは、サーバーにおぼえたものを
        使わないよう伝えます（シートを手で直したときのため） */
     if (fresh) url += '&fresh=1';
+    /* ★★2026-09-28e（ウ）　送る期間を絞ったので、
+    　・古い月を1か月だけ取りに行くときは ?only=YYYY-MM
+    　・ふだんは、すでに取ってある古い月（?months=）と、精算から戻った行き先（?goto=）を添える */
+    if (body && body.only){
+      url += '&only=' + encodeURIComponent(body.only);
+    } else {
+      if (state.oldMonths && state.oldMonths.length) url += '&months=' + encodeURIComponent(state.oldMonths.join(','));
+      if (gotoId) url += '&goto=' + encodeURIComponent(gotoId);
+    }
     xhr.open('GET', url, true);
   } else {
     xhr.open('POST', url, true);
@@ -96,6 +105,10 @@ function api(method, body, cb, tryNo, fresh){
   xhr.timeout = 30000;
   xhr.ontimeout = fail;
   xhr.onerror = fail;
+  /* ★2026-09-28e（ウ）　書き込みのあとの返事にも、取ってある古い月を入れてもらう */
+  if (method !== 'GET' && body && !body.months && state.oldMonths && state.oldMonths.length){
+    body.months = state.oldMonths.slice();
+  }
   try {
     xhr.send(method === 'GET' ? null : JSON.stringify(body));
   } catch(e){ fail(); }
@@ -120,6 +133,9 @@ function applyData(data){
   if (data && typeof data.lineDays  !== 'undefined') lineDays  = data.lineDays;
   state.events = data.events || [];
   state.attendance = data.attendance || [];
+  /* ★2026-09-28e（ウ）　どこから先が届いたか／古い月はどれが入っているか */
+  state.winFrom = data.winFrom || '';
+  state.oldMonths = data.winMonths || [];
   if (data.notices) state.notices = data.notices;
 
   /* 名簿シートの内容を受け取ったら、こちらの一覧を入れ替える。
@@ -292,8 +308,12 @@ function applyData(data){
 
   /* 次回の起動をすぐにするため、端末に内容を記憶しておく */
   try {
+    /* ★2026-09-28e（ウ）　控えに残すのは「先月1日から先」だけ。
+    　開いた古い月まで残すと、使うほど控えが大きくなるため */
+    var cw = winSlice_();
     lsSet(LSK.cache, JSON.stringify({
-      events: state.events, attendance: state.attendance, notices: state.notices,
+      events: cw.events, attendance: cw.attendance, notices: state.notices,
+      winFrom: state.winFrom,
       /* 名簿も控えておく。圏外のときに、コードに書いてある古い一覧ではなく、
          最後に受け取った本物の名簿を使えるようにするため。 */
       members: MEMBERS, yomis: (function(){
@@ -462,3 +482,69 @@ function post(body, doneMsg, after, onFail){
   });
 }
 
+
+
+/* ==================================================================
+   ★★2026-09-28e（ウ）　古い月は、その月を開いたときに取りに行く
+   　サーバーがふだん送るのは「先月1日から先」だけです。
+   　それより前の月へカレンダーを戻したら、その月の分（月15件ほど）だけ取ってきます。
+   ================================================================== */
+function monthKey_(){ return state.year + '-' + pad2(state.month); }
+
+/* その月をまだ持っていないか */
+function monthNeedsFetch_(ym){
+  if (!state.winFrom || !/^\d{4}-\d{2}$/.test(ym)) return false;
+  if (ym + '-01' >= state.winFrom) return false;
+  return state.oldMonths.indexOf(ym) < 0;
+}
+
+/* 控えに残す分（先月1日から先） */
+function winSlice_(){
+  if (!state.winFrom) return { events: state.events, attendance: state.attendance };
+  var evs = [], keep = {}, att = [], i;
+  for (i = 0; i < state.events.length; i++){
+    var d = String(state.events[i].date || '');
+    if (!/^\d{4}-\d{2}/.test(d) || d >= state.winFrom){ evs.push(state.events[i]); keep[state.events[i].id] = 1; }
+  }
+  for (i = 0; i < state.attendance.length; i++) if (keep[state.attendance[i].eventId]) att.push(state.attendance[i]);
+  return { events: evs, attendance: att };
+}
+
+/* 取ってきた1か月分を入れ替える */
+function mergeMonth_(ym, data){
+  var drop = {}, evs = [], att = [], i;
+  for (i = 0; i < state.events.length; i++){
+    if (String(state.events[i].date || '').slice(0, 7) === ym) drop[state.events[i].id] = 1;
+    else evs.push(state.events[i]);
+  }
+  for (i = 0; i < state.attendance.length; i++) if (!drop[state.attendance[i].eventId]) att.push(state.attendance[i]);
+  state.events = evs.concat(data.events || []);
+  state.attendance = att.concat(data.attendance || []);
+  if (state.oldMonths.indexOf(ym) < 0) state.oldMonths.push(ym);
+}
+
+/* cb(ok)。持っていれば、すぐ cb(true) */
+function ensureMonth_(ym, cb){
+  if (!monthNeedsFetch_(ym)){ if (cb) cb(true); return; }
+  if (MONTH_BUSY[ym]){ if (cb) MONTH_BUSY[ym].push(cb); return; }
+  MONTH_BUSY[ym] = cb ? [cb] : [];
+  api('GET', { only: ym }, function(err, data){
+    var cbs = MONTH_BUSY[ym] || [];
+    delete MONTH_BUSY[ym];
+    var ok = !err && data && !data.error && !data.retired && data.only === ym;
+    if (ok){ mergeMonth_(ym, data); delete MONTH_FAIL[ym]; }
+    else MONTH_FAIL[ym] = true;
+    render();
+    for (var i = 0; i < cbs.length; i++){ try { cbs[i](ok); } catch(eC){} }
+  });
+}
+
+/* いくつかの月をまとめて（順番に）。cb(全部取れたか) */
+function ensureMonths_(list, cb){
+  var i = 0;
+  (function next(ok){
+    if (!ok) { cb(false); return; }
+    if (i >= list.length) { cb(true); return; }
+    ensureMonth_(list[i++], next);
+  })(true);
+}

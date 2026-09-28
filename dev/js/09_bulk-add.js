@@ -352,7 +352,27 @@ function submitImport(){
 }
 
 /* ★確認画面と送信。貼り付け・入力表のどちらからも使う */
+/* ★★2026-09-28e（ウ）　貼った予定に先月より前の日付があれば、
+　その月を先に取ってきてから確認画面を出す（「新規／上書き」を正しく出すため） */
 function confirmAndPostEvents_(events, name){
+  var need = [];
+  for (var n0 = 0; n0 < events.length; n0++){
+    var ym0 = String(events[n0].date || '').slice(0, 7);
+    if (monthNeedsFetch_(ym0) && need.indexOf(ym0) < 0) need.push(ym0);
+  }
+  if (!need.length){ confirmAndPostEvents2_(events, name); return; }
+  setStatus('前の月の予定を確かめています…');
+  ensureMonths_(need, function(ok){
+    setStatus('');
+    if (!ok){
+      alert('前の月の予定を確かめられませんでした。\n電波の良い場所で、もう一度お試しください。');
+      return;
+    }
+    confirmAndPostEvents2_(events, name);
+  });
+}
+
+function confirmAndPostEvents2_(events, name){
   /* 同じ予定（日付＋タイトル）が2回あれば、後の行を採用 */
   var list = [], i2, j2;
   for (i2 = 0; i2 < events.length; i2++){

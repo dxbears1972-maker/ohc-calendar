@@ -132,6 +132,13 @@ var state = {
   attendance: [],
   notices: [],   /* クラブからのお知らせ */
   year: 0,
-  month: 0   /* 1〜12 */
+  month: 0,  /* 1〜12 */
+  /* ★2026-09-28e（ウ）　サーバーが「先月1日から先」だけ送るようになりました。
+  　winFrom＝その始まりの日（'YYYY-MM-01'。空＝古いサーバーで全部届いている）
+  　oldMonths＝それより前で、その月を開いたときに取ってきた月（'YYYY-MM'） */
+  winFrom: '',
+  oldMonths: []
 };
+var MONTH_BUSY = {};   /* 取りに行っている最中の月 */
+var MONTH_FAIL = {};   /* 取りに行けなかった月（月を切り替えたら、もう一度試す） */
 
