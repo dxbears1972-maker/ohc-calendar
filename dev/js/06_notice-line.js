@@ -90,20 +90,104 @@ function renderNotices(){
   }
   wrap.innerHTML = html;
 
-  /* 見たことを、あとからそっと記録する（ボタンは押させない） */
-  if (toMark.length && myn){
-    var send = [];
-    for (var t = 0; t < toMark.length; t++){
-      if (!markedSeen[toMark[t]]){ markedSeen[toMark[t]] = true; send.push(toMark[t]); }
-    }
-    if (send.length){
-      setTimeout(function(){
-        api('POST', { action: 'readNotice', ids: send, name: myn,
-                      memberId: myid, deviceId: deviceId() },
-          function(err, data){ if (!err && data && !data.error) applyData(data); });
-      }, 2500);
-    }
+  /* ★★2026-09-29　「見た」は、お知らせが実際に画面に出たときだけ付ける（只隈さん決定）。
+     　これまでは開いた時点で付けていたので、予定へ直接飛んだ（リンク・精算から戻る）ときも
+     　お知らせを見ないまま「見た」になっていました。 */
+  noticeToMark_ = toMark;
+  renderNoticeBar_(list, toMark.length);
+  watchNoticeSeen_();
+}
+
+/* ==================================================================
+   ★★2026-09-29　お知らせも上に残す（只隈さん決定）
+   ------------------------------------------------------------------
+   ・月の帯に「📢 お知らせ（○件）」を小さく1行。お知らせがある間はずっと出す。
+   　まだ見ていないものがあるときは、未読と同じ橙色。
+   ・押すと、帯のすぐ下に全文が広がる（見ていた予定の場所から動かない）。
+   ・「見た」を付けるのは、①上のお知らせが2.5秒続けて画面に出たとき
+   　②帯の「📢」を押して全文を開いたとき、のどちらか。
+   ================================================================== */
+var noticeToMark_ = [];      /* まだ「見た」を送っていないお知らせのID */
+var ntcDropOpen_  = false;   /* 帯の下の全文を開いているか */
+var ntcSeenTimer_ = null;
+var ntcObserver_  = null;
+var ntcVisible_   = false;   /* 上のお知らせが画面に出ているか */
+
+function sendNoticeSeen_(){
+  if (ntcSeenTimer_){ clearTimeout(ntcSeenTimer_); ntcSeenTimer_ = null; }
+  var myn = getName();
+  if (!myn) return;
+  var send = [];
+  for (var t = 0; t < noticeToMark_.length; t++){
+    var id = noticeToMark_[t];
+    if (!markedSeen[id]){ markedSeen[id] = true; send.push(id); }
   }
+  if (!send.length) return;
+  api('POST', { action: 'readNotice', ids: send, name: myn,
+                memberId: idOf(myn), deviceId: deviceId() },
+    function(err, data){ if (!err && data && !data.error) applyData(data); });
+}
+
+function startNoticeSeenTimer_(){
+  if (ntcSeenTimer_ || !noticeToMark_.length) return;
+  ntcSeenTimer_ = setTimeout(function(){ ntcSeenTimer_ = null; sendNoticeSeen_(); }, 2500);
+}
+
+function watchNoticeSeen_(){
+  var wrap = $('noticeWrap');
+  if (!wrap || !noticeToMark_.length) return;
+  if (!('IntersectionObserver' in window)){
+    /* 古い端末では見えているか分からないので、これまでどおり開いたら「見た」 */
+    startNoticeSeenTimer_();
+    return;
+  }
+  if (!ntcObserver_){
+    ntcObserver_ = new IntersectionObserver(function(entries){
+      for (var i = 0; i < entries.length; i++) ntcVisible_ = entries[i].isIntersecting;
+      if (ntcVisible_) startNoticeSeenTimer_();
+      else if (ntcSeenTimer_){ clearTimeout(ntcSeenTimer_); ntcSeenTimer_ = null; }
+    });
+    ntcObserver_.observe(wrap);
+  } else if (ntcVisible_){
+    /* 画面に出ている間に、新しいお知らせが届いたとき */
+    startNoticeSeenTimer_();
+  }
+}
+
+/* 月の帯の「📢 お知らせ」と、押したときの全文 */
+function renderNoticeBar_(list, unreadN){
+  var chip = $('ntcChip'), drop = $('ntcDrop');
+  if (!chip || !drop) return;
+  if (!list.length){
+    chip.style.display = 'none';
+    drop.style.display = 'none';
+    ntcDropOpen_ = false;
+    return;
+  }
+  chip.className = 'ntcchip' + (unreadN ? ' unread' : '');
+  chip.innerHTML = '📢 お知らせ（' + list.length + '件）' +
+                   (unreadN ? '　新着' : '') +
+                   (ntcDropOpen_ ? '　▲ 閉じる' : '　▼ 見る');
+  chip.style.display = 'block';
+
+  var h = '';
+  if (ntcDropOpen_){
+    for (var i = 0; i < list.length; i++){
+      var n = list[i];
+      h += '<div class="ntc"><div class="nhead">' + esc(n.at) + '　' + esc(n.by) + 'さん' +
+           (n.until ? '（' + esc(n.until) + 'まで）' : '') + '</div>' +
+           '<div class="nbody">' + esc(n.text) + '</div></div>';
+    }
+    h += '<button class="minibtn" type="button" onclick="toggleNoticeDrop()">✕ 閉じる</button>';
+  }
+  drop.innerHTML = h;
+  drop.style.display = ntcDropOpen_ ? 'block' : 'none';
+}
+
+function toggleNoticeDrop(){
+  ntcDropOpen_ = !ntcDropOpen_;
+  renderNotices();
+  if (ntcDropOpen_) sendNoticeSeen_();   /* 全文を開いた＝見た */
 }
 
 /* 「○／○人が見ました」を押したときだけ、中身を出す */
