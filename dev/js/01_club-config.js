@@ -25,7 +25,13 @@
    ★2回目からは、URLに ?club= が付いていなくても控えで分かります。
    　ホーム画面のアイコンから開いたときも、これで正しいクラブになります。
    ------------------------------------------------------------------ */
-var CLUB_LAST_KEY = 'clubId';   /* ★この控えだけは、クラブIDを付けません */
+/* ★2026-09-29　開発版（/ohc-calendar/dev/）のときだけ、次の2つの控えを本番・新クラブ用と分けます。
+   　・予定の控え（cache_）… 本番と同じ cache_ohc に開発版の予定を書き、本番を開くと一瞬出ていたため
+   　・前に開いたクラブ（clubId）… 新クラブ用を ?club=test4 で開いたあと、開発版まで test4 で開いていたため
+   　★名前・端末の記号などは分けません（マイカー精算が device_<クラブID> を読むため。持ち主は同じ只隈さん）。
+   　★本番・新クラブ用の場所では、この行は何もしません。 */
+var IS_DEV_PAGE_ = /\/ohc-calendar\/dev\//.test(String((window.location && window.location.pathname) || ''));
+var CLUB_LAST_KEY = IS_DEV_PAGE_ ? 'dev_clubId' : 'clubId';   /* ★この控えだけは、クラブIDを付けません */
 
 function pickClubId_(){
   var raw = '';
@@ -143,7 +149,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-28i';
+var APP_VER = '2026-09-29a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -230,7 +236,7 @@ function loadClubCfg_(){
    ------------------------------------------------------------------ */
 var LSK = {
   name:      'name_'      + CLUB.id,   /* 自分の名前 */
-  cache:     'cache_'     + CLUB.id,   /* 予定の控え（圏外でも見えるように） */
+  cache:     'cache_'     + (IS_DEV_PAGE_ ? 'dev_' : '') + CLUB.id,   /* 予定の控え（圏外でも見えるように）。★開発版は cache_dev_ohc */
   proxyList: 'proxyList_' + CLUB.id,   /* 代理回答でよく選ぶ人 */
   gcalPref:  'gcalPref_'  + CLUB.id,   /* Googleカレンダーに追加するか */
   gotoId:    'gotoId_'    + CLUB.id,   /* 精算アプリから戻ってきたときの行き先 */
@@ -285,6 +291,10 @@ function deviceId(){
    ※旧の項目はわざと消していません。もし前の版に戻しても、
    　これまでどおり動くようにしておくためです。 */
 function migrateOldKeys(){
+  /* ★2026-09-23（【A】）引き継ぐのは OHC のときだけ。
+     　同じ github.io の下にある OHC本番の控え（ohcCache＝予定・ohcName＝名前）が、
+     　よそのクラブの画面に写っていたため（?club=test で OHC の予定が見えた）。 */
+  if (CLUB.id !== 'ohc') return;
   var pairs = [
     ['ohcName',      LSK.name],
     ['ohcCache',     LSK.cache],
