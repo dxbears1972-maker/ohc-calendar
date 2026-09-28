@@ -585,3 +585,23 @@ body.planopen { overflow: hidden; }
   .pform td.pv:focus { outline: 0; background: #fff; }
   @page { size: B5; margin: 10mm; }
 }
+
+/* ★★2026-09-29c　山行の段取り 段2：コースの時刻表 */
+.crsline { font-size: 14px; color: #2e6b34; margin: 6px 0 2px; line-height: 1.6; }
+.crsnote { font-size: 13px; color: #666; }
+.crsbox { max-width: 760px; margin: 0 auto; padding: 0 12px 30px; }
+.crsstep { background: #fff; border-radius: 10px; padding: 12px; margin: 8px 0; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.crshead { font-size: 16px; font-weight: bold; color: #2e6b34; margin: 8px 0 4px; }
+.crsfile, .crssel { font-size: 16px; margin: 4px 0; }
+.crsctl { font-size: 16px; margin: 6px 0; }
+.crsctl input, .crsctl select { font-size: 16px; padding: 4px; }
+.crswarn { background: #fff6d6; border: 1px solid #e0c060; padding: 8px; border-radius: 8px; font-size: 14px; margin: 8px 0; line-height: 1.6; }
+.crstbl { width: 100%; border-collapse: collapse; font-size: 15px; margin-top: 6px; }
+.crstbl th { font-size: 13px; color: #555; font-weight: normal; text-align: left; }
+.crstbl td, .crstbl th { border-bottom: 1px solid #e3e3e3; padding: 4px 3px; vertical-align: middle; }
+.crstbl tr.crsnamed td { background: #f3faf3; }
+.crstbl input.n { width: 100%; box-sizing: border-box; font-size: 16px; padding: 4px; }
+.crstbl input.m { width: 3.6em; font-size: 16px; padding: 4px; }
+.crst { font-weight: bold; color: #1f5f8b; white-space: nowrap; }
+.crsdel { font-size: 14px; padding: 4px 8px; margin: 1px; border: 1px solid #ccc; background: #fff; border-radius: 6px; }
+.crssum { font-size: 16px; font-weight: bold; margin: 10px 0 4px; line-height: 1.6; }

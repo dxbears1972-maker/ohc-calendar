@@ -198,6 +198,23 @@ function openPlanSheet(evId, mode){
   }
   grid += '</table>';
 
+  /* ★★2026-09-29c（段2）　コースの時刻表があれば、帰着・歩行時間・標高差・コースを埋める。
+     　コースの欄は様式の「記号他」どおり、徒歩を「・・」でつなぎ、名前のある地点だけ時刻を書く */
+  var crs = courseOf_(ev), crsEndP = '', crsEndT = '', crsWalk = '', crsUpDn = '', crsLine = '';
+  if (crs){
+    var ctm = courseTimes_(crs), cps = [];
+    crsEndP = crs.pts[crs.pts.length - 1].n;
+    crsEndT = courseFmt_(ctm.end);
+    crsWalk = courseDur_(ctm.walk) + (ctm.rest ? '<br><span class="psmall">（休憩 ' + courseDur_(ctm.rest) + '）</span>' : '');
+    if (crs.up || crs.down) crsUpDn = '登り ' + esc(crs.up || '') + 'ｍ、下り ' + esc(crs.down || '') + 'ｍ';
+    for (var ci = 0; ci < crs.pts.length; ci++){
+      if (ci === 0 || ci === crs.pts.length - 1 || courseNamed_(crs.pts[ci].n)){
+        cps.push(esc(crs.pts[ci].n) + ' ' + courseFmt_(ctm.at[ci]));
+      }
+    }
+    crsLine = cps.join(' ・・ ') + '<br><span class="psmall">（ペース ' + (+crs.pace || 100) + '%）</span>';
+  }
+
   var memo = esc(ev.memo || '').replace(/\n/g, '<br>');
   var carNote = cars.length ? ('マイカー（' + cars.length + '台）') : '';
 
@@ -228,13 +245,13 @@ function openPlanSheet(evId, mode){
       '<tr>' + pl_('月日曜') + pv_(planDate_(ev.date)) + pl_('集合場所') + pv_(esc(ev.place || '')) +
         pl_('集合時間') + pvs_(esc(ev.time || ''), 3) + '</tr>' +
       '<tr>' + pl_('行先<br>(標高)', ' rowspan="3"') + pv_('', 'ptall" rowspan="3') +
-        pl_('帰着場所') + pv_('') + pl_('<b>帰着時間</b>') + pvs_('', 3) + '</tr>' +
+        pl_('帰着場所') + pv_(esc(crsEndP)) + pl_('<b>帰着時間</b>') + pvs_(crsEndT, 3) + '</tr>' +
       '<tr>' + pl_('CL') + pv_(esc(cl)) + pl_('TEL') + pvs_(esc(planTel_(cl)), 3) + '</tr>' +
       '<tr>' + pl_('留守宅') + pv_(esc(rusu)) + pl_('TEL') + pvs_(esc(planTel_(rusu)), 3) + '</tr>' +
       '<tr>' + pl_('難易度') + pv_('') + pl_('交通手段') + pv_(carNote) + pl_('参加費') + pvs_('', 3) + '</tr>' +
-      '<tr>' + pl_('標高差') + pv_('<span class="psmall">登り　　ｍ、下り　　ｍ</span>') +
-        pl_('<b>歩行時間</b>') + pv_('') + pl_('<b>参加人数</b>') + pvs_(att.yes.length + ' 人', 3) + '</tr>' +
-      '<tr>' + pl_('<b>コース</b>') + pvs_('', 7, 'pcourse') + '</tr>' +
+      '<tr>' + pl_('標高差') + pv_('<span class="psmall">' + (crsUpDn || '登り　　ｍ、下り　　ｍ') + '</span>') +
+        pl_('<b>歩行時間</b>') + pv_(crsWalk) + pl_('<b>参加人数</b>') + pvs_(att.yes.length + ' 人', 3) + '</tr>' +
+      '<tr>' + pl_('<b>コース</b>') + pvs_(crsLine, 7, 'pcourse') + '</tr>' +
       '<tr>' + pl_('特記') + pvs_(memo, 7, 'pnote') + '</tr>' +
       '<tr>' + pl_('<b>記号他</b>') + '<td class="pv pkey" colspan="7">徒歩・・　車・バス＝＝　電車┅┅　スタート、昼食、ゴールのみ時刻を記入</td></tr>' +
       '<tr>' + pl_('参加者') + '<td class="pv pmem" colspan="7">' + grid + '</td></tr>' +
@@ -273,4 +290,351 @@ function printPlanSheet(){
   try { window.print(); } catch(e){}
   /* 印刷の画面を閉じたあとに戻す（すぐ戻すと、端末によっては印刷に間に合わない） */
   setTimeout(function(){ document.body.classList.remove('planprint'); }, 1500);
+}
+
+/* ==================================================================
+   ★★2026-09-29c　山行の段取り 段2：コースの時刻表（YAMAP の画面から）
+   　設計はプロジェクト文書 `★山行の段取り機能_調査と設計案_20260928.md` 3章・9章
+
+   　①YAMAP の「登山計画」の画面を撮った写真を選ぶ（1枚に入らなければ、下へずらして何枚でも）
+   　②「YAMAP で設定したペース」を選ぶ（分からなければ 100%）
+   　③サーバーが Gemini に写真を読ませ、地点と区間の時間を返す
+   　④表を確かめて直す（★到着時刻は安全に関わるので、ここを省かない）→ 保存
+   　⑤出発時刻・ペースを変えると、全部の到着時刻と帰着がそろって動く
+
+   ★持つのは「地点・前からの時間（ペース100%の分）・休憩」だけ。時刻は足し算で出す。
+   　YAMAP のペースは「数字が大きいほど速い」（100%＝標準・90%＝ゆっくり）。
+   　かかる時間＝標準の時間 ÷（ペース÷100）。YAMAP の画面の時間は、YAMAP のペースがもう掛かった値なので、
+   　読み取ったら「× YAMAP のペース ÷ 100」で標準の時間に戻して持つ（二重に掛けない）。
+   ★アプリ独自の式で山の時間を作らない（YAMAP・リーダーの時間を足し算するだけ。設計案 5章）。
+   ★Gemini に渡すのは YAMAP の画面だけ（名簿・電話は渡さない。設計案 7-2）。
+   ================================================================== */
+var COURSE_EV = '';
+var COURSE_EDIT = null;
+var COURSE_BUSY = false;
+var COURSE_YPACE = 100;   /* 最後に選んだ「YAMAP で設定したペース」（読み取りのあとも選んだままにする） */
+var COURSE_PACES = [50, 60, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 130, 140, 150, 170, 200];
+
+function courseHmApp_(t){
+  var m = String(t || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+}
+function courseFmt_(min){
+  min = Math.round(min);
+  var h = Math.floor(min / 60) % 24, m = ((min % 60) + 60) % 60;
+  return h + ':' + pad2(m);
+}
+/* "8:00" → "08:00"（時刻の入力欄は2けたでないと空に見える） */
+function courseHHMM_(t){
+  var v = courseHmApp_(t);
+  return v === null ? '' : pad2(Math.floor(v / 60)) + ':' + pad2(v % 60);
+}
+function courseDur_(min){
+  min = Math.round(min);
+  var h = Math.floor(min / 60), m = min % 60;
+  return (h ? h + '時間' : '') + m + '分';
+}
+/* 名前のある地点か（「分岐」だけのものは、一覧と計画書では省く） */
+function courseNamed_(n){ return !/^\s*分岐\s*$/.test(String(n || '')); }
+
+/* 予定に入っているコース。無ければ null */
+function courseOf_(ev){
+  if (!ev || !ev.course) return null;
+  try {
+    var c = JSON.parse(ev.course);
+    return (c && c.pts && c.pts.length >= 2) ? c : null;
+  } catch(e){ return null; }
+}
+
+/* 到着時刻の一覧（分）と、歩行・休憩・帰着 */
+function courseTimes_(c){
+  var s = courseHmApp_(c.start);
+  if (s === null) s = 8 * 60;
+  var pace = (+c.pace > 0) ? +c.pace : 100;
+  var t = s, at = [], walk = 0, rest = 0, n = c.pts.length;
+  for (var i = 0; i < n; i++){
+    if (i > 0){
+      var w = (+c.pts[i].m || 0) * 100 / pace;
+      t += w; walk += w;
+    }
+    at.push(t);
+    var r = +c.pts[i].r || 0;
+    if (i < n - 1){ t += r; rest += r; }
+  }
+  return { at: at, walk: walk, rest: rest, end: at[n - 1] };
+}
+
+/* 予定のカードに出す1行（だれにでも） */
+function courseLineHtml_(ev){
+  var c = courseOf_(ev);
+  if (!c) return '';
+  var tm = courseTimes_(c), parts = [];
+  for (var i = 0; i < c.pts.length; i++){
+    if (i === 0 || i === c.pts.length - 1 || courseNamed_(c.pts[i].n)){
+      parts.push(courseFmt_(tm.at[i]) + ' ' + esc(c.pts[i].n));
+    }
+  }
+  return '<div class="crsline">🗺 ' + parts.join(' → ') +
+         '<span class="crsnote">（歩行 ' + courseDur_(tm.walk) + '・ペース ' + (+c.pace || 100) + '%）</span></div>';
+}
+
+function openCourse(evId){
+  var ev = eventOf_(evId);
+  if (!ev) return;
+  COURSE_EV = evId;
+  var c = courseOf_(ev);
+  COURSE_EDIT = c ? JSON.parse(JSON.stringify(c)) : null;
+  if (COURSE_EDIT){ COURSE_EDIT.warn = []; COURSE_EDIT.saved = true; }
+  renderCourse_('');
+}
+
+function coursePaceOpts_(cur){
+  var h = '';
+  for (var i = 0; i < COURSE_PACES.length; i++){
+    var p = COURSE_PACES[i];
+    h += '<option value="' + p + '"' + (p === cur ? ' selected' : '') + '>' + p + '%' +
+         (p === 100 ? '（標準）' : (p < 100 ? '' : '')) + '</option>';
+  }
+  return h;
+}
+
+function renderCourse_(msg){
+  var ev = eventOf_(COURSE_EV);
+  if (!ev) return;
+  var c = COURSE_EDIT;
+  var h = '<div class="plantools">' +
+      '<div class="plantitle">🗺 コースの時刻表</div>' +
+      '<div class="planhint"><b>' + esc(ev.title) + '</b>（' + esc(planDate_(ev.date)) + '）</div>' +
+    '</div>' +
+    '<div class="crsbox">' +
+    '<div class="crsstep">' +
+      '<div class="crshead">① YAMAP の「登山計画」の画面を撮った写真を選ぶ</div>' +
+      '<div class="planhint">地点と時刻が並んだ画面です。1枚に入りきらないときは、下へずらして撮った写真を<b>上から順に何枚でも</b>選んでください。</div>' +
+      '<input type="file" id="crsFiles" accept="image/*" multiple class="crsfile">' +
+      '<div class="crshead">② YAMAP で設定したペース</div>' +
+      '<select id="crsYpace" class="crssel" onchange="COURSE_YPACE = parseInt(this.value, 10) || 100">' + coursePaceOpts_(COURSE_YPACE) + '</select>' +
+      '<div class="planhint">YAMAP の画面の時間には、このペースがもう掛かっています。分からなければ 100% のままで。</div>' +
+      '<div class="planbtns"><button type="button" class="on" id="crsReadBtn" onclick="courseRead()"' +
+        (COURSE_BUSY ? ' disabled' : '') + '>📷 写真を読み取る</button></div>' +
+      '<div id="crsMsg" class="planhint">' + (msg || '') + '</div>' +
+    '</div>';
+
+  if (c){
+    h += '<div class="crsstep">' +
+      '<div class="crshead">③ 確かめて直す（到着時刻は安全に関わります。YAMAP の画面と見比べてください）</div>' +
+      '<div class="crsctl">出発 <input type="time" id="crsStart" value="' + esc(courseHHMM_(c.start)) + '" onchange="courseSetTop(\'start\', this.value)">' +
+      '　ペース <select id="crsPace" onchange="courseSetTop(\'pace\', this.value)">' + coursePaceOpts_(+c.pace || 100) + '</select></div>' +
+      '<div class="planhint">出発時刻やペースを変えると、下の到着時刻と帰着がそろって動きます。「前から」は標準（100%）の時間です。</div>';
+    if (c.warn && c.warn.length){
+      h += '<div class="crswarn">⚠ 読み取りで気になったところ：<br>' ;
+      for (var w = 0; w < c.warn.length; w++) h += '・' + esc(c.warn[w]) + '<br>';
+      h += '</div>';
+    }
+    h += '<table class="crstbl"><tr><th>着</th><th>地点</th><th>前から<br>(分)</th><th>休憩<br>(分)</th><th></th></tr>';
+    for (var i = 0; i < c.pts.length; i++){
+      var p = c.pts[i];
+      h += '<tr class="' + (courseNamed_(p.n) ? 'crsnamed' : '') + '">' +
+        '<td class="crst" id="crsT' + i + '"></td>' +
+        '<td><input class="n" value="' + esc(p.n) + '" oninput="courseSet(' + i + ',\'n\',this.value)"></td>' +
+        '<td>' + (i === 0 ? '—' : '<input class="m" type="number" inputmode="decimal" min="0" step="1" value="' + (+p.m || 0) +
+          '" oninput="courseSet(' + i + ',\'m\',this.value)">') + '</td>' +
+        '<td>' + (i === c.pts.length - 1 ? '' : '<input class="m" type="number" inputmode="numeric" min="0" step="1" value="' + (+p.r || 0) +
+          '" oninput="courseSet(' + i + ',\'r\',this.value)">') + '</td>' +
+        '<td><button type="button" class="crsdel" onclick="courseRow(' + i + ',\'del\')">✕</button>' +
+          '<button type="button" class="crsdel" onclick="courseRow(' + i + ',\'add\')" title="この下に足す">＋</button></td>' +
+      '</tr>';
+    }
+    h += '</table>' +
+      '<div class="crssum" id="crsSum"></div>' +
+      '<div class="planbtns">' +
+        '<button type="button" class="on" onclick="courseSave()">💾 この表を保存</button>' +
+        (c.saved ? '<button type="button" onclick="courseDelete()">コースを消す</button>' : '') +
+        '<button type="button" onclick="closePlanSheet()">閉じる</button>' +
+      '</div>' +
+      (c.saved ? '' : '<div class="planhint"><b>まだ保存していません。</b>閉じると、読み取った表は消えます。</div>') +
+    '</div>';
+  } else {
+    h += '<div class="planbtns"><button type="button" onclick="closePlanSheet()">閉じる</button></div>';
+  }
+  h += '</div>';
+
+  var box = $('planSheet');
+  if (!box){
+    box = document.createElement('div');
+    box.id = 'planSheet';
+    document.body.appendChild(box);
+  }
+  box.innerHTML = h;
+  box.style.display = 'block';
+  document.body.classList.add('planopen');
+  if (c) courseRecalc_();
+}
+
+/* 時刻と合計だけを書き直す（打っている欄のカーソルを動かさないため、表は作り直さない） */
+function courseRecalc_(){
+  var c = COURSE_EDIT;
+  if (!c) return;
+  var tm = courseTimes_(c);
+  for (var i = 0; i < c.pts.length; i++){
+    var el = $('crsT' + i);
+    if (el) el.innerHTML = courseFmt_(tm.at[i]);
+  }
+  var s = $('crsSum');
+  if (s){
+    s.innerHTML = '歩行 ' + courseDur_(tm.walk) + '（ペース ' + (+c.pace || 100) + '%）' +
+      (tm.rest ? '・休憩 ' + courseDur_(tm.rest) : '') +
+      '・帰着 ' + courseFmt_(tm.end) +
+      (c.dist ? '<br><span class="crsnote">距離 ' + esc(c.dist) + 'km' +
+        (c.up ? '・のぼり ' + esc(c.up) + 'm' : '') + (c.down ? '・くだり ' + esc(c.down) + 'm' : '') + '</span>' : '');
+  }
+}
+
+function courseSet(i, k, v){
+  var c = COURSE_EDIT;
+  if (!c || !c.pts[i]) return;
+  if (k === 'n') c.pts[i].n = String(v);
+  else { var n = parseFloat(v); c.pts[i][k] = (isFinite(n) && n >= 0) ? n : 0; }
+  c.saved = false;
+  if (k !== 'n') courseRecalc_();
+}
+function courseSetTop(k, v){
+  var c = COURSE_EDIT;
+  if (!c) return;
+  if (k === 'pace') c.pace = parseInt(v, 10) || 100;
+  else c.start = String(v || '');
+  c.saved = false;
+  courseRecalc_();
+}
+function courseRow(i, op){
+  var c = COURSE_EDIT;
+  if (!c) return;
+  if (op === 'del'){
+    if (c.pts.length <= 2){ alert('地点は2つ以上いります'); return; }
+    c.pts.splice(i, 1);
+    if (c.pts.length) c.pts[0].m = 0;
+  } else {
+    c.pts.splice(i + 1, 0, { n: '', m: 0, r: 0 });
+  }
+  c.saved = false;
+  renderCourse_('');
+}
+
+/* 写真を小さくする（幅 900px まで・JPEG）→ base64 */
+function courseShrink_(file, cb){
+  var fr = new FileReader();
+  fr.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var w = img.width, hh = img.height, k = w > 900 ? 900 / w : 1;
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(w * k); cv.height = Math.round(hh * k);
+      var g = cv.getContext('2d');
+      g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+      g.drawImage(img, 0, 0, cv.width, cv.height);
+      var d = '';
+      try { d = cv.toDataURL('image/jpeg', 0.8); } catch(e){ d = ''; }
+      cb(d.replace(/^data:image\/[a-z]+;base64,/, ''));
+    };
+    img.onerror = function(){ cb(''); };
+    img.src = fr.result;
+  };
+  fr.onerror = function(){ cb(''); };
+  fr.readAsDataURL(file);
+}
+
+/* 読み取りは書き込みではないので、post() を通さず待ち時間を長く取る（Gemini を待つ） */
+function courseApi_(body, cb){
+  var done = false;
+  function fin(err, data){ if (done) return; done = true; cb(err, data); }
+  var xhr = new XMLHttpRequest();
+  var url = API_URL + (API_URL.indexOf('?') >= 0 ? '&' : '?') + 'club=' + encodeURIComponent(CLUB.id);
+  try { body.deviceId = deviceId(); } catch(eD){}
+  xhr.open('POST', url, true);
+  xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+  xhr.timeout = 120000;
+  xhr.onreadystatechange = function(){
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300){
+      var d = null;
+      try { d = JSON.parse(xhr.responseText); } catch(e){}
+      fin(d ? null : true, d);
+    } else fin(true);
+  };
+  xhr.ontimeout = function(){ fin(true); };
+  xhr.onerror = function(){ fin(true); };
+  try { xhr.send(JSON.stringify(body)); } catch(e){ fin(true); }
+}
+
+function courseRead(){
+  if (COURSE_BUSY) return;
+  if (!getName()){ showNamePick(); return; }
+  var inp = $('crsFiles');
+  var files = inp && inp.files ? inp.files : [];
+  if (!files.length){ $('crsMsg').innerHTML = '<b>写真を選んでください。</b>'; return; }
+  if (files.length > 6){ $('crsMsg').innerHTML = '<b>写真は6枚までにしてください。</b>'; return; }
+  var ypace = parseInt(($('crsYpace') || {}).value, 10) || 100;
+  COURSE_YPACE = ypace;
+  COURSE_BUSY = true;
+  var btn = $('crsReadBtn'); if (btn) btn.disabled = true;
+  $('crsMsg').innerHTML = '写真を用意しています…';
+  var list = [], k = 0;
+  (function next(){
+    if (k >= files.length){
+      $('crsMsg').innerHTML = '読み取っています…（30秒ほどかかることがあります）';
+      courseApi_({ action: 'readCourse', id: COURSE_EV, images: list }, function(err, data){
+        COURSE_BUSY = false;
+        if (err || !data){ renderCourse_('<b>返事が届きませんでした。</b>電波の良い所で、もう一度「写真を読み取る」を押してください（読み取りは何度押しても大丈夫です）。'); return; }
+        if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>'); return; }
+        var r = data.read || {};
+        var ev = eventOf_(COURSE_EV) || {};
+        var pts = [];
+        for (var i = 0; i < (r.pts || []).length; i++){
+          var p = r.pts[i];
+          /* YAMAP のペースを外して、標準（100%）の時間で持つ */
+          pts.push({ n: String(p.n || ''), m: i ? Math.round((+p.m || 0) * ypace / 100 * 10) / 10 : 0,
+                     r: +p.r || 0 });
+        }
+        if (pts.length < 2){ renderCourse_('<b>地点を2つ以上読み取れませんでした。</b>地点と時刻が並んだ画面を撮ってください。'); return; }
+        COURSE_EDIT = { start: courseHHMM_(r.start) || courseHHMM_(ev.time) || '08:00',
+                        pace: ypace, dist: r.dist || '', up: r.up || '', down: r.down || '',
+                        pts: pts, warn: r.warn || [], saved: false };
+        renderCourse_('読み取りました（' + pts.length + '地点）。下の表を、YAMAP の画面と見比べてから保存してください。');
+      });
+      return;
+    }
+    courseShrink_(files[k], function(d){
+      if (!d){
+        COURSE_BUSY = false;
+        renderCourse_('<b>' + (k + 1) + '枚目の写真を開けませんでした。</b>');
+        return;
+      }
+      list.push(d); k++; next();
+    });
+  })();
+}
+
+function courseSave(){
+  var c = COURSE_EDIT;
+  if (!c) return;
+  var pts = [];
+  for (var i = 0; i < c.pts.length; i++){
+    var n = String(c.pts[i].n || '').replace(/^\s+|\s+$/g, '');
+    if (!n){ alert((i + 1) + '番目の地点の名前が空です'); return; }
+    pts.push({ n: n, m: i ? (+c.pts[i].m || 0) : 0, r: +c.pts[i].r || 0 });
+  }
+  if (pts.length < 2){ alert('地点は2つ以上いります'); return; }
+  if (courseHmApp_(c.start) === null){ alert('出発時刻を入れてください'); return; }
+  var name = getName();
+  if (!name){ showNamePick(); return; }
+  post({ action: 'saveCourse', id: COURSE_EV, by: name,
+         course: { start: c.start, pace: +c.pace || 100, dist: c.dist, up: c.up, down: c.down, pts: pts } },
+       'コースの時刻表を保存しました', function(){ closePlanSheet(); });
+}
+
+function courseDelete(){
+  if (!confirm('この予定のコースの時刻表を消します。よろしいですか？')) return;
+  var name = getName();
+  if (!name){ showNamePick(); return; }
+  post({ action: 'saveCourse', id: COURSE_EV, by: name, course: '' },
+       'コースの時刻表を消しました', function(){ closePlanSheet(); });
 }

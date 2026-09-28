@@ -391,6 +391,8 @@ function renderList(){
         /* ★★2026-09-28h（山行の段取り 段1）　車の台数と席（出せる方がいるとき。係の方には0台でも出す） */
         carLineHtml_(ev.id, att.yes.length, canSettle_) +
       '</div>' +
+      /* ★★2026-09-29c（山行の段取り 段2）　コースの時刻表（入っていれば、だれにでも） */
+      (isCancel ? '' : courseLineHtml_(ev)) +
       /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
          　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
       (att.pending.length && myn !== '' && isStaff(myn) && !locked ?
@@ -414,7 +416,8 @@ function renderList(){
          　終わった日には出しません。 */
       /* ★★2026-09-28h（山行の段取り 段1）　計画書・報告書の下書き（係・登録者・幹事・管理者） */
       (canSettle_ && !isCancel ?
-        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a></div>' : '') +
+        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a>' +
+          '<a href="javascript:void(0)" class="lock" onclick="openCourse(\'' + ev.id + '\')">🗺 コースの時刻表（YAMAP）</a></div>' : '') +
       (ev.date >= todayK ?
         '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="addSameDay(\'' + esc(ev.date) + '\')">＋ この日に別の予定を入れる</a></div>' : '') +
     '</div>';
