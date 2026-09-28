@@ -295,6 +295,7 @@
   </div>
 
   <button type="button" class="btn btn-main" onclick="calc()">計算する</button>
+  <p class="note" id="calcHint" style="display:none;text-align:center;">計算すると、下に「カレンダーに記録する」ボタンが出ます</p>
 
   <!-- 結果 -->
   <div class="card" id="result" style="display:none;">
@@ -304,6 +305,7 @@
     <div class="copied" id="copiedMsg">コピーしました！</div>
     <button type="button" class="btn btn-sub" id="saveHistBtn" onclick="saveHistory()">この結果を履歴に残す</button>
     <div class="copied" id="histSavedMsg">履歴に保存しました！</div>
+    <p class="note" id="saveHistNote" style="display:none;text-align:center;">記録すると、クラブの全員がカレンダーで見られます</p>
   </div>
 
   <!-- 履歴 -->
@@ -373,7 +375,7 @@
   <!-- 関連アプリ -->
   <a class="btn" id="backCalBtn" style="background:var(--club);color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
 
-  <p class="note" style="text-align:center" id="verLine">版 2026-09-28a</p>
+  <p class="note" style="text-align:center" id="verLine">版 2026-09-28b</p>
 
 </main>
 
@@ -545,7 +547,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-09-28a";
+var APP_VER = "2026-09-28b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -3187,7 +3189,28 @@ function draftHasInput_() {
   fetchRoutes();
   /* 予定と連動しているときはボタンの文言を変える */
   if (EVENT_ID) {
-    document.getElementById("saveHistBtn").textContent = "この結果をカレンダーに記録する（全員が見られる）";
+    /* ★★2026-09-28b（只隈さん「このボタンわかりづらくないですか？」）
+       　予定から開いたときは、これがいちばん大事な仕上げのボタンなので、
+       　・塗りつぶしの目立つ形にし、文を短く「カレンダーに記録する」に
+       　・結果のすぐ下（コピーより上）へ移し
+       　・「全員が見られます」はボタンの下に小さく添え
+       　・計算する前にも「押すと下に出ます」と1行出します */
+    var shb = document.getElementById("saveHistBtn");
+    shb.textContent = "📅 カレンダーに記録する";
+    shb.className = "btn";
+    shb.style.background = "var(--club)";
+    shb.style.color = "#fff";
+    shb.style.border = "2px solid var(--club)";
+    try {
+      var rb = document.getElementById("resultBody");
+      var shm = document.getElementById("histSavedMsg");
+      var shn = document.getElementById("saveHistNote");
+      rb.parentNode.insertBefore(shn, rb.nextSibling);
+      rb.parentNode.insertBefore(shm, rb.nextSibling);
+      rb.parentNode.insertBefore(shb, rb.nextSibling);
+      shn.style.display = "block";
+      document.getElementById("calcHint").style.display = "block";
+    } catch (eSh) {}
     /* 「戻る」で、見ていた予定の場所に戻す。
        同じタブでカレンダーから来ているときは、ブラウザの「戻る」を使う。
        画面をそのまま覚えているので**一瞬で戻ります**（読み込み直しません）。 */
