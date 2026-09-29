@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-29o">
+<link rel="stylesheet" href="css/app.css?v=2026-09-29p">
 </head>
 <body>
 
@@ -326,6 +326,21 @@
       <td style="width:31%"><select id="addM"></select></td>
       <td style="width:31%"><select id="addD"></select></td>
     </tr></table>
+    <!-- ★★2026-09-29p　マイカーと下見の☑を、日付のすぐ後ろへ（只隈さん「なるべく前半に」）。
+         　下見の☑は、保存したらその山行の「🔎 下見を入れる」が続けて開く（只隈さん決定）。
+         　登録画面では山行と集会が同じ「全員」なので、下見の☑は「全員」で・くり返しなしのときだけ出す。 -->
+    <p class="chkrow">
+      <label><input type="checkbox" id="addMycar">
+        🚗 マイカーで移動する（乗り合わせ・マイカー精算を使う）</label>
+    </p>
+    <p class="note">入れた予定にだけ、参加の方へ「車を出せますか？」、係の方へ右上の車（マイカー精算）が出ます。</p>
+    <div id="shitamiRow">
+      <p class="chkrow">
+        <label><input type="checkbox" id="addShitami">
+          🔎 下見をする（保存したら、続けて下見の日と行く方を選ぶ）</label>
+      </p>
+      <p class="note">山行のときにお使いください。下見はあとからでも「⚙ この予定の操作」→「🔎 下見を入れる」で入れられます。</p>
+    </div>
     <div id="repRow">
       <label>くり返し</label>
       <select id="addRep">
@@ -377,34 +392,31 @@
     <p class="note" id="addTargetWho">全員（クラブの皆さん）に届きます。</p>
     <p class="note">「全員」以外にすると、対象でない方には<b>出欠のボタンが出ません</b>
       （予定そのものは見えます）。メールとLINEのお知らせも、対象の方にだけ届きます。</p>
-    <!-- ★★2026-09-29i　マイカー移動の印（只隈さん決定：予定ごとの印で見分ける）。
-         　入れた予定にだけ、参加の方の「車を出せますか？」と、係の方の右上の車（マイカー精算）が出ます。 -->
-    <p class="chkrow">
-      <label><input type="checkbox" id="addMycar">
-        🚗 マイカーで移動する（乗り合わせ・マイカー精算を使う）</label>
-    </p>
-    <p class="note">入れた予定にだけ、参加の方へ「車を出せますか？」、係の方へ右上の車（マイカー精算）が出ます。下見を選ぶと最初から入ります。</p>
-
+    <!-- ★★2026-09-29p　計画表・報告書・山行LINEは、ふだん畳んでおく（只隈さん「こんなにいりますか？どうせURLは見てもわからない」）。
+         　押すと開く。直すときに何か入っていれば、最初から開いておく（linksBoxSync_）。 -->
+    <button type="button" class="subbtn" id="linksBtn" onclick="toggleLinksBox_()">📎 計画表・報告書・山行LINE（あれば）</button>
+    <div id="linksBox" style="display:none">
     <label>計画表（あれば）</label>
     <table class="row3"><tr>
-      <td><input type="text" id="addPlan" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td><input type="text" id="addPlan" oninput="linksBoxSync_()" placeholder="「参照」から選ぶかURLを貼る"></td>
       <td style="width:100px"><button type="button" class="refbtn" id="refPlan">参照</button></td>
     </tr></table>
     <label>報告書（あれば）</label>
     <table class="row3"><tr>
-      <td><input type="text" id="addReport" placeholder="「参照」から選ぶかURLを貼る"></td>
+      <td><input type="text" id="addReport" oninput="linksBoxSync_()" placeholder="「参照」から選ぶかURLを貼る"></td>
       <td style="width:100px"><button type="button" class="refbtn" id="refReport">参照</button></td>
     </tr></table>
-    <p class="note">「参照」でGoogleドライブから選べます（閲覧の共有設定も自動）。最初は「山行」フォルダが開き、上のフォルダや別のフォルダにも移動できます。別の場所のファイルはURLの貼り付けでもOKです。</p>
+    <p class="note">「参照」でGoogleドライブから選べます（閲覧の共有も自動）。</p>
     <label>山行グループLINE（あれば）</label>
-    <input type="text" id="addLineGroup" placeholder="LINEの招待リンク（https://line.me/... ）を貼る">
-    <p class="note">LINEでその山行グループを開く→メンバー→招待→「リンクをコピー・共有」で出るURLを貼ってください。参加者はここから直接グループに入れます。</p>
+    <input type="text" id="addLineGroup" oninput="linksBoxSync_()" placeholder="LINEの招待リンク（https://line.me/... ）を貼る">
+    <p class="note">LINEの山行グループ →メンバー →招待 →「リンクをコピー」で出るものを貼ります。</p>
 
     <!-- ファイル選択 -->
     <div id="pickerCard" style="display:none; border:2px solid #2e6b34; border-radius:10px; padding:10px; margin-top:10px; background:#f7fbf7;">
       <p class="note" id="pickerPath"></p>
       <div id="pickerList"></div>
       <button class="cancelbtn" id="pickerClose" type="button">選ぶのをやめる</button>
+    </div>
     </div>
     <p class="chkrow" id="addMailRow">
       <label><input type="checkbox" id="addMail" checked>
@@ -618,22 +630,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-29o"></script>
-<script src="js/02_kind-target.js?v=2026-09-29o"></script>
-<script src="js/03_core-api.js?v=2026-09-29o"></script>
-<script src="js/04_render.js?v=2026-09-29o"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-29o"></script>
-<script src="js/06_notice-line.js?v=2026-09-29o"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-29o"></script>
-<script src="js/08_event-form.js?v=2026-09-29o"></script>
-<script src="js/09_bulk-add.js?v=2026-09-29o"></script>
-<script src="js/10_export-pick.js?v=2026-09-29o"></script>
-<script src="js/11_code-name.js?v=2026-09-29o"></script>
-<script src="js/12_admin-view.js?v=2026-09-29o"></script>
-<script src="js/13_admin-edit.js?v=2026-09-29o"></script>
-<script src="js/14_install-card.js?v=2026-09-29o"></script>
+<script src="js/01_club-config.js?v=2026-09-29p"></script>
+<script src="js/02_kind-target.js?v=2026-09-29p"></script>
+<script src="js/03_core-api.js?v=2026-09-29p"></script>
+<script src="js/04_render.js?v=2026-09-29p"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-29p"></script>
+<script src="js/06_notice-line.js?v=2026-09-29p"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-29p"></script>
+<script src="js/08_event-form.js?v=2026-09-29p"></script>
+<script src="js/09_bulk-add.js?v=2026-09-29p"></script>
+<script src="js/10_export-pick.js?v=2026-09-29p"></script>
+<script src="js/11_code-name.js?v=2026-09-29p"></script>
+<script src="js/12_admin-view.js?v=2026-09-29p"></script>
+<script src="js/13_admin-edit.js?v=2026-09-29p"></script>
+<script src="js/14_install-card.js?v=2026-09-29p"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-09-29o"></script>
-<script src="js/15_namepick-init.js?v=2026-09-29o"></script>
+<script src="js/16_plan-sheet.js?v=2026-09-29p"></script>
+<script src="js/15_namepick-init.js?v=2026-09-29p"></script>
 </body>
 </html>

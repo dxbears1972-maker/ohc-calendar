@@ -269,6 +269,39 @@ function kindMycarDefault_(){
   if (sel.value === '係のみ') cb.checked = true;
 }
 
+/* ★★2026-09-29p　「🔎 下見をする」の☑（只隈さん決定：保存したら、続けて下見の入力を開く）
+   　登録画面では山行と集会が同じ「全員」なので、山行だけに出すことはできない。
+   　→ 出欠をとる相手が「全員」で、くり返しなしのときだけ出す（下見の入口 evOpsHtml_ と同じ条件）。 */
+function shitamiRowSync_(){
+  var row = $('shitamiRow'), cb = $('addShitami');
+  if (!row || !cb) return;
+  var tgt = $('addTarget') ? $('addTarget').value : '';
+  if (editingId){ var e0 = eventOf_(editingId); tgt = e0 ? (e0.target || '') : tgt; }
+  var rep = editingId ? 'none' : ($('addRep') ? $('addRep').value : 'none');
+  var ok = !tgt && rep === 'none';
+  row.style.display = ok ? 'block' : 'none';
+  if (!ok) cb.checked = false;
+}
+
+/* ★2026-09-29p　計画表・報告書・山行LINEの欄は畳んでおく。入っている数をボタンに出す */
+function linksBoxSync_(open){
+  var box = $('linksBox'), btn = $('linksBtn');
+  if (!box || !btn) return;
+  var n = 0, ids = ['addPlan', 'addReport', 'addLineGroup'];
+  for (var i = 0; i < ids.length; i++) if ($(ids[i]) && $(ids[i]).value.replace(/\s/g, '')) n++;
+  if (open !== undefined) box.style.display = open ? 'block' : 'none';
+  var on = box.style.display !== 'none';
+  btn.innerHTML = (on ? '▾ ' : '▸ ') + '📎 計画表・報告書・山行LINE（あれば）' + (n ? '　<b>' + n + '件入っています</b>' : '');
+}
+function toggleLinksBox_(){ linksBoxSync_($('linksBox').style.display === 'none'); }
+
+/* 保存したあと、その山行の下見の入力を開く（新しい予定は、仮の番号 → 本物の番号に付け替える） */
+function shitamiAfterSave_(evId){
+  if (!evId || (SHITAMI && SHITAMI.evId === evId)) return;
+  EV_OPS_OPEN[evId] = true;
+  openShitami(evId);
+}
+
 /* ==================================================================
    ★★2026-09-29m　下見は、山行の予定から入れる（只隈さん決定）
    　只隈さん「山行があるから下見があるわけで、山行に付属すると考えると、
@@ -438,6 +471,8 @@ function openAddForm(y, m, d){
   fillDateSelects(y, m, d);
   if (!$('addHour').innerHTML) fillTimeSelects();
   resetStaff();
+  try { shitamiRowSync_(); } catch (eS) {}   /* ★2026-09-29p */
+  try { linksBoxSync_(); } catch (eL) {}
   if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
 }
 
@@ -454,6 +489,8 @@ function closeAddForm(){
   $('addReport').value = '';
   $('addLineGroup').value = '';
   if ($('addMycar')) $('addMycar').checked = false;   /* ★2026-09-29i */
+  if ($('addShitami')) $('addShitami').checked = false;   /* ★2026-09-29p */
+  try { linksBoxSync_(false); } catch (eL) {}
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
   closePicker();
@@ -519,6 +556,9 @@ function editEvent(evId){
   $('addReport').value = ev.report || '';
   $('addLineGroup').value = ev.lineGroup || '';
   if ($('addMycar')) $('addMycar').checked = !!ev.mycar;   /* ★2026-09-29i */
+  if ($('addShitami')) $('addShitami').checked = false;   /* ★2026-09-29p */
+  try { shitamiRowSync_(); } catch (eS) {}
+  try { linksBoxSync_(!!(ev.plan || ev.report || ev.lineGroup)); } catch (eL) {}   /* 入っていれば開いておく */
   $('addHour').value = '';
   $('addMin').value = '00';
   var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
@@ -611,6 +651,15 @@ function submitAdd(){
   }
   /* ★2026-09-29i　マイカー移動の印（'1'＝あり／''＝なし） */
   var mycar = ($('addMycar') && $('addMycar').checked) ? '1' : '';
+  /* ★2026-09-29p　下見をする（保存したら、続けて下見の入力を開く） */
+  var wantShitami = !!($('addShitami') && $('addShitami').checked && $('shitamiRow').style.display !== 'none');
+  if (wantShitami){
+    var nw0 = new Date();
+    if (dkey(y, m, d) <= dkey(nw0.getFullYear(), nw0.getMonth() + 1, nw0.getDate())){
+      alert('下見は山行より前の日に入れます。\nこの山行は今日か過ぎた日なので、「🔎 下見をする」の☑を外してください。');
+      return;
+    }
+  }
 
   /* 編集モードなら既存の予定を書き換える */
   if (editingId){
@@ -680,6 +729,7 @@ function submitAdd(){
     closeAddForm();
     render();
     backToEv_(editId);   /* ★2026-09-29j　直した予定の場所へ戻る */
+    if (wantShitami) shitamiAfterSave_(editId);   /* ★2026-09-29p */
     return;
   }
 
@@ -780,9 +830,27 @@ function submitAdd(){
       var e2 = state.events[si];
       if (e2.date === dates[0] && e2.title === title) newest = e2;
     }
-    if (newest) offerShare(eventShareText(newest));
+    /* ★2026-09-29p　下見の入力中なら、仮の番号から本物の番号へ付け替え、LINEの案内は場所を動かさずに出す */
+    var shOpen = SHITAMI && tmpIds.indexOf(SHITAMI.evId) >= 0;
+    if (shOpen && newest){
+      SHITAMI.evId = newest.id;
+      EV_OPS_OPEN[newest.id] = true;
+      renderList();
+    }
+    if (newest){
+      if (shOpen){
+        shareText = eventShareText(newest);
+        $('sharePrev').innerHTML = esc(shareText);
+        $('shareGo').href = 'https://line.me/R/share?text=' + encodeURIComponent(shareText);
+        $('shareCard').style.display = 'block';
+        try { var f2 = $('shitami-' + newest.id); if (f2) f2.scrollIntoView({ block: 'center' }); } catch (eF2){}
+      } else {
+        offerShare(eventShareText(newest));
+      }
+    }
   }, function(){
     /* 送れなかったときは、仮に出していた分を取り消す */
+    if (SHITAMI && tmpIds.indexOf(SHITAMI.evId) >= 0) SHITAMI = null;   /* ★2026-09-29p */
     state.events = state.events.filter(function(e3){ return tmpIds.indexOf(e3.id) < 0; });
     render();
   });
@@ -791,5 +859,6 @@ function submitAdd(){
   state.month = m;
   closeAddForm();
   render();
+  if (wantShitami) shitamiAfterSave_(tmpIds[0]);   /* ★2026-09-29p　続けて下見の入力を開く */
 }
 

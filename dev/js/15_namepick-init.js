@@ -579,6 +579,7 @@ function init(){
   $('pickerClose').onclick = closePicker;
   $('addRep').onchange = function(){
     $('repLenWrap').style.display = ($('addRep').value !== 'none') ? 'block' : 'none';
+    try { shitamiRowSync_(); } catch(eS){}   /* ★2026-09-29p くり返しのときは下見の☑を隠す */
     try { refreshRepPreview(); } catch(e){}
   };
   /* ★2026-09-03　期間・日付を変えても、できる日の一覧を出し直す */
