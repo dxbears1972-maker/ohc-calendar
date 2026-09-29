@@ -114,7 +114,8 @@ function parseImport(text){
           continue;
         }
         evObj.target = tg0;
-        evObj.kind = kindRaw;   /* ★確認画面に、貼られたままの種類を出すため */
+        evObj.kind = kindRaw;
+        evObj.mycar = kindMycar_(kindRaw);   /* ★2026-09-29i */   /* ★確認画面に、貼られたままの種類を出すため */
       }
     }
     evs.push(evObj);
@@ -284,6 +285,13 @@ function bulkChg(i, k, v){
 function bulkDel(i){ bulkRows.splice(i, 1); renderBulkTable(); }
 function bulkAddRow(){ bulkRows.push(bulkNewRow_()); renderBulkTable(); }
 
+/* ★★2026-09-29i　まとめて登録の「種類」が 山行・下見 なら、マイカー移動の印を入れる。
+   　★新しくできる予定だけに効きます（すでにある予定の印は、サーバーが触りません）。 */
+function kindMycar_(kind){
+  var k = String(kind == null ? '' : kind).replace(/[\s　]/g, '');
+  return (k === '山行' || k === '下見') ? '1' : '';
+}
+
 /* 表 → 予定の配列（くり返しをここで展開する） */
 function bulkBuildList_(){
   var out = [], errs = [];
@@ -301,7 +309,7 @@ function bulkBuildList_(){
       var ev = { date: ds[j], title: ttl, time: String(r.time || ''),
                  place: String(r.place || ''), memo: '', plan: '', report: '',
                  staff: String(r.staff || '') };
-      if (r.kind) { ev.target = tg; ev.kind = r.kind; }
+      if (r.kind) { ev.target = tg; ev.kind = r.kind; ev.mycar = kindMycar_(r.kind); }   /* ★2026-09-29i */
       out.push(ev);
     }
   }

@@ -334,7 +334,9 @@ function renderList(){
        　・「マイカー精算のURL」に ?gas=dev が付いていることがあるので、
        　　 そのときは ? ではなく & でつなぎます（?が2つになるのを防ぐ） */
     var carSep_ = (String(CLUB.carpoolUrl).indexOf('?') >= 0) ? '&' : '?';
-    var icons = canSettle_ ?
+    /* ★★2026-09-29i　マイカー移動の印がある予定だけ（★すでに精算した予定は、印が無くても出す） */
+    var carOn_ = !!ev.mycar;
+    var icons = (canSettle_ && (carOn_ || ev.settle)) ?
       ('<a href="' + CLUB.carpoolUrl + carSep_ + 'club=' + encodeURIComponent(CLUB.id) +
         '&event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
@@ -377,7 +379,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>' +
         /* ★★2026-09-28h（山行の段取り 段1）　参加と答えた方にだけ「車を出せますか」 */
-        (mine === 'yes' && !isCancel ? carPickHtml_(ev.id, myn) : '')
+        (mine === 'yes' && !isCancel && carOn_ ? carPickHtml_(ev.id, myn) : '')   /* ★2026-09-29i 印のある予定だけ */
       ) +
       (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
@@ -389,7 +391,8 @@ function renderList(){
             attNamesHtml(att.pending, ev.id, false, '') )
           : '') +
         /* ★★2026-09-28h（山行の段取り 段1）　車の台数と席（出せる方がいるとき。係の方には0台でも出す） */
-        carLineHtml_(ev.id, att.yes.length, canSettle_) +
+        /* ★2026-09-29i　印のある予定だけ（★印を外しても、もう「出せる」と答えた方がいれば出す） */
+        ((carOn_ || carsOf_(ev.id).length) ? carLineHtml_(ev.id, att.yes.length, canSettle_) : '') +
       '</div>' +
       /* ★★2026-09-29c（山行の段取り 段2）　コースの時刻表（入っていれば、だれにでも） */
       (isCancel || !CLUB.optCourse ? '' : courseLineHtml_(ev)) +   /* ★2026-09-29e 有料オプション */

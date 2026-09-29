@@ -253,6 +253,14 @@ function parseStaff(s){
   renderStaffRows();
 }
 
+/* ★★2026-09-29i　マイカー移動の印。
+   　新しく登録するときに「下見（係のみ）」を選んだら、最初から入れます（直すときは触りません）。 */
+function kindMycarDefault_(){
+  var sel = $('addTarget'), cb = $('addMycar');
+  if (!sel || !cb || editingId) return;
+  if (sel.value === '係のみ') cb.checked = true;
+}
+
 function setMailRow(isEdit){
   var r = $('addMailRow');
   if (r) r.style.display = isEdit ? 'none' : 'block';
@@ -281,6 +289,7 @@ function closeAddForm(){
   $('addPlan').value = '';
   $('addReport').value = '';
   $('addLineGroup').value = '';
+  if ($('addMycar')) $('addMycar').checked = false;   /* ★2026-09-29i */
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
   closePicker();
@@ -311,6 +320,7 @@ function editEvent(evId){
   $('addPlan').value = ev.plan || '';
   $('addReport').value = ev.report || '';
   $('addLineGroup').value = ev.lineGroup || '';
+  if ($('addMycar')) $('addMycar').checked = !!ev.mycar;   /* ★2026-09-29i */
   $('addHour').value = '';
   $('addMin').value = '00';
   var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
@@ -400,6 +410,8 @@ function submitAdd(){
     alert('リンクは https:// で始まるURLを貼り付けてください');
     return;
   }
+  /* ★2026-09-29i　マイカー移動の印（'1'＝あり／''＝なし） */
+  var mycar = ($('addMycar') && $('addMycar').checked) ? '1' : '';
 
   /* 編集モードなら既存の予定を書き換える */
   if (editingId){
@@ -436,6 +448,7 @@ function submitAdd(){
       ue.plan  = plan;
       ue.report = report;
       ue.lineGroup = lineGroup;
+      ue.mycar = mycar;
     }
 
     post({
@@ -452,6 +465,7 @@ function submitAdd(){
       plan: plan,
       report: report,
       lineGroup: lineGroup,
+      mycar: mycar,
       name: name
     }, '予定を変更しました', null, function(){
       /* 送れなかったときは、元の内容に戻す */
@@ -539,7 +553,7 @@ function submitAdd(){
       place: $('addPlace').value, memo: $('addMemo').value,
       staff: serializeStaff(), owner: name, ownerId: idOf(name),
       target: $('addTarget').value,
-      plan: plan, report: report, lineGroup: lineGroup,
+      plan: plan, report: report, lineGroup: lineGroup, mycar: mycar,
       locked: '', settle: '', cancelled: '', cancelNote: ''
     });
   }
@@ -556,6 +570,7 @@ function submitAdd(){
     plan: plan,
     report: report,
     lineGroup: lineGroup,
+    mycar: mycar,
     mail: $('addMail').checked,
     owner: name
   }, '予定を登録しました（' + dates.length + '件）', function(){

@@ -74,7 +74,8 @@ function fillTargetSelect_(){
   /* ★2026-09-03　種類を変えたら、届く相手を出し直す */
   if (!sel.getAttribute('data-whobound')){
     sel.setAttribute('data-whobound', '1');
-    sel.onchange = function(){ try { refreshAddTargetWho(); } catch(e){} };
+    sel.onchange = function(){ try { refreshAddTargetWho(); } catch(e){}
+      try { kindMycarDefault_(); } catch(e){} };   /* ★2026-09-29i 下見ならマイカーの印を入れる */
   }
   try { refreshAddTargetWho(); } catch(e){}
 }
