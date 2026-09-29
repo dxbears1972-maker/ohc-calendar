@@ -701,6 +701,9 @@
     <button class="cancelbtn" id="addCancel" type="button">やめる</button>
   </div>
 
+  <!-- ★★2026-09-29d　車を出せる方（マイカー提供）を選ぶ（管理者だけに出る。中身は renderDriverBox） -->
+  <div id="driverWrap"></div>
+
   <!-- まとめて登録（管理者専用） -->
   <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
   <div class="card" id="importCard" style="display:none">
@@ -922,7 +925,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-29c';
+var APP_VER = '2026-09-29d';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1073,6 +1076,7 @@ function nameOfId(id){ return ID_NAME[id] || ''; }
 
 /* すでにどれかの端末で使い始めている人（名前選択の一覧に出しません） */
 var TAKEN = [];
+var DRIVERS = [];   /* ★2026-09-29d　車を出せる方（名簿の「マイカー提供」に印のある方） */
 
 /* 会員向けの案内に出す連絡窓口（名簿の「連絡窓口」に印がある方） */
 var CONTACTS = [];
@@ -1315,6 +1319,7 @@ function applyData(data){
 
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
+    DRIVERS = data.drivers || [];   /* ★2026-09-29d */
 
     /* サーバー（GAS）の版も画面いちばん下に出す。
        貼り替えとデプロイができているかを、目で確かめられるように。 */
@@ -2102,6 +2107,92 @@ function carsOf_(evId){
   return r;
 }
 
+/* ★★2026-09-29d　車を出せる方か（杉野さん 9/29：だれでも運転できるようにはしない。
+   　提供登録者のリストで管理）。管理者が「🚗 車を出せる方を選ぶ」で選んだ方だけ */
+function isDriver_(name){
+  return !!name && DRIVERS.indexOf(name) >= 0;
+}
+
+/* ------------------------------------------------------------------
+   ★★2026-09-29d　車を出せる方を選ぶ（管理者だけ）
+   　・選んだ方だけが、車で行く予定で「参加」にしたときに「車を出せますか？」を選べます
+   　・名簿の「マイカー提供」の欄に入ります（名簿に直接チェックしても同じ）
+   ------------------------------------------------------------------ */
+var driverOpen = false;
+var driverDraft = null;   /* 開いている間のチェック（画面を作り直しても消えないように） */
+
+function renderDriverBox(){
+  var box = $('driverWrap');
+  if (!box) return;
+  var myn = getName();
+  if (!isAdmin_(myn)){ box.innerHTML = ''; driverOpen = false; return; }
+  var ms = realMembers_();
+  if (!driverOpen){
+    box.innerHTML = '<button class="bigbtn gray" type="button" onclick="openDriverBox()">🚗 車を出せる方を選ぶ（管理者用）</button>';
+    return;
+  }
+  var h = '<div class="card"><h2>🚗 車を出せる方</h2>' +
+          '<p class="note">印を付けた方だけが、「🚗 マイカーで移動する」予定で「○ 参加」にしたときに、' +
+          '「車を出せますか？」（何人乗り）を選べます。ほかの方には出ません。</p>';
+  for (var i = 0; i < ms.length; i++){
+    var on = !!driverDraft[ms[i]];
+    h += '<p class="chkrow"><label><input type="checkbox"' + (on ? ' checked' : '') +
+         ' onchange="driverTick(' + i + ', this.checked)"> ' +
+         esc(ms[i]) + '</label></p>';
+  }
+  h += '<p class="note" id="driverSum"></p>' +
+       '<button class="subbtn" type="button" onclick="saveDrivers()">この内容で保存する</button>' +
+       '<button class="cancelbtn" type="button" onclick="closeDriverBox()">やめる</button></div>';
+  box.innerHTML = h;
+  renderDriverSum_();
+}
+
+function driverTick(i, on){
+  var ms = realMembers_();
+  if (driverDraft && ms[i]) driverDraft[ms[i]] = !!on;
+  renderDriverSum_();
+}
+
+function renderDriverSum_(){
+  var el = $('driverSum');
+  if (!el || !driverDraft) return;
+  var ms = realMembers_(), on = [];
+  for (var i = 0; i < ms.length; i++) if (driverDraft[ms[i]]) on.push(ms[i]);
+  el.innerHTML = '印を付けた方：' + on.length + '人' + (on.length ? '（' + esc(on.join('、')) + '）' : '');
+}
+
+function openDriverBox(){
+  driverDraft = {};
+  for (var i = 0; i < DRIVERS.length; i++) driverDraft[DRIVERS[i]] = true;
+  driverOpen = true;
+  renderDriverBox();
+  if ($('driverWrap').scrollIntoView) $('driverWrap').scrollIntoView(true);
+}
+
+function closeDriverBox(){
+  driverOpen = false;
+  driverDraft = null;
+  renderDriverBox();
+}
+
+function saveDrivers(){
+  var ms = realMembers_(), ids = [], names = [];
+  for (var i = 0; i < ms.length; i++){
+    if (driverDraft && driverDraft[ms[i]]){
+      var mid = idOf(ms[i]);
+      if (mid){ ids.push(mid); names.push(ms[i]); }
+    }
+  }
+  var before = DRIVERS.slice();
+  DRIVERS = names;   /* 押した瞬間に画面を変え、送信は裏で */
+  driverOpen = false;
+  driverDraft = null;
+  render();
+  post({ action: 'setDrivers', ids: ids, name: getName() },
+       '車を出せる方を保存しました（' + names.length + '人）', null,
+       function(){ DRIVERS = before; render(); });
+}
+
 /* 参加と答えた方の「車を出せますか」の選び箱 */
 function carPickHtml_(evId, name){
   var cur = carOf_(evId, name);
@@ -2283,7 +2374,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>' +
         /* ★★2026-09-29b　印のある予定で、参加と答えた方にだけ「車を出せますか」 */
-        (mine === 'yes' && !isCancel && carOn_ ? carPickHtml_(ev.id, myn) : '')
+        (mine === 'yes' && !isCancel && carOn_ && isDriver_(myn) ? carPickHtml_(ev.id, myn) : '')   /* ★2026-09-29d 車を出せる方だけ */
       ) +
       (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
@@ -2321,6 +2412,7 @@ function renderList(){
 }
 
 function render(){
+  try { renderDriverBox(); } catch(eDB){}   /* ★2026-09-29d */
   renderNotices();
   renderTelBook();
   renderCalendar();
