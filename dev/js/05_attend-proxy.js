@@ -418,15 +418,16 @@ function renderList(){
    ================================================================== */
 var EV_OPS_OPEN = {};
 
+/* ★★2026-09-29l　見た目は「設定」の管理者の画面と同じ部品にそろえる（只隈さん「管理者メニューと違う・わかりづらい」）。
+   　緑のボタン（.subbtn）→ 押すとボタンごとくぼんだ枠（.admgrp.on）に入り、中は白い箱（.admsec）で区切る。
+   　もう一度押すと畳む（管理者の画面と同じ）。 */
 function toggleEvOps(evId){
   EV_OPS_OPEN[evId] = !EV_OPS_OPEN[evId];
-  var b = $('evops-' + evId), h = $('evopsh-' + evId);
-  if (b) b.style.display = EV_OPS_OPEN[evId] ? 'block' : 'none';
-  if (h) h.innerHTML = evOpsHead_(EV_OPS_OPEN[evId]);
-}
-
-function evOpsHead_(open){
-  return '⚙ この予定の操作　' + (open ? '▲ 閉じる' : '▼ 開く');
+  var on = EV_OPS_OPEN[evId];
+  var g = $('evopsg-' + evId), h = $('evopsh-' + evId), b = $('evops-' + evId);
+  if (g) g.className = 'admgrp evops' + (on ? ' on' : '');
+  if (h) h.className = 'subbtn' + (on ? ' on' : '');
+  if (b) b.className = 'admpane' + (on ? ' on' : '');
 }
 
 function evOpsHtml_(ev, o){
@@ -466,14 +467,13 @@ function evOpsHtml_(ev, o){
                                     'YAMAPの共有URLから、分岐ごとの到着時刻の表を作ります');
   }
   if (!sec1 && !sec2 && !sec3) return '';
-  var open = !!EV_OPS_OPEN[id];
-  return '<div class="evops">' +
-      '<button type="button" class="evopsbtn" id="evopsh-' + id + '" onclick="toggleEvOps(\'' + id + '\')">' +
-        evOpsHead_(open) + '</button>' +
-      '<div class="evopsbody" id="evops-' + id + '" style="display:' + (open ? 'block' : 'none') + '">' +
-        (sec1 ? '<div class="evopsec">知らせる</div>' + sec1 : '') +
-        (sec2 ? '<div class="evopsec">直す・締める</div>' + sec2 : '') +
-        (sec3 ? '<div class="evopsec">山行の準備</div>' + sec3 : '') +
+  var on = !!EV_OPS_OPEN[id];
+  var box = function(h, body){ return body ? '<div class="admsec"><div class="admsec-h">' + h + '</div>' + body + '</div>' : ''; };
+  return '<div class="admgrp evops' + (on ? ' on' : '') + '" id="evopsg-' + id + '">' +
+      '<button type="button" class="subbtn' + (on ? ' on' : '') + '" id="evopsh-' + id + '" onclick="toggleEvOps(\'' + id + '\')">' +
+        '⚙ この予定の操作</button>' +
+      '<div class="admpane' + (on ? ' on' : '') + '" id="evops-' + id + '">' +
+        box('知らせる', sec1) + box('直す・締める', sec2) + box('山行の準備', sec3) +
       '</div>' +
     '</div>';
 }

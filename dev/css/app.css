@@ -267,12 +267,9 @@
     white-space: nowrap;
   }
   .evdel a.lock { color: #2e6b34; font-weight: bold; }
-  /* ★★2026-09-29j　予定の操作を畳む（⚙ この予定の操作） */
-  .evops { margin-top: 8px; }
-  .evopsbtn { width: 100%; padding: 8px 10px; font-size: 15px; font-weight: bold; color: #2e6b34;
-    background: #fff; border: 1px solid #9cc3a0; border-radius: 8px; text-align: left; cursor: pointer; }
-  .evopsbody { margin-top: 4px; padding: 4px 10px 8px; background: #f6faf6; border: 1px solid #d5e6d7; border-radius: 8px; }
-  .evopsec { margin-top: 8px; font-size: 13px; color: #666; border-bottom: 1px solid #d5e6d7; }
+  /* ★★2026-09-29l　予定の操作（⚙ この予定の操作）。ボタンと枠は管理者の画面の .subbtn・.admgrp・.admsec をそのまま使う */
+  .evops { margin-top: 10px; }
+  .admgrp.evops.on { margin-top: 10px; }
   .evop { padding: 6px 0 2px; }
   .evop a { font-size: 15px; font-weight: bold; color: #2e6b34; }
   .evop a.red { color: #b00020; }
