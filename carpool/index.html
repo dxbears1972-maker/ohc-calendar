@@ -547,7 +547,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-09-28b";
+var APP_VER = "2026-09-30a";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2938,14 +2938,20 @@ function loadForm() {
    ================================================================== */
 /* カレンダーの控えから、その山行に「参加」と答えている方を取り出す。
    サーバーに聞かないので、開いた瞬間に名前が並びます。 */
+/* ★2026-09-30　読むのは「このクラブ・この版（本番／開発版）」の控え1つだけ。
+   　前は cache_ で始まる控えを全部見ていたので、同じ端末に開発版や別のクラブの控えがあると、
+   　そちらの出欠で人数を数えてしまうことがあった（カレンダーと人数がずれる原因）。
+   　カレンダー側の名前：本番・新クラブ用 cache_<クラブID>／開発版 cache_dev_<クラブID> */
+var CAL_CACHE_KEY = "cache_" + (USE_DEV ? "dev_" : "") + CLUB_ID;
+function calCache_() {
+  try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
 function calCachedJoined(eventId) {
   try {
-    for (var i = 0; i < localStorage.length; i++) {
-      var k = localStorage.key(i);
-      if (!k || k.indexOf("cache_") !== 0) continue;
-      var c = JSON.parse(localStorage.getItem(k) || "{}");
+    {
+      var c = calCache_();
       var att = c.attendance || [], mem = c.members || [];
-      if (!att.length) continue;
+      if (!att.length) return [];
       var yes = {};
       for (var a = 0; a < att.length; a++) {
         if (att[a].eventId === eventId && att[a].status === "yes" && att[a].name) {
@@ -2955,7 +2961,7 @@ function calCachedJoined(eventId) {
       var out = [];
       for (var m = 0; m < mem.length; m++) { if (yes[mem[m]]) out.push(mem[m]); }
       for (var y in yes) { if (yes.hasOwnProperty(y) && out.indexOf(y) < 0) out.push(y); }
-      if (out.length) return out;
+      return out;
     }
   } catch (e) {}
   return [];
@@ -2963,10 +2969,8 @@ function calCachedJoined(eventId) {
 
 function calCachedForm(eventId) {
   try {
-    for (var i = 0; i < localStorage.length; i++) {
-      var k = localStorage.key(i);
-      if (!k || k.indexOf("cache_") !== 0) continue;
-      var c = JSON.parse(localStorage.getItem(k) || "{}");
+    {
+      var c = calCache_();
       var evs = c.events || [];
       for (var j = 0; j < evs.length; j++) {
         if (evs[j].id === eventId && evs[j].settleForm) return evs[j].settleForm;
@@ -2980,6 +2984,8 @@ function calCachedForm(eventId) {
 function fetchPrevSettle(skipForm) {
   apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
     if (err || !data) return;
+    /* ★2026-09-30　返事が届く前に画面に出ていた人数。変わったら1行で知らせる */
+    var shownN = nPeople;
     /* この山行に「参加」と答えている方を受け取る。
        下書きが無いときだけ、人数も自動で入れる。 */
     JOINED = data.joined || [];
@@ -2987,7 +2993,7 @@ function fetchPrevSettle(skipForm) {
        「参加」人数へ合わせ直す。参加者が増えるたびに手で＋を押す手間を無くすため。
        実際の欠席・現地合流は、出欠（○△×）のほうをメンテしてもらう運用にする。 */
     applyJoined(true);
-    if (skipForm) return;
+    if (skipForm) { noteCountChanged_(shownN); return; }
     if (data.form) {
       try {
         var f = JSON.parse(data.form);
@@ -3011,9 +3017,11 @@ function fetchPrevSettle(skipForm) {
         var m = document.getElementById("loadMsg");
         m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。";
         m.style.display = "block";
+        noteCountChanged_(shownN);
         window.scrollTo(0, 0);
       } catch (e) {}
     } else if (data.text) {
+      noteCountChanged_(shownN);
       /* 昔の記録（入力内容なし）の場合は、前回の結果の文章を表示する */
       document.getElementById("resultBody").innerHTML =
         '<p class="note"><b>前回記録された精算結果</b></p>' +
@@ -3024,8 +3032,25 @@ function fetchPrevSettle(skipForm) {
       m2.textContent = "この予定は前に精算の記録があります。下に結果を表示しています。";
       m2.style.display = "block";
       window.scrollTo(0, 0);
+    } else {
+      noteCountChanged_(shownN);
     }
   });
+}
+/* ★2026-09-30　開いたときの人数（カレンダーから渡された数）と、サーバーの返事の人数が
+   　違ったときだけ、参加者の欄の上に1行出す。
+   　（開いてから返事が届くまでのあいだに、だれかが出欠を変えた場合など） */
+function noteCountChanged_(shownN) {
+  if (!JOINED.length || nPeople === shownN) return;
+  var note = document.getElementById("joinedNote");
+  if (!note) return;
+  var res = document.getElementById("result");
+  var again = "";
+  if (res && res.style.display !== "none") {
+    try { calc(true); again = "下の結果も、この人数で計算し直しました。"; } catch (e) {}
+  }
+  note.innerHTML = '<b style="color:#b3261e;">出欠の回答が変わったので、人数を ' + shownN + "名 → " + nPeople + "名 に直しました。" + again + "</b><br>" + note.innerHTML;
+  note.style.display = "block";
 }
 function clearForm() {
   if (!confirm("入力内容を全部消して最初からにします。よろしいですか？\n（高速料金表・設定・履歴は残ります）")) return;
@@ -3173,8 +3198,19 @@ function draftHasInput_() {
     /* 下書きがある場合も、参加者だけは取りに行く（人数は上書きしない） */
     fetchPrevSettle(true);
   }
-  /* 控えから取れた参加者を、画面に反映する */
-  if (JOINED.length) applyJoined(!hadLocal);
+  /* 控えから取れた参加者を、画面に反映する
+     ★2026-09-30　カレンダーから人数（&n=）が渡されたときは、開いた瞬間からその数を出す
+     　（下書きや前回の精算の人数より、カレンダーの画面の数がいちばん新しいため）。
+     　控えの参加者がその数と合わないときは、控えが古いので名前は出さず、サーバーの返事を待つ。 */
+  var nFixedAtOpen_ = false;
+  if (EVENT_ID && EVENT_N > 0) {
+    if (JOINED.length !== EVENT_N) JOINED = [];
+    nFixedAtOpen_ = hadLocal && nPeople !== EVENT_N;
+    nPeople = EVENT_N;
+    document.getElementById("nDisp").textContent = nPeople;
+    saveForm();
+    if (JOINED.length) applyJoined(false);
+  } else if (JOINED.length) applyJoined(!hadLocal);
 
   /* 前回の計算結果があれば表示したままにする */
   var savedResult = lsGet(LS_FORM + "_result");
@@ -3183,6 +3219,10 @@ function draftHasInput_() {
     document.getElementById("result").style.display = "block";
     lastResultText = savedResult.text || "";
     lastResultData = savedResult.data || null;
+  }
+  /* ★2026-09-30　開いた瞬間に人数をカレンダーの数へ直したときは、前の人数で出ていた結果を計算し直す */
+  if (nFixedAtOpen_ && document.getElementById("result").style.display !== "none") {
+    try { calc(true); } catch (eR) {}
   }
   updateYoubi();
   /* みんなの料金表を取り込む */
