@@ -396,39 +396,86 @@ function renderList(){
       '</div>' +
       /* ★★2026-09-29c（山行の段取り 段2）　コースの時刻表（入っていれば、だれにでも） */
       (isCancel || !CLUB.optCourse ? '' : courseLineHtml_(ev)) +   /* ★2026-09-29e 有料オプション */
-      /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
-         　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
-      (att.pending.length && myn !== '' && isStaff(myn) && !locked ?
-        '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="lineToPending(\'' +
-          ev.id + '\')">📨 未回答の ' + att.pending.length +
-          '人へ直接LINE（' + att.pending.length + '通）</a></div>' : '') +
-      (canDel ?
-        '<div class="evdel">' +
-          '<a href="javascript:void(0)" class="lock" onclick="askCancel(\'' + ev.id + '\',' +
-            (isCancel ? 'false' : 'true') + ')">' + (isCancel ? '中止をやめる' : '中止にする') + '</a>' +
-          (isCancel ? '<a href="javascript:void(0)" class="lock" onclick="makeAlt(\'' + ev.id + '\')">代案で予定を作る</a>' : '') +
-          '<a href="javascript:void(0)" class="lock" onclick="shareEvent(\'' + ev.id + '\')">LINEグループに貼る（0通）</a>' +
-          '<a href="javascript:void(0)" class="lock" onclick="editEvent(\'' + ev.id + '\')">編集</a>' +
-          (isCancel ? '' :
-            '<a href="javascript:void(0)" class="lock" onclick="setLock(\'' + ev.id + '\',' + (locked ? 'false' : 'true') + ')">' +
-              (locked ? '締切を解除' : '出欠を締切る') + '</a>') +
-          '<a href="javascript:void(0)" onclick="delEvent(\'' + ev.id + '\',\'' + esc(ev.title).replace(/'/g, '') + '\')">削除</a>' +
-        '</div>' : '') +
-      /* ★★2026-09-28　この日に、もう1件入れる入口（★だれでも。只隈さん「本来誰でも予定は入れるべき」）。
-         　予定がある日を押すとこのカードへ飛ぶので、その場から日付入りで入力画面を開けます。
-         　終わった日には出しません。 */
-      /* ★★2026-09-28h（山行の段取り 段1）　計画書・報告書の下書き（係・登録者・幹事・管理者） */
-      /* ★★2026-09-29e（有料オプション）　どちらも只隈さんの表「有料オプションの切り替え」で○のクラブだけ */
-      (canSettle_ && !isCancel && (CLUB.optPlan || CLUB.optCourse) ?
-        '<div class="evdel">' +
-          (CLUB.optPlan ? '<a href="javascript:void(0)" class="lock" onclick="openPlanSheet(\'' + ev.id + '\')">📄 計画書・報告書の下書き</a>' : '') +
-          (CLUB.optCourse ? '<a href="javascript:void(0)" class="lock" onclick="openCourse(\'' + ev.id + '\')">🗺 コースの時刻表（YAMAP）</a>' : '') +
-        '</div>' : '') +
+      /* ★★2026-09-29j　予定の下の操作（未回答へLINE・貼る・編集・締切・中止・削除・計画書・時刻表）を
+      　「⚙ この予定の操作」1つに畳み、開くと役目ごとに分けて一言の説明を付けます（只隈さん決定）。
+      　出せる条件は前と同じです（evOpsHtml_ の中）。 */
+      evOpsHtml_(ev, { att: att, myn: myn, locked: locked, isCancel: isCancel, canDel: canDel, canSettle: canSettle_ }) +
       (ev.date >= todayK ?
         '<div class="evdel"><a href="javascript:void(0)" class="lock" onclick="addSameDay(\'' + esc(ev.date) + '\')">＋ この日に別の予定を入れる</a></div>' : '') +
     '</div>';
   }
   $('evList').innerHTML = html + oldBtn;
+}
+
+/* ==================================================================
+   ★★2026-09-29j　予定の下の操作を「⚙ この予定の操作」に畳む
+   　（只隈さん「管理者が使うものがたくさん並んで、何が何か分からない」）
+   　・出す条件は、畳む前とまったく同じ（下の3つ）。
+   　　知らせる：未回答へLINE＝幹事・管理者で、未回答がいて、締め切っていない
+   　　直す・締める・貼る：canDel（登録した方・係・幹事・管理者）
+   　　山行の準備：canSettle_ で、中止でなく、有料オプションが○
+   　・開いているかは EV_OPS_OPEN に覚えておく（サーバーの返事で画面を作り直しても閉じない）。
+   ================================================================== */
+var EV_OPS_OPEN = {};
+
+function toggleEvOps(evId){
+  EV_OPS_OPEN[evId] = !EV_OPS_OPEN[evId];
+  var b = $('evops-' + evId), h = $('evopsh-' + evId);
+  if (b) b.style.display = EV_OPS_OPEN[evId] ? 'block' : 'none';
+  if (h) h.innerHTML = evOpsHead_(EV_OPS_OPEN[evId]);
+}
+
+function evOpsHead_(open){
+  return '⚙ この予定の操作　' + (open ? '▲ 閉じる' : '▼ 開く');
+}
+
+function evOpsHtml_(ev, o){
+  var id = ev.id, pend = o.att.pending.length;
+  var act = function(onclick, label, note, red){
+    return '<div class="evop"><a href="javascript:void(0)"' + (red ? ' class="red"' : '') +
+           ' onclick="' + onclick + '">' + label + '</a>' +
+           '<span class="evopnote">' + note + '</span></div>';
+  };
+  var sec1 = '', sec2 = '', sec3 = '';
+  if (pend && o.myn !== '' && isStaff(o.myn) && !o.locked){
+    sec1 += act("lineToPending('" + id + "')", '📨 未回答の ' + pend + '人へ直接LINE（' + pend + '通）',
+                'LINEのお知らせに登録している未回答の方へ、出欠のお願いが直接届きます');
+  }
+  if (o.canDel){
+    sec1 += act("shareEvent('" + id + "')", 'LINEグループに貼る（0通）',
+                '案内の文を作ります。クラブのLINEグループに手で貼ります（通数を使いません）');
+    sec2 += act("editEvent('" + id + "')", '編集', '日時・場所・係・メモなどを直します');
+    if (!o.isCancel){
+      sec2 += o.locked
+        ? act("setLock('" + id + "',false)", '締切を解除', 'ふたたび、会員が出欠を変えられるようにします')
+        : act("setLock('" + id + "',true)", '出欠を締切る', 'これより後、会員は参加・不参加を変えられなくなります');
+    }
+    sec2 += o.isCancel
+      ? act("askCancel('" + id + "',false)", '中止をやめる', '中止を取り消して、ふたたび出欠を受け付けます')
+      : act("askCancel('" + id + "',true)", '中止にする', '中止の印を付けます。みなさんに知らせるかは、そのあと選べます');
+    if (o.isCancel){
+      sec2 += act("makeAlt('" + id + "')", '代案で予定を作る', 'この予定の内容を写して、代わりの山行を登録します');
+    }
+    sec2 += act("delEvent('" + id + "','" + esc(ev.title).replace(/'/g, '') + "')", '削除',
+                '予定そのものを消します（中止とは違います）', true);
+  }
+  if (o.canSettle && !o.isCancel && (CLUB.optPlan || CLUB.optCourse)){
+    if (CLUB.optPlan) sec3 += act("openPlanSheet('" + id + "')", '📄 計画書・報告書の下書き',
+                                  '参加の方と係を入れた、計画書・報告書の下書きを作ります');
+    if (CLUB.optCourse) sec3 += act("openCourse('" + id + "')", '🗺 コースの時刻表（YAMAP）',
+                                    'YAMAPの共有URLから、分岐ごとの到着時刻の表を作ります');
+  }
+  if (!sec1 && !sec2 && !sec3) return '';
+  var open = !!EV_OPS_OPEN[id];
+  return '<div class="evops">' +
+      '<button type="button" class="evopsbtn" id="evopsh-' + id + '" onclick="toggleEvOps(\'' + id + '\')">' +
+        evOpsHead_(open) + '</button>' +
+      '<div class="evopsbody" id="evops-' + id + '" style="display:' + (open ? 'block' : 'none') + '">' +
+        (sec1 ? '<div class="evopsec">知らせる</div>' + sec1 : '') +
+        (sec2 ? '<div class="evopsec">直す・締める</div>' + sec2 : '') +
+        (sec3 ? '<div class="evopsec">山行の準備</div>' + sec3 : '') +
+      '</div>' +
+    '</div>';
 }
 
 function render(){

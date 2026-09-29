@@ -478,6 +478,8 @@ function post(body, doneMsg, after, onFail){
     }
     setStatus(doneMsg || '');
     applyData(data);
+    /* ★2026-09-29j　作り直しで位置がずれるので、戻った先の予定に合わせ直す（8秒の間だけ） */
+    if (gotoStick) { try { scrollToEv(gotoStick); } catch(eG){} }
     if (after) { try { after(data); } catch(eA){} }
   });
 }

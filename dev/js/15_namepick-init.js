@@ -572,7 +572,7 @@ function init(){
     var n = new Date();
     openAddForm(state.year, state.month, state.year === n.getFullYear() && state.month === n.getMonth() + 1 ? n.getDate() : 1);
   };
-  $('addCancel').onclick = closeAddForm;
+  $('addCancel').onclick = cancelAddForm_;   /* ★2026-09-29j 編集をやめたら元の予定へ */
   $('addBtn').onclick = submitAdd;
   $('refPlan').onclick = function(){ openPicker('plan'); };
   $('refReport').onclick = function(){ openPicker('report'); };

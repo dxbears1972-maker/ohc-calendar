@@ -300,6 +300,40 @@ function closeAddForm(){
   $('repRow').style.display = 'block';
 }
 
+/* ★★2026-09-29j　「編集」を閉じたら（保存しても、やめても）、元の予定の場所へ戻ります。
+   　これまでは入力画面へ飛んだまま戻らず、どの予定を直したのか探し直す必要がありました。
+   　・日付を変えた予定は、変えた先の月へ移って、その予定を出します。
+   　・終わって3日過ぎて隠れている予定なら、表示してから移ります。
+   　・サーバーの返事が届くと画面を作り直すので、8秒の間は合わせ直します（gotoStick）。 */
+function backToEv_(id){
+  if (!id) return;
+  var ev = null;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === id) ev = state.events[i];
+  }
+  if (!ev) return;
+  var p = String(ev.date || '').split('-');
+  var y = parseInt(p[0], 10), m = parseInt(p[1], 10);
+  if (y && m && (y !== state.year || m !== state.month)){
+    state.year = y; state.month = m;
+    render();
+  }
+  if (!$('ev-' + id) && !state.showOldEvents){
+    state.showOldEvents = true;
+    renderList();
+  }
+  scrollToEv(id);
+  gotoStick = id;
+  setTimeout(function(){ if (gotoStick === id) gotoStick = ''; }, 8000);
+}
+
+/* 入力画面の「やめる」。編集中だったなら、その予定へ戻ります（★2026-09-29j） */
+function cancelAddForm_(){
+  var id = editingId;
+  closeAddForm();
+  if (id) backToEv_(id);
+}
+
 function editEvent(evId){
   var ev = null;
   for (var i = 0; i < state.events.length; i++){
@@ -480,6 +514,7 @@ function submitAdd(){
     state.month = m;
     closeAddForm();
     render();
+    backToEv_(editId);   /* ★2026-09-29j　直した予定の場所へ戻る */
     return;
   }
 
