@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-29p">
+<link rel="stylesheet" href="css/app.css?v=2026-09-29q">
 </head>
 <body>
 
@@ -503,8 +503,9 @@
 
   <!-- 設定（めったに使わないものは、ここにまとめる） -->
   <p style="text-align:center; margin-top:14px">
-    <a class="cfgbtn" href="https://dxbears1972-maker.github.io/ohc-calendar/guide/"
-       target="_blank" rel="noopener">❓ 使い方</a>
+    <!-- ★★2026-09-29q　押したことを操作ログに残す（logGuideOpen）。?from=app は取説の側で「アプリから来た」と分けるため・?gas=dev は取説の側が開発版GASへ送るため -->
+    <a class="cfgbtn" href="https://dxbears1972-maker.github.io/ohc-calendar/guide/?from=app&amp;gas=dev"
+       target="_blank" rel="noopener" onclick="logGuideOpen()">❓ 使い方</a>
     <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
   </p>
   <div class="card" id="cfgCard" style="display:none">
@@ -630,22 +631,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-29p"></script>
-<script src="js/02_kind-target.js?v=2026-09-29p"></script>
-<script src="js/03_core-api.js?v=2026-09-29p"></script>
-<script src="js/04_render.js?v=2026-09-29p"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-29p"></script>
-<script src="js/06_notice-line.js?v=2026-09-29p"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-29p"></script>
-<script src="js/08_event-form.js?v=2026-09-29p"></script>
-<script src="js/09_bulk-add.js?v=2026-09-29p"></script>
-<script src="js/10_export-pick.js?v=2026-09-29p"></script>
-<script src="js/11_code-name.js?v=2026-09-29p"></script>
-<script src="js/12_admin-view.js?v=2026-09-29p"></script>
-<script src="js/13_admin-edit.js?v=2026-09-29p"></script>
-<script src="js/14_install-card.js?v=2026-09-29p"></script>
+<script src="js/01_club-config.js?v=2026-09-29q"></script>
+<script src="js/02_kind-target.js?v=2026-09-29q"></script>
+<script src="js/03_core-api.js?v=2026-09-29q"></script>
+<script src="js/04_render.js?v=2026-09-29q"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-29q"></script>
+<script src="js/06_notice-line.js?v=2026-09-29q"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-29q"></script>
+<script src="js/08_event-form.js?v=2026-09-29q"></script>
+<script src="js/09_bulk-add.js?v=2026-09-29q"></script>
+<script src="js/10_export-pick.js?v=2026-09-29q"></script>
+<script src="js/11_code-name.js?v=2026-09-29q"></script>
+<script src="js/12_admin-view.js?v=2026-09-29q"></script>
+<script src="js/13_admin-edit.js?v=2026-09-29q"></script>
+<script src="js/14_install-card.js?v=2026-09-29q"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-09-29p"></script>
-<script src="js/15_namepick-init.js?v=2026-09-29p"></script>
+<script src="js/16_plan-sheet.js?v=2026-09-29q"></script>
+<script src="js/15_namepick-init.js?v=2026-09-29q"></script>
 </body>
 </html>

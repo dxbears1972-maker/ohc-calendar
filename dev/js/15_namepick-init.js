@@ -410,6 +410,7 @@ function init(){
       ADMIN_NAME = ADMINS[0] || '';
       TAKEN    = cd0.taken    || [];
       CONTACTS = cd0.contacts || [];
+      DRIVERS  = cd0.drivers  || [];   /* ★2026-09-29q */
       MEMBER_YOMI = {}; MEMBER_ID = {}; ID_NAME = {};
       for (var ci = 0; ci < MEMBERS.length; ci++){
         MEMBER_YOMI[MEMBERS[ci]] = (cd0.yomis && cd0.yomis[ci]) || '';

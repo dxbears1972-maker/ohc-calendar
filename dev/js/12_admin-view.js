@@ -22,6 +22,7 @@ function admMsg_(){  return $('adminMsg_'  + ADMIN_PANE); }
 
 /* 全部たたむ */
 function admPanesOff_(){
+  ADM_DRV_ = null;   /* ★2026-09-29q　保存していない「車を出せる方」の選びかけは捨てる */
   for (var i = 0; i < ADMIN_KEYS.length; i++){
     var k = ADMIN_KEYS[i];
     var pn = $('admPane_' + k);   if (pn) pn.className = 'admpane';
@@ -238,6 +239,9 @@ function renderRoles_(){
     for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
   }
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
+
+  /* ★★2026-09-29q　車を出せる方（マイカー提供）を選ぶ（13_admin-edit.js） */
+  h += admDriversHtml_();
 
   /* ★★2026-09-14（工事E-3）　新しい会員を足す。
      　★入れていただくのは名字とよみの2つだけ（只隈さんのご判断）。

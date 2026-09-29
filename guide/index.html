@@ -160,6 +160,8 @@ thead { display: table-header-group; }
    ★画面には何も出しません。 */
 (function(){
   var API = 'https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec';
+  /* ★2026-09-29　開発版の「❓ 使い方」（?gas=dev）から来たときは、開発版GASへ送る。★行き先は決まった2つだけ（URLをそのまま受け取らない） */
+  if (/[?&]gas=dev(&|$)/.test(location.search)) API = 'https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec';
   var dev = '';
   try { dev = localStorage.getItem('device_ohc') || ''; } catch(e){}
   if (!dev) return;

@@ -379,7 +379,7 @@ function renderList(){
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
         '</div>' +
         /* ★★2026-09-28h（山行の段取り 段1）　参加と答えた方にだけ「車を出せますか」 */
-        (mine === 'yes' && !isCancel && carOn_ ? carPickHtml_(ev.id, myn) : '')   /* ★2026-09-29i 印のある予定だけ */
+        (mine === 'yes' && !isCancel && carOn_ && DRIVERS.indexOf(myn) >= 0 ? carPickHtml_(ev.id, myn) : '')   /* ★2026-09-29i 印のある予定だけ／★2026-09-29q 車を出せる方だけ */
       ) +
       (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +

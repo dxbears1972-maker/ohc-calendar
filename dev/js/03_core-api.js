@@ -13,6 +13,16 @@ function setStatus(msg, isErr){
 }
 
 /* ---------- 通信 ---------- */
+/* ★★2026-09-29q　「❓ 使い方」を押したことを操作ログに残す（OHC本番 2026-09-29c と同じ。只隈さん「調べようと
+   　頑張ったのか、食わず嫌いなのかがわかる」）。★画面には何も出さない・返事も待たない。
+   　★サーバーは名乗った端末の分だけ残します（名乗る前に押しても残りません）。 */
+function logGuideOpen(){
+  try {
+    if (!getName()) return;
+    api('POST', { action: 'logGuide', kind: 'open', from: 'app', deviceId: deviceId() }, function(){});
+  } catch(e){}
+}
+
 function api(method, body, cb, tryNo, fresh){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);
@@ -155,6 +165,7 @@ function applyData(data){
 
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
+    DRIVERS = data.drivers || [];   /* ★2026-09-29q */
 
     /* ★★2026-09-21（工事G-2 (b) 追補）　管理者なのに4けたがまだ無い方に、
        　この場で決めていただくためのお誘いを出します（1回だけ聞きます）。 */
@@ -324,7 +335,8 @@ function applyData(data){
         var d = []; for (var q3 = 0; q3 < MEMBERS.length; q3++) d.push(MEMBER_ID[MEMBERS[q3]] || '');
         return d;
       })(),
-      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS
+      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS,
+      drivers: DRIVERS   /* ★2026-09-29q */
       /* 電話番号は控えに残しません。端末に置いたままにしないためです */
     }));
   } catch(e){}

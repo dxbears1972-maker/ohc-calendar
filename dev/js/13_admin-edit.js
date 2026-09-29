@@ -524,3 +524,75 @@ function closeCfg(){
   $('cfgBtn').style.display = 'inline-block';
 }
 
+/* ==================================================================
+   ★★2026-09-29q　車を出せる方（マイカー提供）を選ぶ（OHC本番 2026-09-29d の「🚗 車を出せる方を選ぶ（管理者用）」と同じ働き）。
+   　只隈さん「運転手候補をリスト管理し、その人が参加にした時だけ、乗車人数を選択できるように」
+   　「人選は開発版の管理者の画面（工事E）の中に入れる」。
+   　★名簿の「マイカー提供」の欄に入ります（サーバーの setDrivers）。
+   　★だれにも印が無い間は、だれにも「車を出せますか？」は出ません。
+   ================================================================== */
+var ADM_DRV_ = null;   /* 選んでいる途中の名前（null ＝ いま保存されている DRIVERS のまま） */
+function admDrvNow_(){ return ADM_DRV_ ? ADM_DRV_ : DRIVERS.slice(); }
+
+function admDriversHtml_(){
+  var live = adminAlive_(), on = admDrvNow_(), h = '', n = 0;
+  for (var i = 0; i < live.length; i++){
+    var m = live[i];
+    if (m.role === '保守') continue;
+    var ck = on.indexOf(m.name) >= 0;
+    if (ck) n++;
+    h += '<label style="display:block;padding:8px 4px;border-bottom:1px solid #e3e8e3;font-size:17px">' +
+           '<input type="checkbox" style="width:22px;height:22px;vertical-align:middle;margin-right:10px"' +
+             (ck ? ' checked' : '') +
+             ' onchange="admDrvToggle(\'' + esc(m.name) + '\', this.checked)">' +
+           esc(m.name) + '</label>';
+  }
+  return '<div class="admsec">' +
+           '<div class="admsec-h">🚗 車を出せる方（マイカー提供）</div>' +
+           '<p class="note">印を付けた方だけに、マイカーで移動する予定で「○ 参加」を押したとき、' +
+             '<b>「車を出せますか？」</b>が出ます。<br>だれにも印が無い間は、だれにも出ません。</p>' +
+           '<p class="note" id="admDrvCount" style="font-weight:bold">いま ' + n + '人' +
+             (ADM_DRV_ ? '（まだ保存していません）' : '') + '</p>' +
+           h +
+           '<button type="button" class="bigbtn" style="margin-top:8px"' +
+             ' onclick="adminSaveDrivers(this)">この内容で保存する</button>' +
+           admSecMsg_('drivers') +
+         '</div>';
+}
+
+function admDrvToggle(name, on){
+  var a = admDrvNow_();
+  var i = a.indexOf(name);
+  if (on && i < 0) a.push(name);
+  if (!on && i >= 0) a.splice(i, 1);
+  ADM_DRV_ = a;
+  var el = $('admDrvCount');
+  if (el) el.textContent = 'いま ' + a.length + '人（まだ保存していません）';
+}
+
+function adminSaveDrivers(btn){
+  var a = admDrvNow_(), ids = [], miss = [];
+  for (var i = 0; i < a.length; i++){
+    var id = MEMBER_ID[a[i]];
+    if (id) ids.push(id); else miss.push(a[i]);
+  }
+  /* ★断られると分かっていることは、画面で先に止めます */
+  if (miss.length){
+    admSayAt_('drivers', '会員IDが分からない方がいます（' + miss.join('、') +
+              '）。画面を開き直してから、もう一度お試しください', true, null);
+    return;
+  }
+  admBusy_(btn, '保存しています…');
+  api('POST', { action: 'setDrivers', deviceId: deviceId(), name: myName, ids: ids },
+    function(err, data){
+      admBusyEnd_();
+      if (err || !data || data.error){
+        admSayAt_('drivers', (data && data.error) ? data.error :
+          '保存できませんでした。電波の良いところで、もう一度お試しください。', true, null);
+        return;
+      }
+      try { applyData(data); } catch (eA) {}
+      ADM_DRV_ = null;
+      admSayAt_('drivers', '保存しました（車を出せる方 ' + DRIVERS.length + '人）', false, null);
+    });
+}
