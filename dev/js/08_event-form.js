@@ -85,6 +85,10 @@ function renderStaffRows(){
     for (var k = 0; k < roles.length; k++){
       ropt += '<option value="' + esc(roles[k]) + '"' + (row.role === roles[k] ? ' selected' : '') + '>' + esc(roles[k]) + '</option>';
     }
+    /* ★2026-09-29k　下見のときは「下見」も選べる（設定の係の名前に無くても） */
+    if (roles.indexOf(HONBAN_ROLE) < 0 && (row.role === HONBAN_ROLE || ($('addTarget') && $('addTarget').value === '係のみ'))){
+      ropt += '<option value="' + HONBAN_ROLE + '"' + (row.role === HONBAN_ROLE ? ' selected' : '') + '>' + HONBAN_ROLE + '</option>';
+    }
     ropt += '<option value="その他"' + (row.role === 'その他' ? ' selected' : '') + '>その他</option>';
     var nopt = '<option value="">（名前）</option>';
     var names = realMembers_();
@@ -246,7 +250,7 @@ function parseStaff(s){
       var name = kv[1].replace(/^\s+|\s+$/g, '');
       if (!role || !name) continue;
       /* ★★2026-09-21　「設定」の係の名前にあれば選び箱、無ければ「その他」の手入力 */
-      var known = staffRoles_().indexOf(role) >= 0;
+      var known = staffRoles_().indexOf(role) >= 0 || role === HONBAN_ROLE;   /* ★2026-09-29k */
       staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
     }
   }
@@ -259,6 +263,92 @@ function kindMycarDefault_(){
   var sel = $('addTarget'), cb = $('addMycar');
   if (!sel || !cb || editingId) return;
   if (sel.value === '係のみ') cb.checked = true;
+}
+
+/* ==================================================================
+   ★★2026-09-29k　下見の方を、本番の山行から写す（只隈さん決定）
+   　只隈さん「下見も5〜14日後に本番があるメンバーが基本ですが、それ＋αのことも」
+   　・種類が「下見（係のみ）」で、新しく登録するときだけ出す（直すときは出さない）。
+   　・選べるのは、下見の日の5〜14日後の「全員」の予定（中止を除く）。
+   　・選ぶと、本番の係の方と「参加」と答えた方を、係の欄に「下見：名前」で足す。
+   　　すでに入っている方は足さない。＋αの方は係の欄の空いた行で足す。
+   　　来ない方は、名前を「（名前）」に戻すと外れる。
+   ================================================================== */
+var HONBAN_ROLE = '下見';
+
+function honbanList_(){
+  var y = parseInt($('addY').value, 10), m = parseInt($('addM').value, 10), d = parseInt($('addD').value, 10);
+  if (!y || !m || !d) return [];
+  var b = new Date(y, m - 1, d);
+  var from = new Date(b.getTime()); from.setDate(from.getDate() + 5);
+  var to   = new Date(b.getTime()); to.setDate(to.getDate() + 14);
+  var kf = dkey(from.getFullYear(), from.getMonth() + 1, from.getDate());
+  var kt = dkey(to.getFullYear(), to.getMonth() + 1, to.getDate());
+  var out = [];
+  for (var i = 0; i < state.events.length; i++){
+    var e = state.events[i];
+    if (e.target || e.cancelled) continue;
+    if (String(e.id).indexOf('tmp') === 0) continue;
+    if (e.date >= kf && e.date <= kt) out.push(e);
+  }
+  out.sort(function(a, c){ return a.date < c.date ? -1 : (a.date > c.date ? 1 : 0); });
+  return out;
+}
+
+function honbanNames_(ev){
+  var names = [], s = String(ev.staff || '').split(/[、,，]/);
+  for (var i = 0; i < s.length; i++){
+    var kv = s[i].split(/[：:]/);
+    var nm = kv.length >= 2 ? kv[1].replace(/^\s+|\s+$/g, '') : '';
+    if (nm && names.indexOf(nm) < 0) names.push(nm);
+  }
+  var staffN = names.length;
+  var yes = attOf(ev.id).yes;
+  for (var j = 0; j < yes.length; j++) if (names.indexOf(yes[j]) < 0) names.push(yes[j]);
+  return { names: names, staff: staffN, yes: yes.length };
+}
+
+function fillHonban_(){
+  var row = $('honbanRow'), sel = $('addTarget');
+  if (!row || !sel) return;
+  if (sel.value !== '係のみ' || editingId){ row.style.display = 'none'; return; }
+  row.style.display = 'block';
+  var list = honbanList_();
+  var html = '<option value="">（選ばない）</option>';
+  for (var i = 0; i < list.length; i++){
+    var h = honbanNames_(list[i]);
+    var dp = String(list[i].date).split('-'), dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
+    var dl = (+dp[1]) + '/' + (+dp[2]) + '（' + '日月火水木金土'.charAt(dd.getDay()) + '）';
+    html += '<option value="' + esc(list[i].id) + '">' + dl + ' ' + esc(list[i].title) +
+            '（係' + h.staff + '人・参加' + h.yes + '人）</option>';
+  }
+  $('addHonban').innerHTML = html;
+  $('honbanNote').innerHTML = list.length
+    ? '選ばなくても、下の係の欄に直接入れられます。'
+    : 'この日の5〜14日後に、全員の予定がありません。下の係の欄に直接入れてください。';
+}
+
+function pickHonban_(id){
+  if (!id) return;
+  var ev = eventOf_(id);
+  if (!ev) return;
+  var have = {};
+  for (var i = 0; i < staffRows.length; i++) if (staffRows[i].name) have[staffRows[i].name] = 1;
+  var h = honbanNames_(ev), add = 0;
+  var rows = [];
+  for (var r = 0; r < staffRows.length; r++){
+    if (staffRows[r].role || staffRows[r].name || staffRows[r].roleFree) rows.push(staffRows[r]);
+  }
+  for (var j = 0; j < h.names.length; j++){
+    if (have[h.names[j]]) continue;
+    rows.push({ role: HONBAN_ROLE, roleFree: '', name: h.names[j] });
+    have[h.names[j]] = 1; add++;
+  }
+  staffRows = rows;
+  renderStaffRows();
+  try { refreshAddTargetWho(); } catch(e){}
+  $('honbanNote').innerHTML = esc(ev.title) + ' から ' + add + '人を写しました。' +
+    '＋αの方は係の欄の空いた行で足し、来ない方は名前を「（名前）」に戻すと外れます。';
 }
 
 function setMailRow(isEdit){
@@ -274,6 +364,7 @@ function openAddForm(y, m, d){
   fillDateSelects(y, m, d);
   if (!$('addHour').innerHTML) fillTimeSelects();
   resetStaff();
+  try { fillHonban_(); } catch (eH) {}   /* ★2026-09-29k */
   if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
 }
 
@@ -343,6 +434,7 @@ function editEvent(evId){
   var p = ev.date.split('-');
   openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
   editingId = evId;
+  try { fillHonban_(); } catch (eH) {}   /* ★2026-09-29k 直すときは出さない */
   setMailRow(true);   /* 変更のときはメールを送らない（何度も届かないように） */
   $('addTitleH').innerHTML = '予定を変更';
   $('addBtn').innerHTML = '変更を保存する';

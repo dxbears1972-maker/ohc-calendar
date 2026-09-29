@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-29j">
+<link rel="stylesheet" href="css/app.css?v=2026-09-29k">
 </head>
 <body>
 
@@ -371,6 +371,12 @@
       <option value="幹事・管理者">アプリの管理者・幹事だけ（★OHCの役員ではありません）</option>
     </select>
     <p class="note" id="addTargetWho">全員（クラブの皆さん）に届きます。</p>
+    <!-- ★★2026-09-29k　下見のときだけ。5〜14日後の本番の山行を選ぶと、その係と参加の方を「下見」の係に写す（只隈さん決定） -->
+    <div id="honbanRow" style="display:none">
+      <label>本番の山行（選ぶと、その方々を下見の係に写します）</label>
+      <select id="addHonban" onchange="pickHonban_(this.value)"></select>
+      <p class="note" id="honbanNote"></p>
+    </div>
     <p class="note">「全員」以外にすると、対象でない方には<b>出欠のボタンが出ません</b>
       （予定そのものは見えます）。メールとLINEのお知らせも、対象の方にだけ届きます。</p>
     <!-- ★★2026-09-29i　マイカー移動の印（只隈さん決定：予定ごとの印で見分ける）。
@@ -614,22 +620,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-29j"></script>
-<script src="js/02_kind-target.js?v=2026-09-29j"></script>
-<script src="js/03_core-api.js?v=2026-09-29j"></script>
-<script src="js/04_render.js?v=2026-09-29j"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-29j"></script>
-<script src="js/06_notice-line.js?v=2026-09-29j"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-29j"></script>
-<script src="js/08_event-form.js?v=2026-09-29j"></script>
-<script src="js/09_bulk-add.js?v=2026-09-29j"></script>
-<script src="js/10_export-pick.js?v=2026-09-29j"></script>
-<script src="js/11_code-name.js?v=2026-09-29j"></script>
-<script src="js/12_admin-view.js?v=2026-09-29j"></script>
-<script src="js/13_admin-edit.js?v=2026-09-29j"></script>
-<script src="js/14_install-card.js?v=2026-09-29j"></script>
+<script src="js/01_club-config.js?v=2026-09-29k"></script>
+<script src="js/02_kind-target.js?v=2026-09-29k"></script>
+<script src="js/03_core-api.js?v=2026-09-29k"></script>
+<script src="js/04_render.js?v=2026-09-29k"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-29k"></script>
+<script src="js/06_notice-line.js?v=2026-09-29k"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-29k"></script>
+<script src="js/08_event-form.js?v=2026-09-29k"></script>
+<script src="js/09_bulk-add.js?v=2026-09-29k"></script>
+<script src="js/10_export-pick.js?v=2026-09-29k"></script>
+<script src="js/11_code-name.js?v=2026-09-29k"></script>
+<script src="js/12_admin-view.js?v=2026-09-29k"></script>
+<script src="js/13_admin-edit.js?v=2026-09-29k"></script>
+<script src="js/14_install-card.js?v=2026-09-29k"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-09-29j"></script>
-<script src="js/15_namepick-init.js?v=2026-09-29j"></script>
+<script src="js/16_plan-sheet.js?v=2026-09-29k"></script>
+<script src="js/15_namepick-init.js?v=2026-09-29k"></script>
 </body>
 </html>

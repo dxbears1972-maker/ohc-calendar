@@ -75,7 +75,8 @@ function fillTargetSelect_(){
   if (!sel.getAttribute('data-whobound')){
     sel.setAttribute('data-whobound', '1');
     sel.onchange = function(){ try { refreshAddTargetWho(); } catch(e){}
-      try { kindMycarDefault_(); } catch(e){} };   /* ★2026-09-29i 下見ならマイカーの印を入れる */
+      try { kindMycarDefault_(); } catch(e){}
+      try { fillHonban_(); renderStaffRows(); } catch(e){} };   /* ★2026-09-29k 下見なら本番の選び箱 */   /* ★2026-09-29i 下見ならマイカーの印を入れる */
   }
   try { refreshAddTargetWho(); } catch(e){}
 }
