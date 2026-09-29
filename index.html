@@ -925,7 +925,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-29d';
+var APP_VER = '2026-09-30a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1320,6 +1320,13 @@ function applyData(data){
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
     DRIVERS = data.drivers || [];   /* ★2026-09-29d */
+    /* ★2026-09-30a　サーバーの返事が届いた。選ぶ画面を開いたまま、まだ何も触っていなければ、
+       　チェックを最新に入れ替える（開いた瞬間の控えのまま残らないように） */
+    driversFresh = true;
+    if (driverOpen && !driverTouched){
+      driverDraft = {};
+      for (var dq = 0; dq < DRIVERS.length; dq++) driverDraft[DRIVERS[dq]] = true;
+    }
 
     /* サーバー（GAS）の版も画面いちばん下に出す。
        貼り替えとデプロイができているかを、目で確かめられるように。 */
@@ -1473,7 +1480,8 @@ function applyData(data){
         var d = []; for (var q3 = 0; q3 < MEMBERS.length; q3++) d.push(MEMBER_ID[MEMBERS[q3]] || '');
         return d;
       })(),
-      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS
+      admins: ADMINS, editors: EDITORS, taken: TAKEN, contacts: CONTACTS,
+      drivers: DRIVERS   /* ★2026-09-30a　開いた瞬間から「車を出せる方」を正しく出すため */
       /* 電話番号は控えに残しません。端末に置いたままにしないためです */
     }));
   } catch(e){}
@@ -2120,6 +2128,10 @@ function isDriver_(name){
    ------------------------------------------------------------------ */
 var driverOpen = false;
 var driverDraft = null;   /* 開いている間のチェック（画面を作り直しても消えないように） */
+/* ★2026-09-30a　開いた直後は端末の控えで画面を出すため、サーバーの返事が届くまで保存させない。
+   　（控えに「車を出せる方」が無く、全員チェックなしに見えていた＝9/29 杉野さん・9/30 只隈さん） */
+var driversFresh = false;   /* サーバーの返事で「車を出せる方」を受け取ったか */
+var driverTouched = false;  /* 開いてからチェックを触ったか */
 
 function renderDriverBox(){
   var box = $('driverWrap');
@@ -2141,7 +2153,8 @@ function renderDriverBox(){
          esc(ms[i]) + '</label></p>';
   }
   h += '<p class="note" id="driverSum"></p>' +
-       '<button class="subbtn" type="button" onclick="saveDrivers()">この内容で保存する</button>' +
+       (driversFresh ? '' : '<p class="note" style="color:#b00">最新の内容を読み込んでいます…（終わるまで保存できません）</p>') +
+       '<button class="subbtn" type="button" onclick="saveDrivers()"' + (driversFresh ? '' : ' disabled style="opacity:.45"') + '>この内容で保存する</button>' +
        '<button class="cancelbtn" type="button" onclick="closeDriverBox()">やめる</button></div>';
   box.innerHTML = h;
   renderDriverSum_();
@@ -2150,6 +2163,7 @@ function renderDriverBox(){
 function driverTick(i, on){
   var ms = realMembers_();
   if (driverDraft && ms[i]) driverDraft[ms[i]] = !!on;
+  driverTouched = true;   /* ★2026-09-30a */
   renderDriverSum_();
 }
 
@@ -2164,6 +2178,7 @@ function renderDriverSum_(){
 function openDriverBox(){
   driverDraft = {};
   for (var i = 0; i < DRIVERS.length; i++) driverDraft[DRIVERS[i]] = true;
+  driverTouched = false;   /* ★2026-09-30a */
   driverOpen = true;
   renderDriverBox();
   if ($('driverWrap').scrollIntoView) $('driverWrap').scrollIntoView(true);
@@ -2176,6 +2191,7 @@ function closeDriverBox(){
 }
 
 function saveDrivers(){
+  if (!driversFresh){ setStatus('最新の内容を読み込んでいます。少し待ってから保存してください。', true); return; }   /* ★2026-09-30a */
   var ms = realMembers_(), ids = [], names = [];
   for (var i = 0; i < ms.length; i++){
     if (driverDraft && driverDraft[ms[i]]){
@@ -4346,6 +4362,7 @@ function init(){
       ADMIN_NAME = ADMINS[0] || '';
       TAKEN    = cd0.taken    || [];
       CONTACTS = cd0.contacts || [];
+      DRIVERS  = cd0.drivers  || [];   /* ★2026-09-30a */
       MEMBER_YOMI = {}; MEMBER_ID = {}; ID_NAME = {};
       for (var ci = 0; ci < MEMBERS.length; ci++){
         MEMBER_YOMI[MEMBERS[ci]] = (cd0.yomis && cd0.yomis[ci]) || '';
