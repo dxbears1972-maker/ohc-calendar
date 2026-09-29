@@ -86,8 +86,12 @@ function renderStaffRows(){
       ropt += '<option value="' + esc(roles[k]) + '"' + (row.role === roles[k] ? ' selected' : '') + '>' + esc(roles[k]) + '</option>';
     }
     /* ★2026-09-29k　下見のときは「下見」も選べる（設定の係の名前に無くても） */
-    if (roles.indexOf(HONBAN_ROLE) < 0 && (row.role === HONBAN_ROLE || ($('addTarget') && $('addTarget').value === '係のみ'))){
-      ropt += '<option value="' + HONBAN_ROLE + '"' + (row.role === HONBAN_ROLE ? ' selected' : '') + '>' + HONBAN_ROLE + '</option>';
+    /* ★2026-09-29o　下見の「運転手」「同行」も選べる（設定の係の名前に無くても）。係の欄に入れた方だけの予定か、その行がもともとそれのとき */
+    for (var xr = 0; xr < EXTRA_ROLES_.length; xr++){
+      var xn = EXTRA_ROLES_[xr];
+      if (roles.indexOf(xn) < 0 && (row.role === xn || ($('addTarget') && $('addTarget').value === '係のみ'))){
+        ropt += '<option value="' + xn + '"' + (row.role === xn ? ' selected' : '') + '>' + xn + '</option>';
+      }
     }
     ropt += '<option value="その他"' + (row.role === 'その他' ? ' selected' : '') + '>その他</option>';
     var nopt = '<option value="">（名前）</option>';
@@ -250,7 +254,7 @@ function parseStaff(s){
       var name = kv[1].replace(/^\s+|\s+$/g, '');
       if (!role || !name) continue;
       /* ★★2026-09-21　「設定」の係の名前にあれば選び箱、無ければ「その他」の手入力 */
-      var known = staffRoles_().indexOf(role) >= 0 || role === HONBAN_ROLE;   /* ★2026-09-29k */
+      var known = staffRoles_().indexOf(role) >= 0 || EXTRA_ROLES_.indexOf(role) >= 0;   /* ★2026-09-29o */
       staffRows.push({ role: known ? role : 'その他', roleFree: known ? '' : role, name: name });
     }
   }
@@ -276,8 +280,9 @@ function kindMycarDefault_(){
    　・入力中にサーバーの返事で画面を作り直しても消えないよう、中身は SHITAMI にしまう。
    　（2026-09-29k の「入力画面で種類を下見にすると本番を選ぶ」は、入口を1つにするため外した）
    ================================================================== */
-var HONBAN_ROLE = '下見';
-var SHITAMI = null;   /* { evId, y, m, d, h, mi, pick: {名前: true} } */
+/* ★2026-09-29o　下見の役（只隈さん「下見のリーダーとか副リーダーとか運転手とかの役割がある」）。役の無い方は「同行」 */
+var EXTRA_ROLES_ = ['運転手', '同行'];
+var SHITAMI = null;   /* { evId, y, m, d, h, mi, pick: {名前: true}, role: {名前: 役} } */
 
 /* 山行の係の方（係の名前つき）と「参加」の方 */
 function honbanNames_(ev){
@@ -304,26 +309,37 @@ function openShitami(evId){
   var now = new Date(); now.setHours(0, 0, 0, 0);
   if (dt < now) dt = now;                            /* 過ぎていれば今日 */
   var tm = String(ev.time || '').match(/(\d{1,2}):(\d{2})/);
-  var pick = {}, hn = honbanNames_(ev);
-  for (var i = 0; i < hn.length; i++) pick[hn[i].name] = true;
+  var pick = {}, role = {}, hn = honbanNames_(ev);
+  for (var i = 0; i < hn.length; i++){
+    pick[hn[i].name] = true;
+    role[hn[i].name] = (hn[i].why && hn[i].why !== '参加') ? hn[i].why : '同行';   /* 山行の係の方は同じ役、参加の方は同行 */
+  }
   SHITAMI = { evId: evId, y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate(),
-              h: tm ? String(parseInt(tm[1], 10)) : '', mi: tm ? tm[2] : '00', pick: pick };
+              h: tm ? String(parseInt(tm[1], 10)) : '', mi: tm ? tm[2] : '00', pick: pick, role: role };
   renderList();
   try { scrollToEv(evId); var f = $('shitami-' + evId); if (f) f.scrollIntoView({ block: 'center' }); } catch (e){}
 }
 
 function shitamiSet_(k, v){ if (SHITAMI) SHITAMI[k] = v; }
 function shitamiPick_(nm, on){ if (SHITAMI) SHITAMI.pick[nm] = !!on; }
+function shitamiRole_(nm, v){ if (SHITAMI){ SHITAMI.role[nm] = v; SHITAMI.pick[nm] = true; renderList(); } }
+function shitamiDate_(v){
+  var p = String(v || '').split('-');
+  if (p.length === 3 && SHITAMI){ SHITAMI.y = +p[0]; SHITAMI.m = +p[1]; SHITAMI.d = +p[2]; }
+}
+/* 役の選び箱：クラブの係の名前＋運転手＋同行（山行でその方が付いていた役が名前に無ければ足す） */
+function shitamiRoleOpts_(cur){
+  var roles = staffRoles_().slice();
+  for (var i = 0; i < EXTRA_ROLES_.length; i++) if (roles.indexOf(EXTRA_ROLES_[i]) < 0) roles.push(EXTRA_ROLES_[i]);
+  if (cur && roles.indexOf(cur) < 0) roles.push(cur);
+  var h = '';
+  for (var j = 0; j < roles.length; j++) h += '<option value="' + esc(roles[j]) + '"' + (roles[j] === cur ? ' selected' : '') + '>' + esc(roles[j]) + '</option>';
+  return h;
+}
 
 function shitamiFormHtml_(ev){
   if (!SHITAMI || SHITAMI.evId !== ev.id) return '';
   var S = SHITAMI, i, o;
-  var sel = function(k, from, to, unit, cur){
-    var h = '<select onchange="shitamiSet_(\'' + k + '\', this.value)">';
-    for (var x = from; x <= to; x++) h += '<option value="' + x + '"' + (String(cur) === String(x) ? ' selected' : '') + '>' + x + unit + '</option>';
-    return h + '</select>';
-  };
-  var ny = new Date().getFullYear();
   var hh = '<select onchange="shitamiSet_(\'h\', this.value)"><option value="">時間なし</option>';
   for (i = 0; i <= 23; i++) hh += '<option value="' + i + '"' + (S.h === String(i) ? ' selected' : '') + '>' + i + '時</option>';
   hh += '</select>';
@@ -332,9 +348,12 @@ function shitamiFormHtml_(ev){
   mm += '</select>';
   var hn = honbanNames_(ev), inH = {}, rows = '';
   var chk = function(nm, why){
-    return '<label class="shchk"><input type="checkbox"' + (S.pick[nm] ? ' checked' : '') +
-           ' onchange="shitamiPick_(\'' + esc(nm).replace(/'/g, '') + '\', this.checked)"> ' + esc(nm) +
-           (why ? '<span class="shwhy">（' + esc(why) + '）</span>' : '') + '</label>';
+    var q = esc(nm).replace(/'/g, '');
+    return '<table class="shrow"><tr><td><label class="shchk"><input type="checkbox"' + (S.pick[nm] ? ' checked' : '') +
+           ' onchange="shitamiPick_(\'' + q + '\', this.checked)"> ' + esc(nm) +
+           (why ? '<span class="shwhy">（' + (why === '参加' ? '山行に参加' : '山行の係') + '）</span>' : '') + '</label></td>' +
+           '<td class="shrole"><select onchange="shitamiRole_(\'' + q + '\', this.value)">' +
+             shitamiRoleOpts_(S.role[nm] || '同行') + '</select></td></tr></table>';
   };
   for (i = 0; i < hn.length; i++){ inH[hn[i].name] = 1; rows += chk(hn[i].name, hn[i].why); }
   var others = '', all = realMembers_();
@@ -342,12 +361,11 @@ function shitamiFormHtml_(ev){
   return '<div class="shitami" id="shitami-' + ev.id + '">' +
       '<div class="admsec-h">🔎 下見を入れる</div>' +
       '<label>下見の日</label>' +
-      '<table class="row3"><tr><td style="width:38%">' + sel('y', ny, ny + 1, '年', S.y) + '</td><td style="width:31%">' + sel('m', 1, 12, '月', S.m) +
-        '</td><td style="width:31%">' + sel('d', 1, 31, '日', S.d) + '</td></tr></table>' +
+      '<input type="date" class="datein" value="' + dkey(S.y, S.m, S.d) + '" onchange="shitamiDate_(this.value)">' +
       '<label>集合の時刻</label>' +
       '<table class="row3"><tr><td>' + hh + '</td><td>' + mm + '</td></tr></table>' +
       '<label>行く方</label>' +
-      (rows ? '<p class="note">山行の係の方と「参加」の方に、最初から☑を入れています。</p>' + rows
+      (rows ? '<p class="note">山行の係の方と「参加」の方に、最初から☑を入れています。右の選び箱で下見の役を選べます（役の無い方は「同行」）。</p>' + rows
             : '<p class="note">山行の係・参加の方がまだいません。下から選んでください。</p>') +
       (others ? '<div class="shsub">ほかの会員（＋αの方は☑）</div>' + others : '') +
       '<button type="button" class="subbtn" onclick="submitShitami()">この内容で下見を登録する</button>' +
@@ -370,7 +388,7 @@ function submitShitami(){
   for (var nm in S.pick) if (S.pick.hasOwnProperty(nm) && S.pick[nm]) names.push(nm);
   if (!names.length){ alert('行く方を1人以上選んでください'); return; }
   names.sort(byMember_);
-  var staff = names.map(function(n){ return HONBAN_ROLE + '：' + n; }).join('、');
+  var staff = sortStaffStr(names.map(function(n){ return (S.role[n] || '同行') + '：' + n; }).join('、'));
   var time = S.h !== '' ? S.h + ':' + S.mi : '';
   var title = '下見 ' + ev.title;
 
@@ -549,6 +567,7 @@ function fillDateSelects(y, m, d){
     html += '<option value="' + i + '"' + (i === d ? ' selected' : '') + '>' + i + '日</option>';
   }
   $('addD').innerHTML = html;
+  if ($('addDate')) $('addDate').value = dkey(y, m, d);   /* ★2026-09-29o カレンダーにも同じ日 */
 }
 
 function submitAdd(){

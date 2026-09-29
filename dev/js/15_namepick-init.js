@@ -586,6 +586,13 @@ function init(){
   $('addY').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('addM').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('addD').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  /* ★2026-09-29o　カレンダーで選んだ日を、隠してある3つの選び箱へ（空にされたら元の日へ戻す） */
+  if ($('addDate')) $('addDate').onchange = function(){
+    var p = String(this.value || '').split('-');
+    if (p.length === 3) fillDateSelects(+p[0], +p[1], +p[2]);
+    else this.value = dkey(+$('addY').value, +$('addM').value, +$('addD').value);
+    try { refreshRepPreview(); } catch(e){}
+  };
   $('reloadBtn').onclick = function(){ load(true); };
   $('cfgBtn').onclick = openCfg;
 
