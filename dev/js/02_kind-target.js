@@ -67,7 +67,7 @@ function fillTargetSelect_(){
   for (var q1 = 0; q1 < ws.length; q1++){
     var op = document.createElement('option');
     op.value = '作業:' + ws[q1];
-    op.text  = ws[q1] + '（この作業の方だけ）';
+    op.text  = ws[q1] + 'の方だけ（決まった顔ぶれ）';   /* ★2026-09-29n */
     sel.appendChild(op);
   }
   if (cur){ try { sel.value = cur; } catch (e) {} }

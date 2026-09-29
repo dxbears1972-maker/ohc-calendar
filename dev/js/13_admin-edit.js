@@ -259,8 +259,8 @@ function renderWorks_(){
   var wk = (ADMIN_DATA && ADMIN_DATA.works) || [], h = '';
   ADMIN_EDIT = null;
   admMsg_().textContent = wk.length
-    ? '顔ぶれを決めたい種類の「変える」を押してください。'
-    : 'まだ、予定の種類はひとつもありません。';
+    ? '顔ぶれを変えたいものの「変える」を押してください。'
+    : 'まだ、決まった顔ぶれはひとつもありません。';
   for (var i = 0; i < wk.length; i++){
     /* ★名前を onclick の中に直に書くのをやめ、並びの番号で渡します。
        　esc() はアポストロフを逃がしません。種類の名前を手で入れられるように
@@ -275,19 +275,19 @@ function renderWorks_(){
          '</div>';
   }
   if (!wk.length){
-    h = '<p class="note" style="padding:4px 10px">下の「新しい種類を足す」から、' +
+    h = '<p class="note" style="padding:4px 10px">下の「新しい顔ぶれを足す」から、' +
         '「役員会」のように、毎回同じ方が集まる予定の名前を入れてください。</p>';
   }
 
   /* ★★2026-09-14（工事E-4）　新しい種類を足す */
   h += '<div class="admsec">' +
-         '<div class="admsec-h">新しい種類を足す</div>' +
+         '<div class="admsec-h">新しい顔ぶれを足す</div>' +
          '<input type="text" id="admNewWork" maxlength="20" autocomplete="off"' +
            ' placeholder="例）役員会" value="' + esc(ADM_NEWWORK_) + '"' +
            ' oninput="ADM_NEWWORK_ = this.value">' +
          '<p class="note" style="margin-top:2px">「役員会」のように、' +
            '<b>毎回同じ顔ぶれ</b>が集まる予定に使います。<br>' +
-           '足したあと、その種類の「変える」で、' +
+           '足したあと、その名前の「変える」で、' +
            '<b>必ず顔ぶれを選んでください。</b>' +
            '選ばないと、その予定は登録した方お一人にしか届きません。</p>' +
          '<button type="button" class="bigbtn" style="margin-top:8px"' +
@@ -331,13 +331,13 @@ function adminEditWork(name){
       '</div>' +
       /* ★★② この種類をやめる（2026-09-14 工事E-4） */
       '<div class="admsec">' +
-        '<div class="admsec-h">この種類をやめる</div>' +
+        '<div class="admsec-h">この顔ぶれをやめる</div>' +
         '<p class="note" style="margin-top:0">消すと、予定を登録するときの' +
-          '「予定の種類」に出なくなります。<br>' +
-          '<b>この種類を使っている予定が残っているあいだは、消せません。</b><br>' +
+          '「出欠をとる相手」に出なくなります。<br>' +
+          '<b>この顔ぶれを使っている予定が残っているあいだは、消せません。</b><br>' +
           '過去の記録は残ります。</p>' +
         '<button type="button" class="carebtn"' +
-          ' onclick="adminDelWork(this)">この種類を消す</button>' +
+          ' onclick="adminDelWork(this)">この顔ぶれを消す</button>' +
         admSecMsg_('workdel') +
       '</div>' +
       '<button type="button" class="cancelbtn" style="margin-top:14px"' +
@@ -403,7 +403,7 @@ function adminAddWork(btn){
   var nm = el ? el.value : ADM_NEWWORK_;
   ADM_NEWWORK_ = nm;
   if (!String(nm).replace(/[\s　]/g, '')){
-    admSayWork_('workadd', '予定の種類の名前を入れてください。', true, 'list');
+    admSayWork_('workadd', '顔ぶれの名前を入れてください（例：役員会）。', true, 'list');
     return;
   }
   admBusy_(btn);

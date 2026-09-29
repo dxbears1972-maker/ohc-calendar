@@ -183,7 +183,7 @@ function renderBulkTable(){
       '<div class="bfield"><label>集合場所</label>' +
         '<input type="text" value="' + esc(r.place) + '" placeholder="例：えるる 駐車場" onchange="bulkChg(' + i + ',\'place\',this.value)"></div>' +
 
-      '<div class="bfield"><label>種類（＝誰に届くか）</label>' +
+      '<div class="bfield"><label>種類（＝出欠をとる相手）</label>' +
         '<select onchange="bulkChg(' + i + ',\'kind\',this.value)">' + ko + '</select>' +
         '<div class="bhint" id="bwho' + i + '"></div></div>' +
 
@@ -233,7 +233,7 @@ function updateBulkCard_(i){
         var wl = workMembers_(mw[1]), all = realMembers_(), bad = [];
         for (var b = 0; b < wl.length; b++){ if (all.indexOf(wl[b]) < 0) bad.push(wl[b]); }
         if (!wl.length){
-          txt += '　★作業「' + mw[1] + '」にメンバーが入っていません'; ng = true;
+          txt += '　★顔ぶれ「' + mw[1] + '」にメンバーが入っていません'; ng = true;
         } else if (bad.length){
           txt += '　★' + bad.join('・') + ' が名簿にありません（その方には届きません）'; ng = true;
         }
@@ -447,14 +447,14 @@ function confirmAndPostEvents2_(events, name){
     if (mwc){
       var wlc = workMembers_(mwc[1]);
       if (!wlc.length){
-        warn.push('・' + it2.title + '：作業「' + mwc[1] + '」にメンバーが入っていません');
+        warn.push('・' + it2.title + '：顔ぶれ「' + mwc[1] + '」にメンバーが入っていません');
       } else {
         /* ★修正3　マスタの名字が名簿にない（打ち間違い）を、押す前に知らせる */
         var allc = realMembers_(), badc = [];
         for (var b0 = 0; b0 < wlc.length; b0++){
           if (allc.indexOf(wlc[b0]) < 0) badc.push(wlc[b0]);
         }
-        if (badc.length) warn.push('・' + it2.title + '：作業「' + mwc[1] + '」の ' +
+        if (badc.length) warn.push('・' + it2.title + '：顔ぶれ「' + mwc[1] + '」の ' +
           badc.join('・') + ' が名簿にありません（その方には届きません）');
       }
     } else if (tg2 === '係のみ' && !String(it2.staff || '')){
@@ -497,7 +497,7 @@ function confirmAndPostEvents2_(events, name){
   msg += '\n\nまちがえても、あとから直せます・消せます';
   if (warn.length){
     msg += '\n\n★ご確認ください\n' + warn.join('\n');
-    if (solo) msg += '\n　種類と、作業のメンバー・係の欄をお確かめください。';
+    if (solo) msg += '\n　出欠をとる相手と、決まった顔ぶれ・係の欄をお確かめください。';
   }
   msg += '\n\n登録してよろしいですか？';
   if (!confirm(msg)) return;

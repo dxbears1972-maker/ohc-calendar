@@ -132,7 +132,7 @@ function refreshAddTargetWho(){
   }
   var mw = String(t).match(/^作業[:：](.+)$/);
   if (mw && !workMembers_(mw[1]).length){
-    txt += '　★作業「' + mw[1] + '」にメンバーが入っていません。';
+    txt += '　★顔ぶれ「' + mw[1] + '」にメンバーが入っていません。';
   } else if (mw){
     /* ★★2026-09-03　穴1　作業マスタの名字が名簿にないとき、押す前に名指しで知らせる。
        　まとめて登録の確認画面には前からこの警告があったのに、
@@ -143,7 +143,7 @@ function refreshAddTargetWho(){
       if (allf.indexOf(wlf[bf]) < 0) badf.push(wlf[bf]);
     }
     if (badf.length){
-      txt += '　★作業「' + mw[1] + '」の ' + badf.join('・') +
+      txt += '　★顔ぶれ「' + mw[1] + '」の ' + badf.join('・') +
              ' が名簿にありません（その方には届きません）。';
     }
   } else if (t === '係のみ' && !serializeStaff()){

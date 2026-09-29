@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-09-29m">
+<link rel="stylesheet" href="css/app.css?v=2026-09-29n">
 </head>
 <body>
 
@@ -364,10 +364,11 @@
          　本番の操作ログを数えたところ、貼り付け方式（Excelでまとめて登録）は
          　一度も使われておらず、杉野さんはこのフォームから1件ずつ入れておられました。
          　だから、種類を選ぶ入口はここが本命です。 -->
-    <label>予定の種類</label>
+    <!-- ★★2026-09-29n　見出しを「予定の種類」→「出欠をとる相手」に（只隈さん「わかりづらい。参加メンバーを絞る意味がある」） -->
+    <label>出欠をとる相手（お知らせもこの方だけに届きます）</label>
     <select id="addTarget">
-      <option value="">山行・集会・行事（全員）</option>
-      <option value="係のみ">下見（係に名前がある方だけ）</option>
+      <option value="">全員（山行・集会・行事）</option>
+      <option value="係のみ">係の欄に入れた方だけ（下見など）</option>
       <option value="幹事・管理者">アプリの管理者・幹事だけ（★OHCの役員ではありません）</option>
     </select>
     <p class="note" id="addTargetWho">全員（クラブの皆さん）に届きます。</p>
@@ -521,7 +522,7 @@
     <div id="adminBox" class="cfgsec" style="display:none">
       <h2>管理者の画面</h2>
       <p class="note">スプレッドシートを開かなくても、ここで見られます。
-        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、予定の種類（足す・消す・顔ぶれ）は、
+        <b>会員の設定（役割・連絡窓口・端末・確認番号・退会）と、決まった顔ぶれ（役員会など。足す・消す・顔ぶれ）は、
         ここで変えられます。</b></p>
       <div class="admgrp" id="admGrp_logs">
       <button type="button" class="subbtn" id="admBtn_logs"
@@ -549,7 +550,7 @@
 
       <div class="admgrp" id="admGrp_works">
       <button type="button" class="subbtn" id="admBtn_works"
-              onclick="showAdminView('works')">予定の種類と顔ぶれ</button>
+              onclick="showAdminView('works')">決まった顔ぶれ（役員会など）</button>
       <div class="admpane" id="admPane_works">
         <p class="note" id="adminMsg_works"></p><div id="adminList_works"></div>
       </div>
@@ -614,22 +615,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-09-29m"></script>
-<script src="js/02_kind-target.js?v=2026-09-29m"></script>
-<script src="js/03_core-api.js?v=2026-09-29m"></script>
-<script src="js/04_render.js?v=2026-09-29m"></script>
-<script src="js/05_attend-proxy.js?v=2026-09-29m"></script>
-<script src="js/06_notice-line.js?v=2026-09-29m"></script>
-<script src="js/07_cancel-ops.js?v=2026-09-29m"></script>
-<script src="js/08_event-form.js?v=2026-09-29m"></script>
-<script src="js/09_bulk-add.js?v=2026-09-29m"></script>
-<script src="js/10_export-pick.js?v=2026-09-29m"></script>
-<script src="js/11_code-name.js?v=2026-09-29m"></script>
-<script src="js/12_admin-view.js?v=2026-09-29m"></script>
-<script src="js/13_admin-edit.js?v=2026-09-29m"></script>
-<script src="js/14_install-card.js?v=2026-09-29m"></script>
+<script src="js/01_club-config.js?v=2026-09-29n"></script>
+<script src="js/02_kind-target.js?v=2026-09-29n"></script>
+<script src="js/03_core-api.js?v=2026-09-29n"></script>
+<script src="js/04_render.js?v=2026-09-29n"></script>
+<script src="js/05_attend-proxy.js?v=2026-09-29n"></script>
+<script src="js/06_notice-line.js?v=2026-09-29n"></script>
+<script src="js/07_cancel-ops.js?v=2026-09-29n"></script>
+<script src="js/08_event-form.js?v=2026-09-29n"></script>
+<script src="js/09_bulk-add.js?v=2026-09-29n"></script>
+<script src="js/10_export-pick.js?v=2026-09-29n"></script>
+<script src="js/11_code-name.js?v=2026-09-29n"></script>
+<script src="js/12_admin-view.js?v=2026-09-29n"></script>
+<script src="js/13_admin-edit.js?v=2026-09-29n"></script>
+<script src="js/14_install-card.js?v=2026-09-29n"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-09-29m"></script>
-<script src="js/15_namepick-init.js?v=2026-09-29m"></script>
+<script src="js/16_plan-sheet.js?v=2026-09-29n"></script>
+<script src="js/15_namepick-init.js?v=2026-09-29n"></script>
 </body>
 </html>
