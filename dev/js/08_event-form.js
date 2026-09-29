@@ -266,89 +266,145 @@ function kindMycarDefault_(){
 }
 
 /* ==================================================================
-   ★★2026-09-29k　下見の方を、本番の山行から写す（只隈さん決定）
-   　只隈さん「下見も5〜14日後に本番があるメンバーが基本ですが、それ＋αのことも」
-   　・種類が「下見（係のみ）」で、新しく登録するときだけ出す（直すときは出さない）。
-   　・選べるのは、下見の日の5〜14日後の「全員」の予定（中止を除く）。
-   　・選ぶと、本番の係の方と「参加」と答えた方を、係の欄に「下見：名前」で足す。
-   　　すでに入っている方は足さない。＋αの方は係の欄の空いた行で足す。
-   　　来ない方は、名前を「（名前）」に戻すと外れる。
+   ★★2026-09-29m　下見は、山行の予定から入れる（只隈さん決定）
+   　只隈さん「山行があるから下見があるわけで、山行に付属すると考えると、
+   　山行を選んで、下見をやるとなったら日付を選んでメンバー（基本山行メンバー＋α）を選ぶ」
+   　・入口：山行の「⚙ この予定の操作」→「山行の準備」→「🔎 下見を入れる」（14_… ではなく evOpsHtml_）
+   　・押した場所のすぐ下に、日付・時刻・行く方の☑だけの小さな入力が開く。
+   　　行く方は、山行の係の方と「参加」の方に最初から☑。ほかの会員も☑で足せる。
+   　・登録すると「下見 ＜山行の題名＞」・種類は下見（係のみ）・行く方を係の欄に「下見：名前」・マイカーの印つき。
+   　・入力中にサーバーの返事で画面を作り直しても消えないよう、中身は SHITAMI にしまう。
+   　（2026-09-29k の「入力画面で種類を下見にすると本番を選ぶ」は、入口を1つにするため外した）
    ================================================================== */
 var HONBAN_ROLE = '下見';
+var SHITAMI = null;   /* { evId, y, m, d, h, mi, pick: {名前: true} } */
 
-function honbanList_(){
-  var y = parseInt($('addY').value, 10), m = parseInt($('addM').value, 10), d = parseInt($('addD').value, 10);
-  if (!y || !m || !d) return [];
-  var b = new Date(y, m - 1, d);
-  var from = new Date(b.getTime()); from.setDate(from.getDate() + 5);
-  var to   = new Date(b.getTime()); to.setDate(to.getDate() + 14);
-  var kf = dkey(from.getFullYear(), from.getMonth() + 1, from.getDate());
-  var kt = dkey(to.getFullYear(), to.getMonth() + 1, to.getDate());
-  var out = [];
-  for (var i = 0; i < state.events.length; i++){
-    var e = state.events[i];
-    if (e.target || e.cancelled) continue;
-    if (String(e.id).indexOf('tmp') === 0) continue;
-    if (e.date >= kf && e.date <= kt) out.push(e);
-  }
-  out.sort(function(a, c){ return a.date < c.date ? -1 : (a.date > c.date ? 1 : 0); });
-  return out;
-}
-
+/* 山行の係の方（係の名前つき）と「参加」の方 */
 function honbanNames_(ev){
-  var names = [], s = String(ev.staff || '').split(/[、,，]/);
+  var list = [], seen = {}, s = String(ev.staff || '').split(/[、,，]/);
   for (var i = 0; i < s.length; i++){
     var kv = s[i].split(/[：:]/);
     var nm = kv.length >= 2 ? kv[1].replace(/^\s+|\s+$/g, '') : '';
-    if (nm && names.indexOf(nm) < 0) names.push(nm);
+    if (nm && !seen[nm]){ seen[nm] = 1; list.push({ name: nm, why: kv[0].replace(/^\s+|\s+$/g, '') }); }
   }
-  var staffN = names.length;
   var yes = attOf(ev.id).yes;
-  for (var j = 0; j < yes.length; j++) if (names.indexOf(yes[j]) < 0) names.push(yes[j]);
-  return { names: names, staff: staffN, yes: yes.length };
-}
-
-function fillHonban_(){
-  var row = $('honbanRow'), sel = $('addTarget');
-  if (!row || !sel) return;
-  if (sel.value !== '係のみ' || editingId){ row.style.display = 'none'; return; }
-  row.style.display = 'block';
-  var list = honbanList_();
-  var html = '<option value="">（選ばない）</option>';
-  for (var i = 0; i < list.length; i++){
-    var h = honbanNames_(list[i]);
-    var dp = String(list[i].date).split('-'), dd = new Date(+dp[0], +dp[1] - 1, +dp[2]);
-    var dl = (+dp[1]) + '/' + (+dp[2]) + '（' + '日月火水木金土'.charAt(dd.getDay()) + '）';
-    html += '<option value="' + esc(list[i].id) + '">' + dl + ' ' + esc(list[i].title) +
-            '（係' + h.staff + '人・参加' + h.yes + '人）</option>';
+  for (var j = 0; j < yes.length; j++){
+    if (!seen[yes[j]]){ seen[yes[j]] = 1; list.push({ name: yes[j], why: '参加' }); }
   }
-  $('addHonban').innerHTML = html;
-  $('honbanNote').innerHTML = list.length
-    ? '選ばなくても、下の係の欄に直接入れられます。'
-    : 'この日の5〜14日後に、全員の予定がありません。下の係の欄に直接入れてください。';
+  return list;
 }
 
-function pickHonban_(id){
-  if (!id) return;
-  var ev = eventOf_(id);
+function openShitami(evId){
+  var ev = eventOf_(evId);
   if (!ev) return;
-  var have = {};
-  for (var i = 0; i < staffRows.length; i++) if (staffRows[i].name) have[staffRows[i].name] = 1;
-  var h = honbanNames_(ev), add = 0;
-  var rows = [];
-  for (var r = 0; r < staffRows.length; r++){
-    if (staffRows[r].role || staffRows[r].name || staffRows[r].roleFree) rows.push(staffRows[r]);
-  }
-  for (var j = 0; j < h.names.length; j++){
-    if (have[h.names[j]]) continue;
-    rows.push({ role: HONBAN_ROLE, roleFree: '', name: h.names[j] });
-    have[h.names[j]] = 1; add++;
-  }
-  staffRows = rows;
-  renderStaffRows();
-  try { refreshAddTargetWho(); } catch(e){}
-  $('honbanNote').innerHTML = esc(ev.title) + ' から ' + add + '人を写しました。' +
-    '＋αの方は係の欄の空いた行で足し、来ない方は名前を「（名前）」に戻すと外れます。';
+  if (SHITAMI && SHITAMI.evId === evId){ SHITAMI = null; renderList(); return; }   /* もう一度押したら閉じる */
+  var p = String(ev.date).split('-');
+  var dt = new Date(+p[0], +p[1] - 1, +p[2]);
+  dt.setDate(dt.getDate() - 7);                     /* 最初は山行の7日前 */
+  var now = new Date(); now.setHours(0, 0, 0, 0);
+  if (dt < now) dt = now;                            /* 過ぎていれば今日 */
+  var tm = String(ev.time || '').match(/(\d{1,2}):(\d{2})/);
+  var pick = {}, hn = honbanNames_(ev);
+  for (var i = 0; i < hn.length; i++) pick[hn[i].name] = true;
+  SHITAMI = { evId: evId, y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate(),
+              h: tm ? String(parseInt(tm[1], 10)) : '', mi: tm ? tm[2] : '00', pick: pick };
+  renderList();
+  try { scrollToEv(evId); var f = $('shitami-' + evId); if (f) f.scrollIntoView({ block: 'center' }); } catch (e){}
+}
+
+function shitamiSet_(k, v){ if (SHITAMI) SHITAMI[k] = v; }
+function shitamiPick_(nm, on){ if (SHITAMI) SHITAMI.pick[nm] = !!on; }
+
+function shitamiFormHtml_(ev){
+  if (!SHITAMI || SHITAMI.evId !== ev.id) return '';
+  var S = SHITAMI, i, o;
+  var sel = function(k, from, to, unit, cur){
+    var h = '<select onchange="shitamiSet_(\'' + k + '\', this.value)">';
+    for (var x = from; x <= to; x++) h += '<option value="' + x + '"' + (String(cur) === String(x) ? ' selected' : '') + '>' + x + unit + '</option>';
+    return h + '</select>';
+  };
+  var ny = new Date().getFullYear();
+  var hh = '<select onchange="shitamiSet_(\'h\', this.value)"><option value="">時間なし</option>';
+  for (i = 0; i <= 23; i++) hh += '<option value="' + i + '"' + (S.h === String(i) ? ' selected' : '') + '>' + i + '時</option>';
+  hh += '</select>';
+  var mm = '<select onchange="shitamiSet_(\'mi\', this.value)">';
+  for (i = 0; i < 60; i += 5){ o = (i < 10 ? '0' : '') + i; mm += '<option value="' + o + '"' + (S.mi === o ? ' selected' : '') + '>' + o + '分</option>'; }
+  mm += '</select>';
+  var hn = honbanNames_(ev), inH = {}, rows = '';
+  var chk = function(nm, why){
+    return '<label class="shchk"><input type="checkbox"' + (S.pick[nm] ? ' checked' : '') +
+           ' onchange="shitamiPick_(\'' + esc(nm).replace(/'/g, '') + '\', this.checked)"> ' + esc(nm) +
+           (why ? '<span class="shwhy">（' + esc(why) + '）</span>' : '') + '</label>';
+  };
+  for (i = 0; i < hn.length; i++){ inH[hn[i].name] = 1; rows += chk(hn[i].name, hn[i].why); }
+  var others = '', all = realMembers_();
+  for (i = 0; i < all.length; i++) if (!inH[all[i]]) others += chk(all[i], '');
+  return '<div class="shitami" id="shitami-' + ev.id + '">' +
+      '<div class="admsec-h">🔎 下見を入れる</div>' +
+      '<label>下見の日</label>' +
+      '<table class="row3"><tr><td style="width:38%">' + sel('y', ny, ny + 1, '年', S.y) + '</td><td style="width:31%">' + sel('m', 1, 12, '月', S.m) +
+        '</td><td style="width:31%">' + sel('d', 1, 31, '日', S.d) + '</td></tr></table>' +
+      '<label>集合の時刻</label>' +
+      '<table class="row3"><tr><td>' + hh + '</td><td>' + mm + '</td></tr></table>' +
+      '<label>行く方</label>' +
+      (rows ? '<p class="note">山行の係の方と「参加」の方に、最初から☑を入れています。</p>' + rows
+            : '<p class="note">山行の係・参加の方がまだいません。下から選んでください。</p>') +
+      (others ? '<div class="shsub">ほかの会員（＋αの方は☑）</div>' + others : '') +
+      '<button type="button" class="subbtn" onclick="submitShitami()">この内容で下見を登録する</button>' +
+      '<button type="button" class="cancelbtn" onclick="openShitami(\'' + ev.id + '\')">やめる</button>' +
+    '</div>';
+}
+
+function submitShitami(){
+  if (!SHITAMI) return;
+  var S = SHITAMI, ev = eventOf_(S.evId);
+  if (!ev) return;
+  var y = parseInt(S.y, 10), m = parseInt(S.m, 10), d = parseInt(S.d, 10);
+  var ck = new Date(y, m - 1, d);
+  if (ck.getMonth() !== m - 1){ alert('その月に ' + d + '日 はありません。日付を確かめてください'); return; }
+  var key = dkey(y, m, d);
+  if (key >= ev.date){ alert('下見の日が、山行（' + ev.date + '）と同じか後になっています。日付を確かめてください'); return; }
+  var name = getName();
+  if (!name){ showNamePick(); return; }
+  var names = [];
+  for (var nm in S.pick) if (S.pick.hasOwnProperty(nm) && S.pick[nm]) names.push(nm);
+  if (!names.length){ alert('行く方を1人以上選んでください'); return; }
+  names.sort(byMember_);
+  var staff = names.map(function(n){ return HONBAN_ROLE + '：' + n; }).join('、');
+  var time = S.h !== '' ? S.h + ':' + S.mi : '';
+  var title = '下見 ' + ev.title;
+
+  /* 届く相手と、届かない方（予定を入れる画面と同じ知らせ方） */
+  var who = targetNamesFor_('係のみ', staff, name);
+  var q = '「' + title + '」を ' + m + '月' + d + '日 に登録します。\n\n■ 行く方：' + names.join('、') + '\n' +
+          '■ お知らせが届くのは、行く方とあなた（' + who.length + '人）だけです。\n';
+  var miss = lineMissing_(who);
+  if (miss && miss.length) q += '■ このうち LINEでは届かない方：' + miss.join('、') + '\n';
+  var none = unreachable_(who);
+  if (none && none.length) q += '■ どの手段でも届かない方：' + none.join('、') + '（お口ぞえが要ります）\n';
+  if (!confirm(q + '\nよろしいですか？')) return;
+
+  var tid = 'tmp' + new Date().getTime() + '_0';
+  var memo = fmtDateTxt_(ev.date) + '「' + ev.title + '」の下見';
+  state.events.push({ id: tid, date: key, title: title, time: time, place: ev.place || '', memo: memo,
+    staff: staff, owner: name, ownerId: idOf(name), target: '係のみ', plan: '', report: '', lineGroup: '',
+    mycar: '1', locked: '', settle: '', cancelled: '', cancelNote: '' });
+  post({ action: 'addEvents', dates: [key], title: title, time: time, place: ev.place || '', staff: staff,
+         target: '係のみ', memo: memo, plan: '', report: '', lineGroup: '', mycar: '1', mail: true, owner: name },
+       '下見を登録しました（' + m + '月' + d + '日）', null, function(){
+    state.events = state.events.filter(function(e3){ return e3.id !== tid; });
+    render();
+  });
+  var back = S.evId;
+  SHITAMI = null;
+  render();
+  try { backToEv_(back); } catch (eB){}
+}
+
+/* 「11月12日」のような字（HTMLを含まない） */
+function fmtDateTxt_(key){
+  var p = String(key || '').split('-');
+  return (+p[1]) + '月' + (+p[2]) + '日';
 }
 
 function setMailRow(isEdit){
@@ -364,7 +420,6 @@ function openAddForm(y, m, d){
   fillDateSelects(y, m, d);
   if (!$('addHour').innerHTML) fillTimeSelects();
   resetStaff();
-  try { fillHonban_(); } catch (eH) {}   /* ★2026-09-29k */
   if ($('addCard').scrollIntoView) $('addCard').scrollIntoView(true);
 }
 
@@ -434,7 +489,6 @@ function editEvent(evId){
   var p = ev.date.split('-');
   openAddForm(parseInt(p[0], 10), parseInt(p[1], 10), parseInt(p[2], 10));
   editingId = evId;
-  try { fillHonban_(); } catch (eH) {}   /* ★2026-09-29k 直すときは出さない */
   setMailRow(true);   /* 変更のときはメールを送らない（何度も届かないように） */
   $('addTitleH').innerHTML = '予定を変更';
   $('addBtn').innerHTML = '変更を保存する';

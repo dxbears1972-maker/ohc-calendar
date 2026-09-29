@@ -583,9 +583,9 @@ function init(){
   };
   /* ★2026-09-03　期間・日付を変えても、できる日の一覧を出し直す */
   $('addRepLen').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
-  $('addY').onchange = function(){ try { refreshRepPreview(); } catch(e){} try { fillHonban_(); } catch(e){} };
-  $('addM').onchange = function(){ try { refreshRepPreview(); } catch(e){} try { fillHonban_(); } catch(e){} };
-  $('addD').onchange = function(){ try { refreshRepPreview(); } catch(e){} try { fillHonban_(); } catch(e){} };   /* ★2026-09-29k */
+  $('addY').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  $('addM').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
+  $('addD').onchange = function(){ try { refreshRepPreview(); } catch(e){} };
   $('reloadBtn').onclick = function(){ load(true); };
   $('cfgBtn').onclick = openCfg;
 

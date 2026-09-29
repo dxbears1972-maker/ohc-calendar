@@ -460,6 +460,13 @@ function evOpsHtml_(ev, o){
     sec2 += act("delEvent('" + id + "','" + esc(ev.title).replace(/'/g, '') + "')", '削除',
                 '予定そのものを消します（中止とは違います）', true);
   }
+  /* ★★2026-09-29m　下見を入れる（全員の予定で、まだ終わっていないもの。有料オプションとは別） */
+  var todayS = (function(){ var n = new Date(); return dkey(n.getFullYear(), n.getMonth() + 1, n.getDate()); })();
+  if (o.canSettle && !o.isCancel && !ev.target && ev.date > todayS){
+    sec3 += act("openShitami('" + id + "')", '🔎 下見を入れる',
+                'この山行の下見を、日付と行く方を選んで登録します（係・参加の方に最初から☑）');
+    sec3 += shitamiFormHtml_(ev);
+  }
   if (o.canSettle && !o.isCancel && (CLUB.optPlan || CLUB.optCourse)){
     if (CLUB.optPlan) sec3 += act("openPlanSheet('" + id + "')", '📄 計画書・報告書の下書き',
                                   '参加の方と係を入れた、計画書・報告書の下書きを作ります');
@@ -467,6 +474,7 @@ function evOpsHtml_(ev, o){
                                     'YAMAPの共有URLから、分岐ごとの到着時刻の表を作ります');
   }
   if (!sec1 && !sec2 && !sec3) return '';
+  if (SHITAMI && SHITAMI.evId === id) EV_OPS_OPEN[id] = true;   /* ★2026-09-29m 下見の入力中は閉じない */
   var on = !!EV_OPS_OPEN[id];
   var box = function(h, body){ return body ? '<div class="admsec"><div class="admsec-h">' + h + '</div>' + body + '</div>' : ''; };
   return '<div class="admgrp evops' + (on ? ' on' : '') + '" id="evopsg-' + id + '">' +
