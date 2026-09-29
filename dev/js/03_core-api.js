@@ -166,6 +166,9 @@ function applyData(data){
     TAKEN = data.taken || [];
     CONTACTS = data.contacts || [];
     DRIVERS = data.drivers || [];   /* ★2026-09-29q */
+    /* ★2026-09-30a　返事が届いた。管理者の画面で「読み込んでいます」の間に開いていた選ぶ欄を、最新にする */
+    DRIVERS_FRESH = true;
+    try { admDrvRefresh_(); } catch (eDR) {}
 
     /* ★★2026-09-21（工事G-2 (b) 追補）　管理者なのに4けたがまだ無い方に、
        　この場で決めていただくためのお誘いを出します（1回だけ聞きます）。 */

@@ -547,17 +547,31 @@ function admDriversHtml_(){
              ' onchange="admDrvToggle(\'' + esc(m.name) + '\', this.checked)">' +
            esc(m.name) + '</label>';
   }
-  return '<div class="admsec">' +
+  /* ★2026-09-30a　サーバーの返事が届くまでは保存させない（端末の控えが古い・無いとき、全員チェックなしに見えるため。本番 2026-09-30a と同じ直し） */
+  return '<div class="admsec" id="admDrvSec"' + (DRIVERS_FRESH ? '' : ' data-wait="1"') + '>' +
            '<div class="admsec-h">🚗 車を出せる方（マイカー提供）</div>' +
            '<p class="note">印を付けた方だけに、マイカーで移動する予定で「○ 参加」を押したとき、' +
              '<b>「車を出せますか？」</b>が出ます。<br>だれにも印が無い間は、だれにも出ません。</p>' +
            '<p class="note" id="admDrvCount" style="font-weight:bold">いま ' + n + '人' +
              (ADM_DRV_ ? '（まだ保存していません）' : '') + '</p>' +
            h +
-           '<button type="button" class="bigbtn" style="margin-top:8px"' +
+           (DRIVERS_FRESH ? '' : '<p class="note" id="admDrvWait" style="color:#b00000">最新の内容を読み込んでいます…（終わるまで保存できません）</p>') +
+           '<button type="button" class="bigbtn" id="admDrvSave" style="margin-top:8px' + (DRIVERS_FRESH ? '' : ';opacity:.45') + '"' +
+             (DRIVERS_FRESH ? '' : ' disabled') +
              ' onclick="adminSaveDrivers(this)">この内容で保存する</button>' +
            admSecMsg_('drivers') +
          '</div>';
+}
+
+/* ★2026-09-30a　返事が届いたら（applyData から）：待ちの形で出ていた選ぶ欄を最新にする。
+   　★触っていなければ描き直す。触っていたら選びかけは残し、保存だけ押せるようにする */
+function admDrvRefresh_(){
+  var el = $('admDrvSec');
+  if (!el || el.getAttribute('data-wait') !== '1') return;
+  if (!ADM_DRV_){ el.outerHTML = admDriversHtml_(); return; }
+  el.removeAttribute('data-wait');
+  var w = $('admDrvWait'); if (w) w.parentNode.removeChild(w);
+  var b = $('admDrvSave'); if (b){ b.disabled = false; b.style.opacity = ''; }
 }
 
 function admDrvToggle(name, on){
@@ -571,6 +585,7 @@ function admDrvToggle(name, on){
 }
 
 function adminSaveDrivers(btn){
+  if (!DRIVERS_FRESH){ admSayAt_('drivers', '最新の内容を読み込んでいます。少し待ってから保存してください。', true, null); return; }   /* ★2026-09-30a */
   var a = admDrvNow_(), ids = [], miss = [];
   for (var i = 0; i < a.length; i++){
     var id = MEMBER_ID[a[i]];
