@@ -756,8 +756,9 @@
 
   <!-- 設定（めったに使わないものは、ここにまとめる） -->
   <p style="text-align:center; margin-top:14px">
-    <a class="cfgbtn" href="https://dxbears1972-maker.github.io/ohc-calendar/guide/"
-       target="_blank" rel="noopener">❓ 使い方</a>
+    <!-- ★★2026-09-29c　押したことを操作ログに残す（logGuideOpen）。?from=app は、取説の側で「アプリから来た」と分けるため -->
+    <a class="cfgbtn" href="https://dxbears1972-maker.github.io/ohc-calendar/guide/?from=app"
+       target="_blank" rel="noopener" onclick="logGuideOpen()">❓ 使い方</a>
     <button type="button" id="cfgBtn" class="cfgbtn">⚙ 設定</button>
   </p>
   <div class="card" id="cfgCard" style="display:none">
@@ -921,7 +922,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-29b';
+var APP_VER = '2026-09-29c';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -2155,6 +2156,16 @@ function setCar(evId, v){
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
          status: 'yes', car: n ? String(n) : '', by: name },
        n ? ('車を出せる（' + n + '人乗り）と送りました') : '車は「出さない」と送りました');
+}
+
+/* ★★2026-09-29c　「❓ 使い方」を押したことを、操作ログに残す（只隈さん「調べようと頑張ったのか、
+   　食わず嫌いなのかがわかる」）。★画面には何も出さない・返事も待たない。
+   　★サーバーは名乗った端末の分だけ残します（名乗る前に押しても残りません）。 */
+function logGuideOpen(){
+  try {
+    if (!getName()) return;
+    api('POST', { action: 'logGuide', kind: 'open', from: 'app', deviceId: deviceId() }, function(){});
+  } catch(e){}
 }
 
 function renderList(){
