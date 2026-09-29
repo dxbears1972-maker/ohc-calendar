@@ -592,6 +592,14 @@ function adminSaveDrivers(btn){
         return;
       }
       try { applyData(data); } catch (eA) {}
+      /* ★2026-09-29r　返ってきた「車を出せる方」が、選んだとおりかを確かめてから「保存しました」と出す
+         　（書き込みが届かず、ふつうの読み込みの返事だけが来ることがあるため） */
+      var same = (DRIVERS.length === a.length);
+      for (var k = 0; same && k < a.length; k++){ if (DRIVERS.indexOf(a[k]) < 0) same = false; }
+      if (!same){
+        admSayAt_('drivers', '保存できたか確かめられませんでした。少し待って、もう一度「この内容で保存する」を押してください。', true, null);
+        return;
+      }
       ADM_DRV_ = null;
       admSayAt_('drivers', '保存しました（車を出せる方 ' + DRIVERS.length + '人）', false, null);
     });

@@ -54,7 +54,7 @@ function admSay_(msg, isErr){
    　載っていればそれを使います。載っていない古いサーバーのときは、
    　これまでどおり読み直します（batを当てる前でも動きます）。 */
 function admApplyView_(data){
-  if (!data || !data.view || !data.view.members) return false;
+  if (!data || !data.view || !admViewOk_(data.view)) return false;
   ADMIN_DATA = data.view;
   ADMIN_STALE = false;
   return true;
@@ -102,6 +102,14 @@ function closeAdminView(){
 var ADMIN_LOADING = false;
 var ADMIN_WAIT = [];
 
+/* ★2026-09-29r　管理者の画面の返事か（会員が「名前の入った箱」で届いているか） */
+function admViewOk_(d){
+  if (!d || !d.members || !d.logs) return false;
+  for (var i = 0; i < d.members.length; i++){
+    if (!d.members[i] || typeof d.members[i] !== 'object' || !d.members[i].name) return false;
+  }
+  return true;
+}
 function adminLoad_(cb){
   if (ADMIN_DATA && !ADMIN_STALE){ if (cb) cb(null); return; }
   if (cb) ADMIN_WAIT.push(cb);
@@ -114,6 +122,11 @@ function adminLoad_(cb){
       if (err || !data || data.error){
         msg = (data && data.error) ? data.error :
               '読み込めませんでした。電波の良いところで、もう一度押してください。';
+      } else if (!admViewOk_(data)){
+        /* ★★2026-09-29r　管理者の画面の返事ではなく、カレンダー全体の返事が届くことがある
+           　（デプロイの直後に実測。名前・役割・端末がすべて空の一覧になっていた＝只隈さんのご指摘）。
+           　★その返事は使わず、もう一度押していただく */
+        msg = '読み込みがうまくいきませんでした。少し待って、もう一度押してください。';
       } else {
         ADMIN_DATA = data;
         ADMIN_STALE = false;
