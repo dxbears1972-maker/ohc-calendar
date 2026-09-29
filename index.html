@@ -199,6 +199,13 @@
   .attlist b.maybe { color: #b57e00; }
   .attlist b.no { color: #666; }
   .attlist b.pending { color: #b00020; }
+  /* ★★2026-09-29b　車を出せますか（印のある予定だけ） */
+  .carpick { margin-top: 8px; font-size: 16px; color: #333; }
+  .carpick select { font-size: 16px; padding: 6px 8px; border-radius: 8px; border: 1px solid #9bb89e; background: #fff; }
+  .carhint { font-size: 13px; color: #777; margin-top: 3px; }
+  .attlist b.car { color: #1f5f8b; }
+  .attlist .carsum { font-size: 14px; color: #555; }
+  .attlist b.carng { color: #b00020; }
   .attlist a.attdel {
     color: inherit; text-decoration: none;
     border-bottom: 1px dotted #b00020;
@@ -616,6 +623,12 @@
       <td style="width:31%"><select id="addM"></select></td>
       <td style="width:31%"><select id="addD"></select></td>
     </tr></table>
+    <!-- ★★2026-09-29b　マイカー移動の印（日付のすぐ後ろ）。入れた予定にだけ「車を出せますか？」と右上の車が出る -->
+    <p class="chkrow">
+      <label><input type="checkbox" id="addMycar">
+        🚗 マイカーで移動する（乗り合わせ・マイカー精算を使う）</label>
+    </p>
+    <p class="note">入れた予定にだけ、参加の方へ「車を出せますか？」、係の方へ右上の車（マイカー精算）が出ます。</p>
     <div id="repRow">
       <label>くり返し</label>
       <select id="addRep">
@@ -908,7 +921,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-09-29a';
+var APP_VER = '2026-09-29b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -1991,9 +2004,12 @@ function proxySet(evId, name, st){
   var found = false;
   for (var j = 0; j < state.attendance.length; j++){
     var a = state.attendance[j];
-    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+    if (a.eventId === evId && a.name === name){
+      a.status = st; found = true;
+      if (st !== 'yes') a.car = '';   /* ★2026-09-29b */
+    }
   }
-  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });
   render();
   var label = (st === 'yes' ? '○ 参加' : (st === 'maybe' ? '△ 未定' : '× 不参加'));
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
@@ -2048,6 +2064,97 @@ function hideCutoff_(){
 function toggleOldEvents(){
   state.showOldEvents = !state.showOldEvents;
   renderList();
+}
+
+/* ==================================================================
+   ★★2026-09-29b　車を出せますか（開発版 2026-09-28h・29i から、車の部分だけを写しました）
+   　・印（🚗 マイカーで移動する）のある予定で、「○ 参加」の方にだけ選び箱を出します
+   　・人数は「運転する方を含めた」乗れる人数です（出さない／2〜10人乗り）
+   　・参加でない回答に変えると、車も自動で「出さない」に戻ります（サーバーでも消します）
+   　・出欠の一覧の下に「🚗 車 ○台／席 ○／参加 ○人」。足りないと赤で「あと○席 足りません」
+   ★計画書・報告書の下書きは、本番には入れていません（別料金・2026-09-29 只隈さん決定）。
+   ================================================================== */
+var CAR_SEATS_MAX = 10;
+
+/* その方の「車を出せる（何人乗り）」。出さない／分からないときは 0 */
+function carOf_(evId, name){
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId === evId && a.name === name && a.status === 'yes'){
+      var n = parseInt(a.car, 10);
+      return (n >= 2 && n <= CAR_SEATS_MAX) ? n : 0;
+    }
+  }
+  return 0;
+}
+
+/* その予定で車を出す方（名簿の順）。[{ name, seats }] */
+function carsOf_(evId){
+  var r = [];
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId !== evId || a.status !== 'yes') continue;
+    var n = parseInt(a.car, 10);
+    if (n >= 2 && n <= CAR_SEATS_MAX) r.push({ name: a.name, seats: n });
+  }
+  r.sort(function(x, y){ return byMember_(x.name, y.name); });
+  return r;
+}
+
+/* 参加と答えた方の「車を出せますか」の選び箱 */
+function carPickHtml_(evId, name){
+  var cur = carOf_(evId, name);
+  var h = '<div class="carpick">🚗 車を出せますか？ ' +
+          '<select onchange="setCar(\'' + evId + '\', this.value)">' +
+          '<option value="0"' + (cur ? '' : ' selected') + '>出さない</option>';
+  for (var n = 2; n <= CAR_SEATS_MAX; n++){
+    h += '<option value="' + n + '"' + (cur === n ? ' selected' : '') + '>出せる（' + n + '人乗り）</option>';
+  }
+  h += '</select><div class="carhint">人数は、運転する方を含めた乗れる人数です</div></div>';
+  return h;
+}
+
+/* 出欠の一覧の下に出す「車」の行 */
+function carLineHtml_(evId, yesCount, forStaff){
+  var cars = carsOf_(evId);
+  if (!cars.length){
+    /* 車を出す方がまだいないときは、段取りをする方（係・登録者・幹事・管理者）にだけ出す */
+    if (!forStaff || !yesCount) return '';
+    return '<br><b class="car">🚗 車 0台</b>：まだどなたも「出せる」と答えていません';
+  }
+  var seats = 0, parts = [];
+  for (var i = 0; i < cars.length; i++){
+    seats += cars[i].seats;
+    parts.push(esc(cars[i].name) + '(' + cars[i].seats + ')');
+  }
+  var h = '<br><b class="car">🚗 車 ' + cars.length + '台</b>：' + parts.join('･') +
+          '<br><span class="carsum">席 ' + seats + ' ／ 参加 ' + yesCount + '人';
+  if (seats < yesCount) h += '　<b class="carng">あと ' + (yesCount - seats) + '席 足りません</b>';
+  else h += '　足りています';
+  return h + '</span>';
+}
+
+/* 車を出せる（何人乗り）を送る。★出欠は「参加」のまま */
+function setCar(evId, v){
+  var name = getName();
+  if (!name){ showNamePick(); return; }
+  var n = parseInt(v, 10);
+  if (!(n >= 2 && n <= CAR_SEATS_MAX)) n = 0;
+  for (var i = 0; i < state.events.length; i++){
+    if (state.events[i].id === evId && state.events[i].locked){
+      alert('この予定の出欠は締め切られています');
+      render();
+      return;
+    }
+  }
+  for (var j = 0; j < state.attendance.length; j++){
+    var a = state.attendance[j];
+    if (a.eventId === evId && a.name === name){ a.car = n ? String(n) : ''; }
+  }
+  render();
+  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+         status: 'yes', car: n ? String(n) : '', by: name },
+       n ? ('車を出せる（' + n + '人乗り）と送りました') : '車は「出さない」と送りました');
 }
 
 function renderList(){
@@ -2121,7 +2228,9 @@ function renderList(){
        　会員の皆さんの画面から、使わないボタンを減らすためです。 */
     var canSettle_ = (myn !== '') &&
                      (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn));
-    var icons = canSettle_ ?
+    /* ★★2026-09-29b　マイカー移動の印がある予定だけ（★すでに精算した予定は、印が無くても出す） */
+    var carOn_ = !!ev.mycar;
+    var icons = (canSettle_ && (carOn_ || ev.settle)) ?
       ('<a href="' + CARPOOL_URL + '?event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
@@ -2161,7 +2270,9 @@ function renderList(){
           '<button type="button" class="' + (mine === 'yes' ? 'on-yes' : '') + '" onclick="answer(\'' + ev.id + '\',\'yes\')">○ 参加</button>' +
           '<button type="button" class="' + (mine === 'maybe' ? 'on-maybe' : '') + '" onclick="answer(\'' + ev.id + '\',\'maybe\')">△ 未定</button>' +
           '<button type="button" class="' + (mine === 'no' ? 'on-no' : '') + '" onclick="answer(\'' + ev.id + '\',\'no\')">× 不参加</button>' +
-        '</div>'
+        '</div>' +
+        /* ★★2026-09-29b　印のある予定で、参加と答えた方にだけ「車を出せますか」 */
+        (mine === 'yes' && !isCancel && carOn_ ? carPickHtml_(ev.id, myn) : '')
       ) +
       (myn !== '' && (isStaff(myn) || isOwnerOf(ev, myn) || staffCanEdit(ev, myn)) && !locked ? buildProxyBox(ev) : '') +
       '<div class="attlist">' +
@@ -2172,6 +2283,8 @@ function renderList(){
           ('<br><b class="pending">未回答 ' + att.pending.length + '人</b>：' +
             attNamesHtml(att.pending, ev.id, false, '') )
           : '') +
+        /* ★★2026-09-29b　車の台数と席（印のある予定。★印を外しても、もう「出せる」と答えた方がいれば出す） */
+        ((carOn_ || carsOf_(ev.id).length) ? carLineHtml_(ev.id, att.yes.length, canSettle_) : '') +
       '</div>' +
       /* ★2026-08-24　未回答の方へ、その場でLINEを送る（幹事・管理者だけ）。
          　LINEに登録ずみの方へ直接届きます。相手を選ぶ操作は要りません。 */
@@ -2503,9 +2616,12 @@ function answer(evId, st){
   var found = false;
   for (var j = 0; j < state.attendance.length; j++){
     var a = state.attendance[j];
-    if (a.eventId === evId && a.name === name){ a.status = st; found = true; }
+    if (a.eventId === evId && a.name === name){
+      a.status = st; found = true;
+      if (st !== 'yes') a.car = '';   /* ★2026-09-29b　参加でなくなったら車も出さない（サーバーも消します） */
+    }
   }
-  if (!found) state.attendance.push({ eventId: evId, name: name, status: st });
+  if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });
   render();
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
          status: st, by: getName() }, '回答を送りました');
@@ -2777,6 +2893,7 @@ function closeAddForm(){
   $('addLineGroup').value = '';
   $('addRep').value = 'none';
   $('repLenWrap').style.display = 'none';
+  if ($('addMycar')) $('addMycar').checked = false;   /* ★2026-09-29b */
   closePicker();
   editingId = '';
   setMailRow(false);
@@ -2805,6 +2922,7 @@ function editEvent(evId){
   $('addPlan').value = ev.plan || '';
   $('addReport').value = ev.report || '';
   $('addLineGroup').value = ev.lineGroup || '';
+  if ($('addMycar')) $('addMycar').checked = !!ev.mycar;   /* ★2026-09-29b */
   $('addHour').value = '';
   $('addMin').value = '00';
   var tm = ev.time ? ev.time.match(/(\d{1,2}):(\d{2})/) : null;
@@ -2907,6 +3025,9 @@ function submitAdd(){
     return;
   }
 
+  /* ★2026-09-29b　マイカー移動の印 */
+  var mycar = ($('addMycar') && $('addMycar').checked) ? '1' : '';
+
   /* 編集モードなら既存の予定を書き換える */
   if (editingId){
     /* 日付が変わったときは、知らせるかどうかを聞く */
@@ -2942,6 +3063,7 @@ function submitAdd(){
       ue.plan  = plan;
       ue.report = report;
       ue.lineGroup = lineGroup;
+      ue.mycar = mycar;
     }
 
     post({
@@ -2958,6 +3080,7 @@ function submitAdd(){
       plan: plan,
       report: report,
       lineGroup: lineGroup,
+      mycar: mycar,
       name: name
     }, '予定を変更しました', null, function(){
       /* 送れなかったときは、元の内容に戻す */
@@ -3015,7 +3138,7 @@ function submitAdd(){
       place: $('addPlace').value, memo: $('addMemo').value,
       staff: serializeStaff(), owner: name, ownerId: idOf(name),
       target: $('addTarget').value,
-      plan: plan, report: report, lineGroup: lineGroup,
+      plan: plan, report: report, lineGroup: lineGroup, mycar: mycar,
       locked: '', settle: '', cancelled: '', cancelNote: ''
     });
   }
@@ -3032,6 +3155,7 @@ function submitAdd(){
     plan: plan,
     report: report,
     lineGroup: lineGroup,
+    mycar: mycar,
     mail: $('addMail').checked,
     owner: name
   }, '予定を登録しました（' + dates.length + '件）', function(){
