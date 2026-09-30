@@ -23,6 +23,233 @@ function logGuideOpen(){
   } catch(e){}
 }
 
+/* ==================================================================
+   ★★2026-10-01a（B2 段6）　「❓ 使い方」を、アプリの中の枠で開く。
+   　取説はWebに置かない（2026-09-28 案A）。名乗った方にだけ、GASが役割に合う文書を返す（action: 'guide'）。
+   　・逆引き（faq）から始まる。逆引きの「見るところ」（a.gref）を押すと、その文書のその見出しへ
+   　・「← もどる」で前の文書の前の位置へ／「✕ 閉じる」でカレンダーへ
+   　・見られない文書（④など）を指す逆引きの行は隠す（GASが返す docs を見て）。★GAS側でも断る
+   　・閉じたときに、見ていた時間といちばん下に見えた章を操作ログへ（取説のページと同じ）
+   　・取説のHTMLは iframe（sandbox・中のスクリプトは動かない）に入れる。
+   　　★iPhone では iframe の中が回らないので、iframe を中身の高さにして、外の箱を回す
+   ================================================================== */
+var GUIDE = { box: null, wrap: null, frame: null, cache: {}, docs: null, stack: [],
+              cur: '', t0: 0, reach: '', busy: false };
+var GUIDE_NAMES = { faq: '困ったときは', g1: '手順書①', g2: '手順書②', g3: '手順書③',
+                    g4: '手順書④', intro: '導入案内', line1: 'LINEのお知らせ①', line2: 'LINEのお知らせ②' };
+
+function guideBuild_(){
+  if (GUIDE.box) return;
+  var box = document.createElement('div');
+  box.id = 'guideSheet';
+  box.innerHTML =
+    '<div class="guidebar">' +
+      '<button type="button" id="guideBack" class="guidebtn">← もどる</button>' +
+      '<span id="guideTitle" class="guidetitle"></span>' +
+      '<button type="button" id="guideClose" class="guidebtn">✕ 閉じる</button>' +
+    '</div>' +
+    '<div id="guideWrap" class="guidewrap">' +
+      '<div id="guideMsg" class="guidemsg"></div>' +
+      '<iframe id="guideFrame" class="guideframe" sandbox="allow-same-origin" title="使い方"></iframe>' +
+    '</div>';
+  document.body.appendChild(box);
+  GUIDE.box = box; GUIDE.wrap = $('guideWrap'); GUIDE.frame = $('guideFrame');
+  $('guideBack').onclick = guideBack_;
+  $('guideClose').onclick = closeGuide;
+  GUIDE.wrap.addEventListener('scroll', guideLook_, { passive: true });
+  window.addEventListener('resize', guideFit_);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden' && GUIDE.t0) guideLeaveLog_();
+  });
+}
+
+function openGuide(){
+  guideBuild_();
+  logGuideOpen();
+  GUIDE.stack = []; GUIDE.cur = ''; GUIDE.reach = ''; GUIDE.t0 = Date.now();
+  document.body.classList.add('guideopen');
+  GUIDE.box.style.display = 'flex';
+  if (!getName()){
+    guideMsg_('お名前を選んでから、もう一度「❓ 使い方」を押してください。<br>' +
+      '（使い方の説明書は、カレンダーでお名前を選んだ方だけが見られます）', false);
+    GUIDE.frame.style.display = 'none';
+    $('guideTitle').innerHTML = '使い方';
+    $('guideBack').style.visibility = 'hidden';
+    return;
+  }
+  guideShow_('faq', '', 0);
+}
+
+function closeGuide(){
+  if (GUIDE.t0) guideLeaveLog_();
+  if (GUIDE.box) GUIDE.box.style.display = 'none';
+  document.body.classList.remove('guideopen');
+}
+
+/* 閉じたとき（画面を離れたとき）に1回だけ送る */
+function guideLeaveLog_(){
+  var sec = Math.round((Date.now() - GUIDE.t0) / 1000);
+  GUIDE.t0 = 0;
+  try {
+    if (!getName()) return;
+    guideLook_();
+    api('POST', { action: 'logGuide', kind: 'leave', sec: sec, reach: GUIDE.reach,
+                  doc: GUIDE.cur, deviceId: deviceId() }, function(){});
+  } catch(e){}
+}
+
+function guideMsg_(html, retry){
+  var m = $('guideMsg');
+  m.innerHTML = html + (retry ? '<div style="margin-top:12px"><button type="button" class="guidebtn" ' +
+    'onclick="guideShow_(\'' + retry.doc + '\', \'' + retry.key + '\', 0, true)">もう一度読み込む</button></div>' : '');
+  m.style.display = html ? 'block' : 'none';
+}
+
+/* doc を開いて key の見出しへ（key が無ければ y の位置へ）。noPush：もどる／やり直しのとき */
+function guideShow_(doc, key, y, noPush){
+  if (GUIDE.busy) return;
+  if (GUIDE.cur && !noPush) GUIDE.stack.push({ doc: GUIDE.cur, y: GUIDE.wrap.scrollTop });
+  if (GUIDE.cache[doc]) { guideRender_(doc, key, y); return; }
+  GUIDE.busy = true;
+  GUIDE.frame.style.display = 'none';
+  $('guideTitle').innerHTML = esc(GUIDE_NAMES[doc] || '使い方');
+  guideMsg_('読み込んでいます…', false);
+  api('POST', { action: 'guide', doc: doc, deviceId: deviceId() }, function(err, data){
+    GUIDE.busy = false;
+    if (data && data.docs) GUIDE.docs = data.docs;
+    if (err || !data){
+      guideMsg_('通信できませんでした。電波のよい所で、もう一度お試しください。', { doc: doc, key: key || '' });
+      return;
+    }
+    if (data.error){
+      guideMsg_(esc(data.error), false);
+      if (GUIDE.stack.length) GUIDE.stack.pop();
+      return;
+    }
+    GUIDE.cache[doc] = data.html;
+    guideRender_(doc, key, y);
+  });
+}
+
+function guideBack_(){
+  var p = GUIDE.stack.pop();
+  if (!p) { closeGuide(); return; }
+  guideShow_(p.doc, '', p.y, true);
+}
+
+function guideRender_(doc, key, y){
+  GUIDE.cur = doc;
+  $('guideTitle').innerHTML = esc(GUIDE_NAMES[doc] || '使い方');
+  $('guideBack').style.visibility = GUIDE.stack.length ? 'visible' : 'hidden';
+  guideMsg_('', false);
+  var fr = GUIDE.frame;
+  fr.style.display = 'block';
+  fr.style.height = '100px';
+  fr.onload = function(){
+    var d = fr.contentDocument;
+    if (!d) return;
+    if (doc === 'faq') guideTrimFaq_(d);
+    d.addEventListener('click', guideClick_, true);
+    guideFit_();
+    var t = 0;
+    if (key){
+      var el = d.getElementById(key);
+      if (el) t = guideTop_() + el.getBoundingClientRect().top - 6;
+    } else if (y) t = y;
+    GUIDE.wrap.scrollTop = t;
+    guideLook_();
+  };
+  fr.srcdoc = GUIDE.cache[doc];
+}
+
+/* iframe を中身の高さに（外の箱を回すため） */
+function guideFit_(){
+  var fr = GUIDE.frame;
+  try {
+    var d = fr.contentDocument;
+    if (!d || !d.body || fr.style.display === 'none') return;
+    fr.style.height = '100px';
+    fr.style.height = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight) + 'px';
+  } catch(e){}
+}
+
+/* 逆引きから、見られない文書を指すリンク・行・表を外す */
+function guideTrimFaq_(d){
+  if (!GUIDE.docs) return;
+  var as = d.querySelectorAll('a.gref');
+  for (var i = 0; i < as.length; i++){
+    var a = as[i];
+    if (GUIDE.docs.indexOf(a.getAttribute('data-doc')) >= 0) continue;
+    var sib = a.previousSibling;
+    if (sib && sib.nodeType === 3 && /／\s*$/.test(sib.nodeValue)) sib.nodeValue = sib.nodeValue.replace(/\s*／\s*$/, '');
+    else if (a.nextSibling && a.nextSibling.nodeType === 3) a.nextSibling.nodeValue = a.nextSibling.nodeValue.replace(/^\s*／\s*/, '');
+    a.parentNode.removeChild(a);
+  }
+  var trs = d.querySelectorAll('tbody tr');
+  for (var k = 0; k < trs.length; k++){
+    var tr = trs[k];
+    var cell = tr.cells[tr.cells.length - 1];
+    if (cell && !cell.querySelector('a.gref')) tr.parentNode.removeChild(tr);
+  }
+  /* 節ごと外す：③幹事の方・④管理者の方の節は、その手順書が見られない方には出さない（行が②を指していても） */
+  var secDoc = { 'faq-kanji': 'g3', 'faq-admin': 'g4' };
+  for (var sid in secDoc){
+    var h = d.getElementById(sid);
+    if (!h || GUIDE.docs.indexOf(secDoc[sid]) >= 0) continue;
+    var kp0 = h.parentNode && h.parentNode.parentNode;
+    if (kp0 && kp0.className === 'keep') kp0.parentNode.removeChild(kp0);
+  }
+  var tbs = d.querySelectorAll('table');
+  for (var t = 0; t < tbs.length; t++){
+    if (tbs[t].querySelector('tbody tr')) continue;
+    var kp = tbs[t].parentNode;
+    if (kp && kp.className === 'keep') kp.parentNode.removeChild(kp);
+    else tbs[t].parentNode.removeChild(tbs[t]);
+  }
+}
+
+function guideClick_(ev){
+  var a = ev.target;
+  while (a && a.nodeName !== 'A') a = a.parentNode;
+  if (!a || !a.getAttribute) return;
+  var href = a.getAttribute('href') || '';
+  ev.preventDefault();
+  if (a.className === 'gref'){
+    var doc = a.getAttribute('data-doc'), key = a.getAttribute('data-key');
+    if (doc === GUIDE.cur) guideJump_(key);
+    else guideShow_(doc, key, 0);
+  } else if (href.charAt(0) === '#'){
+    guideJump_(href.substring(1));
+  } else if (/^https?:/.test(href)){
+    window.open(href, '_blank', 'noopener');
+  }
+}
+
+/* 外の箱（guideWrap）の中で、iframe がどこから始まるか（★offsetTop は guideSheet から測るので使わない） */
+function guideTop_(){
+  return GUIDE.frame.getBoundingClientRect().top - GUIDE.wrap.getBoundingClientRect().top + GUIDE.wrap.scrollTop;
+}
+
+function guideJump_(key){
+  var el = GUIDE.frame.contentDocument && GUIDE.frame.contentDocument.getElementById(key);
+  if (el) GUIDE.wrap.scrollTop = guideTop_() + el.getBoundingClientRect().top - 6;
+}
+
+/* いちばん下に見えた章（取説のページの look() と同じ考え方） */
+function guideLook_(){
+  try {
+    var d = GUIDE.frame.contentDocument;
+    if (!d) return;
+    var hs = d.querySelectorAll('.section h2');
+    var lim = GUIDE.wrap.scrollTop + GUIDE.wrap.clientHeight - guideTop_();
+    var best = '';
+    for (var i = 0; i < hs.length; i++){
+      if (hs[i].getBoundingClientRect().top < lim) best = String(hs[i].textContent || '').split('（')[0].replace(/^\s+|\s+$/g, '');
+    }
+    if (best) GUIDE.reach = (GUIDE_NAMES[GUIDE.cur] || '') + ' ' + best;
+  } catch(e){}
+}
+
 function api(method, body, cb, tryNo, fresh){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);

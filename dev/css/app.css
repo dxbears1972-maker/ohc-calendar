@@ -629,3 +629,18 @@ body.planopen { overflow: hidden; }
 .crst { font-weight: bold; color: #1f5f8b; white-space: nowrap; }
 .crsdel { font-size: 14px; padding: 4px 8px; margin: 1px; border: 1px solid #ccc; background: #fff; border-radius: 6px; }
 .crssum { font-size: 16px; font-weight: bold; margin: 10px 0 4px; line-height: 1.6; }
+
+/* ★★2026-10-01a（B2 段6）　アプリの中の「❓ 使い方」 */
+#guideSheet { display: none; flex-direction: column; position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 20000; background: #eef3ee; }
+body.guideopen { overflow: hidden; }
+.guidebar { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: #fff; border-bottom: 1px solid #c9d8cb; flex: 0 0 auto; }
+.guidetitle { flex: 1 1 auto; text-align: center; font-size: 16px; font-weight: bold; color: #2e6b34;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.guidebtn { font-size: 16px; padding: 8px 12px; border-radius: 8px; border: 1px solid #9bb89e;
+  background: #fff; color: #2e6b34; white-space: nowrap; }
+.guidewrap { flex: 1 1 auto; overflow: auto; -webkit-overflow-scrolling: touch; }
+.guidemsg { display: none; max-width: 640px; margin: 24px auto; padding: 16px; font-size: 17px; line-height: 1.7;
+  background: #fff; border-radius: 10px; }
+.guideframe { display: block; width: 100%; border: 0; }
