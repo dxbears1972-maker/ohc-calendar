@@ -584,7 +584,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-01d";
+var APP_VER = "2026-10-01e";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1653,6 +1653,7 @@ function addCar(data) {
     '<div class="car-head"><span class="car-title">車 ' + carCount + '</span>' +
     '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
     '<label>車の持ち主（行きの運転手）</label>' + carNameFieldHtml("car-name") +
+    '<p class="note car-seats" style="display:none;margin:4px 0 0;"></p>' +
     /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
     '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
       'background:#fff3e0;border:2px solid #e8a000;border-radius:8px;' +
@@ -1736,6 +1737,12 @@ function addCar(data) {
   if (data) {
     data = carDataToLegs_(data);
     setCarName(div, data.name || "");
+    if (data.seats) {
+      div.dataset.seats = String(data.seats);
+      var stEl = div.querySelector(".car-seats");
+      stEl.textContent = "🚗 " + data.seats + "人乗り（運転する方を含む・カレンダーで答えた数）";
+      stEl.style.display = "block";
+    }
     setIf(div, ".car-km", data.km);
     setIf(div, ".car-etc", data.etc);
     /* ★ETCの有無を戻します。（2026-08-17h）
@@ -3381,6 +3388,7 @@ function getFormData() {
       rlabel: c.dataset.rlabel || "",
       rcash: c.querySelector(".car-rcash").value,
       parkBy: c.querySelector(".car-parkby").value,
+      seats: c.dataset.seats || "",
       ent: c.querySelector(".car-ent").value,
       useEtc: c.querySelector(".chk-etc").checked,
       useFerry: c.querySelector(".chk-ferry").checked,
@@ -3584,6 +3592,28 @@ function calCachedJoined(eventId) {
   return [];
 }
 
+/* ★2026-10-01（㊴）カレンダーの控えから、その山行で「車を出す」と答えた方（参加・乗れる人数 2〜10）。
+   　名簿の順に並べます。[{ name, seats }] */
+function calCachedCars(eventId) {
+  try {
+    var c = calCache_();
+    var att = c.attendance || [], mem = c.members || [];
+    var out = [];
+    for (var a = 0; a < att.length; a++) {
+      var x = att[a];
+      if (!x || x.eventId !== eventId || x.status !== "yes" || !x.name) continue;
+      var n = parseInt(x.car, 10);
+      if (n >= 2 && n <= 10) out.push({ name: x.name, seats: n });
+    }
+    out.sort(function (p, q) {
+      var ip = mem.indexOf(p.name), iq = mem.indexOf(q.name);
+      if (ip < 0) ip = 999; if (iq < 0) iq = 999;
+      return ip - iq;
+    });
+    return out;
+  } catch (e) {}
+  return [];
+}
 function calCachedForm(eventId) {
   try {
     {
@@ -3835,7 +3865,18 @@ function draftHasInput_() {
   if (!hadLocal) {
     document.getElementById("cars").innerHTML = "";
     carCount = 0;
-    addCar();
+    /* ★2026-10-01（㊴）カレンダーで「車を出す（乗れる人数）」と答えた方の車を、最初から並べます */
+    var calCars = EVENT_ID ? calCachedCars(EVENT_ID) : [];
+    if (calCars.length) {
+      calCars.forEach(function (cc) { addCar({ name: cc.name, seats: cc.seats, same: true }); });
+      var lmC = document.getElementById("loadMsg");
+      lmC.innerHTML = "カレンダーで「車を出す」と答えた方の車を並べました（" +
+        calCars.map(function (cc) { return escapeHtml(cc.name) + "さん " + cc.seats + "人乗り"; }).join("、") +
+        "）。<br>走行距離などを入れて「計算する」を押してください。";
+      lmC.style.display = "block";
+    } else {
+      addCar();
+    }
     refreshPayerDropdown();
     /* 予定から開かれた初回は、日付・山名・集合場所・時間を自動で入れる */
     if (EVENT_DATE) document.getElementById("hikeDate").value = EVENT_DATE;
