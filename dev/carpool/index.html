@@ -1,0 +1,3706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2e6b34">
+<!-- カレンダーと同じアプリの一部として開くため、専用の manifest は置きません -->
+<link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="OHC精算">
+<title>OHC マイカー精算</title>
+<style>
+  /* ★2026-09-07（工事B B-3）画面の色はこの1本だけで決まります。
+     サーバー（設定シートの「画面の色」）が届いたら、ここを差し替えます。 */
+  :root { --club: #2e6b34; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 18px;
+    background: #eef3ee;
+    color: #222;
+    line-height: 1.6;
+    padding-bottom: 60px;
+  }
+  header {
+    background: var(--club);
+    color: #fff;
+    padding: 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,.2);
+  }
+  header h1 { font-size: 26px; }
+  header p { font-size: 15px; opacity: .9; }
+  main { max-width: 640px; margin: 0 auto; padding: 12px; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .card h2 {
+    font-size: 20px;
+    color: var(--club);
+    border-left: 6px solid var(--club);
+    padding-left: 10px;
+    margin-bottom: 12px;
+  }
+  label { font-size: 17px; font-weight: bold; display: block; margin-top: 10px; }
+  .hint { font-size: 14px; font-weight: normal; color: #777; }
+  input[type=text], input[type=number], input[type=date], input[type=time], select {
+    width: 100%;
+    font-size: 22px;
+    padding: 10px;
+    border: 2px solid #aaa;
+    border-radius: 8px;
+    margin-top: 4px;
+    background: #fff;
+  }
+  input:focus, select:focus { border-color: var(--club); outline: none; }
+  input.err { border-color: #c33; background: #fff0f0; }
+  /* チェックで入力欄を出す */
+  .chk-row { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 12px; }
+  .chk-row label {
+    font-size: 17px; font-weight: bold; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+    background: #eef3ee; border: 2px solid #cdd6cd;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  }
+  .chk-row label.on { background: #d6ead6; border-color: var(--club); color: var(--club); }
+  .chk-row input[type=checkbox] { width: 26px; height: 26px; }
+  .opt-blk { display: none; }
+  .opt-blk.on { display: block; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .subhead { font-size: 15px; font-weight: bold; color: var(--club); margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
+  /* 人数ステッパー */
+  .stepper { display: flex; align-items: center; gap: 14px; justify-content: center; margin-top: 8px; }
+  .stepper button {
+    width: 64px; height: 64px;
+    font-size: 34px; font-weight: bold;
+    border: none; border-radius: 50%;
+    background: var(--club); color: #fff;
+    cursor: pointer;
+  }
+  .stepper button:active { background: #1d4a22; }
+  .stepper .num { font-size: 44px; font-weight: bold; min-width: 90px; text-align: center; }
+  .btn {
+    display: block; width: 100%;
+    font-size: 22px; font-weight: bold;
+    padding: 16px; margin-top: 14px;
+    border: none; border-radius: 10px;
+    cursor: pointer;
+  }
+  .btn-main { background: #d9541e; color: #fff; font-size: 26px; }
+  .btn-main:active { background: #b34317; }
+  .btn-sub { background: #e8f0e8; color: var(--club); border: 2px dashed var(--club); }
+  a.btn { text-align: center; text-decoration: none; }
+  .btn-small {
+    font-size: 16px; padding: 8px 14px;
+    border: none; border-radius: 8px;
+    background: #c33; color: #fff; cursor: pointer;
+  }
+  .car-card {
+    border: 2px solid var(--club);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+    background: #f7fbf7;
+  }
+  .car-card .car-head { display: flex; justify-content: space-between; align-items: center; }
+  .car-card .car-title { font-size: 19px; font-weight: bold; color: var(--club); }
+  /* 結果 */
+  #result .per-person {
+    background: #fff8e1;
+    border: 3px solid #d9541e;
+    border-radius: 12px;
+    text-align: center;
+    padding: 14px;
+    margin-top: 10px;
+  }
+  #result .per-person .label { font-size: 18px; }
+  #result .per-person .yen { font-size: 44px; font-weight: bold; color: #d9541e; }
+  #result .per-person .sub { font-size: 15px; color: #555; margin-top: 6px; }
+  .result-car {
+    border-bottom: 1px solid #ccc;
+    padding: 12px 0;
+  }
+  .result-car .name { font-size: 20px; font-weight: bold; }
+  .result-car .receive { font-size: 26px; font-weight: bold; color: var(--club); }
+  .result-car .detail { font-size: 14px; color: #555; }
+  .check-ok {
+    background: #e7f4e7; border: 2px solid var(--club); color: #1d4a22;
+    border-radius: 10px; padding: 10px; margin-top: 12px;
+    font-size: 16px; font-weight: bold; text-align: center;
+  }
+  .note { font-size: 15px; color: #555; margin-top: 8px; }
+  .warn { color: #c33; font-weight: bold; margin-top: 8px; font-size: 17px; }
+  details { margin-top: 14px; }
+  summary {
+    font-size: 18px; font-weight: bold;
+    background: #dde8dd; color: var(--club);
+    padding: 12px; border-radius: 10px;
+    cursor: pointer;
+  }
+  .etc-row {
+    border: 2px solid #b9ccb9;
+    border-radius: 10px;
+    padding: 10px;
+    margin-top: 10px;
+    background: #fafcfa;
+  }
+  .etc-row input { font-size: 20px; padding: 8px; }
+  .etc-fees { display: flex; gap: 8px; align-items: flex-end; margin-top: 8px; }
+  .etc-fees > div { flex: 1; }
+  .etc-fees .fee-label { font-size: 14px; font-weight: bold; color: #555; display: block; margin: 0; }
+  .copied { text-align: center; color: var(--club); font-weight: bold; margin-top: 6px; display: none; }
+  .youbi { font-size: 18px; font-weight: bold; color: var(--club); margin-top: 4px; text-align: center; }
+  /* 履歴 */
+  .hist-item { border-bottom: 1px solid #ccc; padding: 12px 0; }
+  .hist-item .h-title { font-size: 18px; font-weight: bold; }
+  .hist-item .h-sub { font-size: 14px; color: #555; margin-top: 2px; }
+  .hist-btns { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .hist-btns .h-btn {
+    font-size: 16px; padding: 8px 14px;
+    border: none; border-radius: 8px;
+    background: var(--club); color: #fff; cursor: pointer;
+  }
+  .hist-item pre {
+    white-space: pre-wrap; background: #f4f7f4;
+    padding: 10px; border-radius: 8px;
+    font-size: 15px; margin-top: 8px; font-family: inherit;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>OHC マイカー精算</h1>
+  <p>大牟田ハイキングクラブ　カープール費用計算</p>
+</header>
+<main>
+
+  <div id="loadMsg" class="check-ok" style="display:none; margin-top:14px;"></div>
+  <div id="linkedMsg" style="display:none; margin-top:14px; background:#fff3e0; border:2px solid #e8a000;
+       border-radius:8px; padding:10px 12px; color:#6b4500;"></div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <h2>1. ハイクの情報</h2>
+    <div class="row">
+      <div>
+        <label>山行日</label>
+        <input type="date" id="hikeDate">
+        <div class="youbi" id="youbiDisp"></div>
+      </div>
+      <div>
+        <label>山行名（任意）</label>
+        <input type="text" id="hikeName" placeholder="例：烏帽子岳">
+      </div>
+    </div>
+    <!-- ★2026-10-01（㊴）1泊のときは「帰る日」を山行日の翌日などにします。日帰りは山行日と同じ。 -->
+    <div class="row">
+      <div>
+        <label>帰る日（日帰りは山行日と同じ）</label>
+        <input type="date" id="retDate">
+        <div class="youbi" id="retYoubiDisp"></div>
+      </div>
+      <div></div>
+    </div>
+    <div class="row">
+      <div>
+        <label>集合場所</label>
+        <input type="text" id="meetPlace" placeholder="例：市役所前">
+      </div>
+      <div>
+        <label>集合時間</label>
+        <input type="time" id="meetTime">
+      </div>
+    </div>
+    <!-- ★高速料金の休日割引（2026-08-17i）。
+         土日なら自動でチェックが入ります。祝日のときだけ手で入れてください。 -->
+    <div style="margin-top:12px;background:#f2f7f2;border-radius:8px;padding:9px 11px;">
+      <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:bold;">
+        <input type="checkbox" id="holiRate" onchange="holiChanged()" style="width:20px;height:20px;">
+        <span id="holiLabel">休日料金（土日・祝日）</span>
+      </label>
+      <label id="holiRetWrap" style="display:none;align-items:center;gap:8px;margin:8px 0 0;font-weight:bold;">
+        <input type="checkbox" id="holiRateRet" onchange="holiChanged()" style="width:20px;height:20px;">
+        <span>帰りの日（<span id="holiRetDay"></span>）も休日料金</span>
+      </label>
+      <p class="note" id="holiNote" style="margin:4px 0 0;"></p>
+    </div>
+
+    <label style="text-align:center; margin-top:16px;">参加人数（運転手も含む）</label>
+    <div class="stepper">
+      <button type="button" onclick="changeN(-1)">−</button>
+      <div class="num" id="nDisp">4</div>
+      <button type="button" onclick="changeN(1)">＋</button>
+    </div>
+    <p id="joinedNote" style="display:none; font-size:14px; color:#5a6b5c;
+       background:#f2f7f2; border-radius:8px; padding:8px 10px; margin-top:10px;"></p>
+
+    <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
+    <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
+           oninput="saveForm()" onchange="autoPickRoute()">
+    <p class="note" style="margin-top:8px;">調べると<b>道の候補が一覧で出ます。</b>
+      実際に走る道を押してください。距離・高速のインター・料金・地図が、
+      その道に合わせて入れ替わります。</p>
+    <button type="button" class="btn" id="distBtn" style="margin-top:8px;"
+            onclick="lookupDistance()">📍 地図で走行距離を調べる</button>
+    <p class="note" id="distMsg">集合場所と行き先から、<b>片道の距離</b>を調べて、
+      各車の走行距離に入れます。<b>実際に走った距離と違うときは、手で直してください。</b></p>
+    <!-- ★地図のリンクの置き場。
+         道順がまだ決まっていない間は、ここに隠しておきます（display:none）。
+         道順を調べたら、この段落ごと「この道順を地図で見る」ボタンの
+         すぐ下（mapSaveSlot）へ引っ越して、そこで初めて姿を見せます。
+         どの道か決まっていないのに「地図を残す／見る」が出ていると
+         迷わせてしまうため（2026-08-17g）。 -->
+    <div id="mapSaveHome" style="display:none;">
+      <p class="note" id="mapSaveMsg" style="margin-top:8px;">
+        <a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()"
+           style="font-size:14px;">🗺 この道順の地図をPDFで残す</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- 車にかかる費用 -->
+  <div class="card">
+    <h2>2. 車にかかる費用</h2>
+    <p class="note">ドライバーが立替え、参加者全員で等分してドライバーに戻します。無い費用は空欄でOKです。</p>
+    <!-- 高速料金を料金表に合わせ直したときの、お知らせの場所（2026-08-17h）。
+         金額を黙って書き換えないための表示。ふだんは出ません。 -->
+    <p class="note" id="feeSyncMsg" style="display:none;background:#fff8e6;
+       border:1px solid #e8c46a;border-radius:8px;padding:9px 11px;margin-bottom:10px;"></p>
+    <div id="cars"></div>
+    <button type="button" class="btn btn-sub" onclick="addCar()">＋ 車を追加する</button>
+  </div>
+
+  <!-- 人にかかる費用 -->
+  <div class="card">
+    <h2>3. 人にかかる費用</h2>
+    <p class="note">一人ずつにかかる費用です。あるものだけチェックを入れてください。</p>
+    <div class="chk-row">
+      <label><input type="checkbox" id="chkPFerry" onchange="togglePerson()">フェリー（一人あたり）</label>
+      <label><input type="checkbox" id="chkPEnt" onchange="togglePerson()">入場料（一人あたり）</label>
+    </div>
+    <div class="opt-blk blk-pferry">
+      <label>フェリー（1人あたり・行き）</label>
+      <input type="number" id="ferryPerson" placeholder="0" min="0">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:bold;">
+        <input type="checkbox" id="pFerryRetSame" checked onchange="togglePerson()" style="width:20px;height:20px;">
+        帰りも同じ金額（往復）</label>
+      <div id="pFerryRetBox" style="display:none;">
+        <label>フェリー（1人あたり・帰り）</label>
+        <input type="number" id="ferryPersonRet" placeholder="0（帰りは乗らない）" min="0">
+      </div>
+    </div>
+    <div class="opt-blk blk-pent">
+      <label>入場料（1人あたり）</label>
+      <input type="number" id="entPerson" placeholder="0" min="0">
+    </div>
+    <div class="opt-blk blk-payer">
+      <label>この費用を立替えた人</label>
+      <select id="personPayer">
+        <option value="-1">各自でその場払い（精算しない）</option>
+      </select>
+      <p class="hint">「各自でその場払い」なら一人あたり金額に含めて表示だけします。誰かがまとめて払った場合はその人を選ぶと精算に入ります。</p>
+    </div>
+  </div>
+
+  <button type="button" class="btn btn-main" onclick="calc()">計算する</button>
+  <p class="note" id="calcHint" style="display:none;text-align:center;">計算すると、下に「カレンダーに記録する」ボタンが出ます</p>
+
+  <!-- 結果 -->
+  <div class="card" id="result" style="display:none;">
+    <h2>4. 精算結果</h2>
+    <div id="resultBody"></div>
+    <button type="button" class="btn btn-sub" onclick="copyResult()">結果をコピーする（LINE用）</button>
+    <div class="copied" id="copiedMsg">コピーしました！</div>
+    <button type="button" class="btn btn-sub" id="saveHistBtn" onclick="saveHistory()">この結果を履歴に残す</button>
+    <div class="copied" id="histSavedMsg">履歴に保存しました！</div>
+    <p class="note" id="saveHistNote" style="display:none;text-align:center;">記録すると、クラブの全員がカレンダーで見られます</p>
+  </div>
+
+  <!-- 履歴 -->
+  <details>
+    <summary>精算の履歴</summary>
+    <div class="card">
+      <p class="note">保存した精算結果の一覧です（この端末に保存・最新50件）。精算結果の「この結果を履歴に残す」ボタンで追加されます。</p>
+      <div id="histList"></div>
+    </div>
+  </details>
+
+  <!-- 高速料金表 -->
+  <details>
+    <summary>高速料金表の登録・編集</summary>
+    <div class="card">
+      <p class="note">よく使うルートを登録しておくと、車の入力でドロップダウンから選べます。金額はどちらも<b>片道</b>で、ETC料金と通常料金（現金）を入れてください。
+      往復ぶんは計算のときに自動で2倍します。<b>この料金表はメンバー全員で共有</b>されます。誰かが登録・修正すると、みんなの画面にも反映されます。</p>
+      <div id="etcRows"></div>
+      <button type="button" class="btn btn-sub" onclick="addEtcRow()">＋ ルートを追加</button>
+      <div class="copied" id="etcSyncMsg"></div>
+    </div>
+  </details>
+
+  <!-- 便利リンク -->
+  <details>
+    <summary>便利リンク（料金・距離を調べる）</summary>
+    <div class="card">
+      <a class="btn btn-sub" href="https://search.w-nexco.co.jp/" target="_blank" rel="noopener"
+         onclick="window.open(this.href, '_blank', 'noopener'); return false;">高速料金を調べる（NEXCO西日本）</a>
+      <a class="btn btn-sub" href="https://www.google.com/maps/dir/" target="_blank" rel="noopener"
+         onclick="window.open(this.href, '_blank', 'noopener'); return false;">距離を調べる（Googleマップ）</a>
+      <p class="note">調べた金額・距離は、上の料金表や車の入力欄に書き写してください。</p>
+    </div>
+  </details>
+
+  <!-- 設定 -->
+  <details>
+    <summary>設定</summary>
+    <div class="card">
+      <label>ガソリン代の単価（円/km）</label>
+      <input type="number" id="gasRate" value="50" onchange="saveSettings()">
+      <label>一人あたり金額の端数</label>
+      <select id="roundUnit" onchange="saveSettings()">
+        <option value="100">100円単位に切り上げ</option>
+        <option value="10">10円単位に切り上げ</option>
+        <option value="1">1円単位（切り上げなし）</option>
+      </select>
+      <p class="note">切り上げで出た余りはドライバーが受け取ります（複数台のときはドライバーで等分）。</p>
+    </div>
+  </details>
+
+  <!-- 使い方 -->
+  <details>
+    <summary>使い方・計算のしくみ</summary>
+    <div class="card">
+      <p><b>計算のしくみ</b></p>
+      <p>車にかかる費用（ガソリン＝往復距離×50円　＋　高速往復　＋　フェリー車分　＋　駐車料金　＋　入場料車分）を全部合計し、参加者全員で等分します。ドライバーには立替えた車の費用が全額戻ります（本人負担分を差し引いた額を受け取り）。切り上げで出た余りもドライバーが受け取ります。</p>
+      <p>人にかかる費用（フェリー人分・入場料人分）は一人あたりに加えます。各自その場で払った場合は精算せず表示のみ、誰かがまとめて立替えた場合はその人が受け取ります。</p>
+      <p><b>手順</b></p>
+      <p>① 人数を入れる　② 車ごとに費用を入れる　③ 人にかかる費用を入れる　④「計算する」　⑤ 結果をコピーして共有</p>
+      <p style="margin-top:8px;">入力した内容は自動で記憶され、次に開いたときに復元されます。カレンダーの予定から開いた場合は、前に誰かが記録した精算内容が自動で読み込まれます。</p>
+    </div>
+  </details>
+
+  <button type="button" class="btn btn-sub" onclick="clearForm()" style="margin-top:24px;">入力を全部消して最初から</button>
+
+  <!-- 関連アプリ -->
+  <a class="btn" id="backCalBtn" style="background:var(--club);color:#fff;" href="https://dxbears1972-maker.github.io/ohc-calendar/">📅 OHCカレンダーに戻る</a>
+
+  <p class="note" style="text-align:center" id="verLine">版 2026-09-28b</p>
+
+</main>
+
+<script>
+"use strict";
+
+/* ==================================================================
+   ★2026-09-07（工事B B-3）どのクラブの、どのサーバーにつなぐか
+
+   ★この精算アプリは、本番も開発版も、全クラブでこの1本だけです。
+   ・どのクラブか  … URL の ?club=xxx で決まります（無ければ端末の控え→ ohc）
+   ・どのサーバーか … URL に ?gas=dev が付いているときだけ開発版へ。
+   　　　　　　　　　 開発版の「設定」シートの「マイカー精算のURL」に
+   　　　　　　　　　 …/carpool/?gas=dev と書いてください。本番は空欄のままです。
+   ================================================================== */
+var GAS_PROD = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec";
+var GAS_DEV  = "https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
+var USE_DEV  = /[?&]gas=dev(&|$)/.test(location.search || "");
+var CAL_API  = USE_DEV ? GAS_DEV : GAS_PROD;
+
+/* クラブのID。★カレンダーと同じ控え（clubId）を使います。
+   　同じ場所に置いてあるアプリなので、カレンダーで一度開けばこちらも分かります。 */
+var CLUB_LAST_KEY = "clubId";
+function clubOk_(v) { return /^[a-z0-9]{2,10}$/.test(String(v || "")); }
+function pickClubId_() {
+  try {
+    var m = (location.search || "").match(/[?&]club=([^&]+)/);
+    if (m) {
+      var v = "";
+      try { v = decodeURIComponent(m[1]); } catch (e1) { v = m[1]; }
+      if (clubOk_(v)) {
+        try { localStorage.setItem(CLUB_LAST_KEY, v); } catch (e2) {}
+        return v;
+      }
+    }
+    var s0 = localStorage.getItem(CLUB_LAST_KEY);
+    if (clubOk_(s0)) return s0;
+  } catch (e) {}
+  return "ohc";
+}
+var CLUB_ID = pickClubId_();
+
+/* 端末に残す控えは、★クラブごとに別々にします。
+   　（同じ端末で2つのクラブを使っても、入力途中の下書きが混ざりません） */
+var LSP     = "carpool_" + CLUB_ID + "_";
+var OLD_LSP = "ohc_carpool_";
+var LS_ETC  = LSP + "etc";
+var LS_SET  = LSP + "set";
+var LS_FORM = LSP + "form";
+var LS_HIST = LSP + "hist";
+
+/* カレンダーの予定から開かれた場合は、その予定専用に入力データを分ける */
+var EVENT_ID = "", EVENT_DATE = "", EVENT_TITLE = "", EVENT_TIME = "", EVENT_PLACE = "", EVENT_N = 0;
+try {
+  var q0 = location.search || "";
+  var mE = q0.match(/[?&]event=([^&]+)/); if (mE) EVENT_ID = mE[1];
+  var mD = q0.match(/[?&]date=([^&]+)/); if (mD) EVENT_DATE = mD[1];
+  var mT = q0.match(/[?&]title=([^&]+)/);
+  if (mT) { try { EVENT_TITLE = decodeURIComponent(mT[1]); } catch (e) { EVENT_TITLE = mT[1]; } }
+  var mTm = q0.match(/[?&]time=([^&]+)/);
+  if (mTm) { try { EVENT_TIME = decodeURIComponent(mTm[1]); } catch (e) { EVENT_TIME = mTm[1]; } }
+  var mP = q0.match(/[?&]place=([^&]+)/);
+  if (mP) { try { EVENT_PLACE = decodeURIComponent(mP[1]); } catch (e) { EVENT_PLACE = mP[1]; } }
+  /* ★2026-08-17：不具合②の修正。カレンダー側で出欠「参加」の人数を数えて
+     &n= で渡してもらい、精算アプリを開いた瞬間の初期値にする。
+     サーバーに聞きに行く（fetchPrevSettle）より早く、電波が悪くても効く。
+     すでに保存された精算（下書き／サーバー保存分）があるときは、
+     そちらを優先し、この値では上書きしない（手で直した人数を守るため）。 */
+  var mN = q0.match(/[?&]n=([^&]+)/); if (mN) EVENT_N = parseInt(mN[1], 10) || 0;
+} catch (e) {}
+if (EVENT_ID) LS_FORM = LSP + "form_" + EVENT_ID;
+
+/* ★2026-09-07（工事B B-3）控えの名前をクラブ別に変えたので、
+   　OHCの方の「入力途中」と「料金表」を、1回だけ新しい名前へ写します。
+   　（新しい名前にすでに何かあるときは、何もしません） */
+if (CLUB_ID === "ohc") {
+  try {
+    var mvKeys = ["etc", "set", "hist"];
+    if (EVENT_ID) mvKeys.push("form_" + EVENT_ID); else mvKeys.push("form");
+    for (var mi = 0; mi < mvKeys.length; mi++) {
+      var kNew = LSP + mvKeys[mi], kOld = OLD_LSP + mvKeys[mi];
+      if (localStorage.getItem(kNew) === null && localStorage.getItem(kOld) !== null) {
+        localStorage.setItem(kNew, localStorage.getItem(kOld));
+      }
+    }
+  } catch (e) {}
+}
+
+/* カレンダーのデータ保存先（GAS）は、上の CAL_API で決めています。 */
+
+/* カレンダーの画面URL。記録後にその予定の場所へ戻るのに使う。
+   ★2026-09-07（工事B B-3）サーバー（設定シートの「アプリのURL」）が届いたら
+   　差し替わります。ここに書いてあるのは、まだ届いていないときの予備です。 */
+var CAL_PAGE = "https://dxbears1972-maker.github.io/ohc-calendar/";
+
+/* ------------------------------------------------------------------
+   ★2026-09-07（工事B B-3）クラブの見た目と呼び名
+
+   画面の名前・色・戻り先は、サーバーの「設定」シートから受け取ります。
+   カレンダー（index.html）とまったく同じ考え方です。
+   ここに書いてあるのは「まだ受け取れていないとき（初回・圏外）」の予備で、
+   ★クラブごとに直す必要はありません。
+   ------------------------------------------------------------------ */
+var CLUB_CFG_LSK = "carpool_club_" + CLUB_ID;
+
+function applyClub_(c) {
+  if (!c) return;
+  try {
+    var nm  = c.clubName || "";
+    var col = c.themeColor || "";
+
+    if (col) {
+      try { document.documentElement.style.setProperty("--club", col); } catch (e1) {}
+      var mt = document.querySelector('meta[name="theme-color"]');
+      if (mt) mt.setAttribute("content", col);
+    }
+
+    /* 画面の名前。設定シートの「マイカー精算の名前」が空欄なら
+       　サーバー側で「クラブ名＋ マイカー精算」が入って届きます。 */
+    var ttl = c.carpoolTitle || (nm ? nm + " マイカー精算" : "");
+    if (ttl) {
+      document.title = ttl;
+      var mat = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (mat) mat.setAttribute("content", ttl);
+      var h1 = document.querySelector("header h1");
+      if (h1) h1.textContent = ttl;
+    }
+    if (nm) {
+      /* 予定から開かれているときは、ヘッダーの1行は「○月○日 △△ の精算」が勝ちます */
+      if (!EVENT_DATE && !EVENT_TITLE) {
+        var hp = document.querySelector("header p");
+        if (hp) hp.textContent = nm + "　カープール費用計算";
+      }
+    }
+
+    if (c.appUrl) {
+      var u = String(c.appUrl);
+      if (u.charAt(u.length - 1) !== "/") u += "/";
+      CAL_PAGE = u;
+    }
+
+    var back = document.getElementById("backCalBtn");
+    if (back) {
+      /* 戻り先の呼び名は、カレンダー側の「アプリの名前」に合わせます */
+      var calNm = c.appTitle || (nm ? nm + "カレンダー" : "");
+      if (calNm) back.textContent = "📅 " + calNm + "に戻る";
+      back.href = EVENT_ID ? (CAL_PAGE + "?goto=" + EVENT_ID) : CAL_PAGE;
+    }
+  } catch (e) {}
+}
+
+/* 起動の一瞬だけ前のクラブの名前が見える、を防ぐため、
+   前回サーバーから届いた内容を端末に控えておき、先に当てます。 */
+function loadClubCfg_() {
+  try {
+    var v = localStorage.getItem(CLUB_CFG_LSK);
+    if (v) applyClub_(JSON.parse(v));
+  } catch (e) {}
+}
+function saveClubCfg_(c) {
+  try { localStorage.setItem(CLUB_CFG_LSK, JSON.stringify(c)); } catch (e) {}
+}
+loadClubCfg_();
+
+/* ==================================================================
+   このアプリの版。（2026-08-17k）
+
+   ★ここを「版はいくつか」の唯一のよりどころにします。
+   　画面いちばん下の表示も、新しい版が出ていないかの確認も、
+   　すべてこの値を見ます。直すのはここ1か所だけで済みます。
+   ================================================================== */
+var APP_VER = "2026-10-01a";
+
+/* ------------------------------------------------------------------
+   ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
+
+   スマホのブラウザは、いちど読んだページを長くおぼえています。
+   そのため直したはずのものが直っていないように見える、ということが
+   何度も起きました（パソコンの Ctrl+Shift+R にあたる操作が
+   スマホにはありません）。
+
+   そこで、**アプリ自身が「新しい版が出ていますよ」と教える**ようにします。
+   上に帯を出し、押すと確実に最新を読み直します。
+   電波が無いときは何も出ません（黙って失敗します）。
+   ------------------------------------------------------------------ */
+function reloadFresh_() {
+  var ps = location.search.replace(/^\?/, "").split("&").filter(function (x) {
+    return x && x.indexOf("_v=") !== 0;
+  });
+  ps.push("_v=" + (new Date()).getTime());
+  location.replace(location.pathname + "?" + ps.join("&"));
+}
+function showUpdateBanner_(latest) {
+  if (document.getElementById("updBanner")) return;
+  var d = document.createElement("div");
+  d.id = "updBanner";
+  d.style.cssText = "position:sticky;top:0;z-index:9999;background:#ffe9b3;" +
+    "border-bottom:2px solid #e8a000;padding:10px 12px;text-align:center;font-size:15px;";
+  d.innerHTML = '新しい版（' + escapeHtml(latest) + '）が出ています。' +
+    '<button type="button" class="btn-small" style="margin-left:8px;" ' +
+    'onclick="reloadFresh_()">最新にする</button>';
+  document.body.insertBefore(d, document.body.firstChild);
+}
+function checkNewVersion_() {
+  try {
+    fetch(location.pathname + "?_chk=" + (new Date()).getTime(), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var m = t.match(/var\s+APP_VER\s*=\s*"([^"]+)"/);
+        if (!m) return;
+        if (m[1] && m[1] !== APP_VER) showUpdateBanner_(m[1]);
+      })["catch"](function () {});
+  } catch (e) {}
+}
+
+var carCount = 0;
+var lastResultText = "";
+var lastResultData = null;
+
+function lsGet(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+}
+function yen(n) { return "¥" + n.toLocaleString("ja-JP"); }
+function jpn(n) { return n.toLocaleString("ja-JP"); }
+/* 数値欄を安全に読む（空欄・不正は0）。負の値も0にする */
+function numOf(el) { var v = parseInt(el.value, 10); return (isNaN(v) || v < 0) ? 0 : v; }
+function youbiOf(dateVal) {
+  if (!dateVal) return "";
+  var p = dateVal.split("-");
+  return ["日", "月", "火", "水", "木", "金", "土"][
+    new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay()
+  ];
+}
+function updateYoubi() {
+  var y = youbiOf(document.getElementById("hikeDate").value);
+  document.getElementById("youbiDisp").textContent = y ? y + "曜日" : "";
+}
+
+/* ---------- サーバー通信（カレンダーと同じGASを使う） ---------- */
+function apiPost(body, cb) {
+  var xhr = new XMLHttpRequest();
+  /* ★2026-09-07（工事B B-3）どのクラブかを、URLに付けて知らせます */
+  xhr.open("POST", CAL_API + "?club=" + encodeURIComponent(CLUB_ID), true);
+  xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status >= 200 && xhr.status < 300) {
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      cb(data ? null : true, data);
+    } else { cb(true, null); }
+  };
+  /* ★★2026-09-28（窓口の穴をふさぐ）　カレンダーで名乗った端末の記号を添えます。
+     　サーバーは、名乗った端末からの精算・料金表・地図・距離しか受け付けなくなりました。
+     　記号はカレンダーと同じ控え（device_<クラブID>）を読みます（同じ github.io の中なので読めます）。
+     　★古いサーバーは、この項目を無視するだけです。 */
+  try {
+    if (body && !body.deviceId) {
+      var dv = localStorage.getItem("device_" + CLUB_ID);
+      if (dv) body.deviceId = dv;
+    }
+  } catch (eDv) {}
+  try { xhr.send(JSON.stringify(body)); } catch (e) { cb(true, null); }
+}
+
+/* ==================================================================
+   出欠の「参加」から、この山行の参加者を受け取る。
+   人数の数え間違いと、名前の打ち間違いを無くすためのしくみです。
+   予定から開いていないときは、これまでどおり手で入力する形に戻ります。
+   ================================================================== */
+var JOINED = [];
+
+function carNameFieldHtml(cls) {
+  cls = cls || "car-name";
+  if (!JOINED.length) {
+    return '<input type="text" class="' + cls + '" placeholder="例：只隈" oninput="renumberCars()">';
+  }
+  var o = '<option value="">（選んでください）</option>';
+  for (var i = 0; i < JOINED.length; i++) {
+    o += '<option value="' + escapeHtml(JOINED[i]) + '">' + escapeHtml(JOINED[i]) + '</option>';
+  }
+  o += '<option value="__other">その他（手で入力）</option>';
+  return '<select class="' + cls + '" onchange="onNamePick(this)">' + o + '</select>';
+}
+
+/* 選ぶ形の欄を、手で入力する欄に差し替える */
+function toNameInput(el, val) {
+  var inp = document.createElement("input");
+  inp.type = "text";
+  inp.className = el.className || "car-name";
+  inp.placeholder = "例：只隈";
+  inp.value = val || "";
+  inp.setAttribute("oninput", "renumberCars()");
+  el.parentNode.replaceChild(inp, el);
+  return inp;
+}
+
+function onNamePick(sel) {
+  if (sel.value === "__other") toNameInput(sel, "").focus();
+  renumberCars();
+  saveForm();
+}
+
+/* 名前を入れる。一覧に無い名前（助っ人・退会された方など）は、手入力の欄に切り替えて残す */
+function setCarName(div, val, cls) {
+  var f = div.querySelector("." + (cls || "car-name"));
+  if (!f) return;
+  if (f.tagName === "SELECT") {
+    f.value = val;
+    if (f.value !== val) toNameInput(f, val);
+  } else {
+    f.value = val;
+  }
+}
+
+/* 参加者を受け取ったあとに、画面を整える */
+function applyJoined(autoCount) {
+  var note = document.getElementById("joinedNote");
+  if (!JOINED.length) { if (note) note.style.display = "none"; return; }
+
+  if (note) {
+    note.innerHTML = "この山行に「参加」と答えている方（" + JOINED.length + "名）<br>" +
+                     escapeHtml(JOINED.join("、")) +
+                     "<br>人数は自動で入れています。違うときは上の＋−で直してください。";
+    note.style.display = "block";
+  }
+  if (autoCount) {
+    nPeople = JOINED.length;
+    document.getElementById("nDisp").textContent = nPeople;
+    saveForm();
+  }
+  /* すでに出ている車の「ドライバー名」を、選ぶ形に差し替える（入力ずみの名前は残す） */
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    ["car-name", "car-rname"].forEach(function (cls) {
+      var f = c.querySelector("." + cls);
+      if (!f || f.tagName === "SELECT") return;
+      var val = f.value;
+      var box = document.createElement("div");
+      box.innerHTML = carNameFieldHtml(cls);
+      var sel = box.firstChild;
+      f.parentNode.replaceChild(sel, f);
+      setCarName(c, val, cls);
+    });
+  });
+  renumberCars();
+}
+
+/* ==================================================================
+   地図から走行距離を調べる
+   GASに入っているGoogleマップの機能を使います（追加の契約は不要）。
+   戻ってくるのは**片道**の距離です。往復にするかは各車の欄で選びます。
+   ================================================================== */
+/* 道順の要点（どのICで乗り降りするか、フェリー乗り場はどこか）を出す。
+   ふだんは畳んでおいて、押したときだけ開きます。 */
+/* 箇条書きを作ります。長い文章を続けて書くと読みづらいためです（2026-08-03e） */
+function ul_(items) {
+  var h = '<ul style="margin:6px 0 8px 1.1em;padding:0;">';
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i]) continue;
+    h += '<li style="margin:4px 0;">' + items[i] + '</li>';
+  }
+  return h + '</ul>';
+}
+
+/* 箇条書きではなく、小さめの文字の※注記にします（2026-08-17）。
+   地図リンクのすぐ下に付く補足の3行など、本文ほど重要ではない説明に使います。 */
+function foot_(items) {
+  var h = '<div style="margin:6px 0 4px;font-size:12px;color:#7a8a7a;line-height:1.7;">';
+  var n = 1;
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i]) continue;
+    h += '<div>※' + (n++) + ' ' + items[i] + '</div>';
+  }
+  return h + '</div>';
+}
+
+/* ------------------------------------------------------------------
+   地図のPDFの「見る」「残す」を、押しやすいアイコンボタンにします。
+   （2026-08-17p　文字のリンクは細くて押しにくい、というご指摘）
+
+   ・まだ残していないとき … 「🗺 地図をPDFで残す」ボタン
+   ・すでに残してあるとき … 「🗺 地図を見る」ボタン ＋ 小さく「作り直す」
+   ------------------------------------------------------------------ */
+var MAP_BTN_CSS =
+  'display:inline-block;padding:9px 14px;border-radius:9px;text-decoration:none;' +
+  'font-weight:bold;font-size:15px;border:2px solid var(--club);';
+
+/* ------------------------------------------------------------------
+   ★どの道で作った地図かを覚えておきます。（2026-08-17q）
+
+   地図のPDFは「いま選んでいる候補の道」で作られます。
+   ところが、そのあと**別の候補に切り替えても同じPDFのまま**だったため、
+   「候補2（南関IC〜甘木IC）を選んでいるのに、PDFは南関⇔杷木」
+   という食い違いが起きていました（只隈さんのご指摘）。
+
+   そこで、作ったときの道の特徴（距離・乗り降りのIC）を覚えておき、
+   いま選んでいる道と違うときは、はっきりそう言います。
+   ------------------------------------------------------------------ */
+var routeMapKm = null, routeMapIn = "", routeMapOut = "", routeMapLabel = "";
+
+/* 画面に出すための、その道の呼び名 */
+function routeLabelOf_(d) {
+  if (!d) return "";
+  var a = (d.tollIn && d.tollIn.name) || "", b = (d.tollOut && d.tollOut.name) || "";
+  if (a && b) return a + "〜" + b;
+  if (d.noHw) return "高速なし" + (d.summary ? "（" + d.summary + "）" : "");
+  return a || b || d.summary || "";
+}
+function routeLabelNow_() { return routeLabelOf_(lastRouteList[lastRouteIdx]); }
+
+/* 地図を作った道として、いまの候補の特徴を控えます */
+function rememberMapRoute_() {
+  var d = lastRouteList[lastRouteIdx];
+  if (!d) return;
+  routeMapKm    = Number(d.km);
+  routeMapIn    = (d.tollIn  && d.tollIn.name)  || "";
+  routeMapOut   = (d.tollOut && d.tollOut.name) || "";
+  routeMapLabel = routeLabelOf_(d);
+}
+
+/* ------------------------------------------------------------------
+   残してある地図が、いま選んでいる道のものかどうか。（2026-08-17r）
+
+   ★見分け方は2段構え。
+   　①乗り降りのICが両方わかっているなら、IC名で比べる（いちばん確か）
+   　②分からないときは、片道の距離で比べる。
+   　　Googleの計算は日によって少し動くので、**0.5kmまでは同じ道**とみなす
+   　　（実測：同じ道が 105.7km → 105.6km に変わっていた）。
+
+   ★**古い精算には、地図をどの道で作ったかの記録がありません。**
+   　版rでは片道の距離（autoKm）から推し量ろうとしましたが、**これは誤り**でした。
+   　autoKm は「最後に選んでいた候補」の距離であって、地図を作った道とは限りません。
+   　実際、只隈さんの7/26の精算は autoKm が 98.2km なのに、
+   　PDFは候補1（南関⇔杷木・105.7km）の地図でした。
+   　→ **分からないものは分からないと言う。** 推測でラベルを付けない。
+   ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   記録が「信用できるか」を、いま選んでいる道と見くらべて決めます。（2026-08-17t）
+
+   ★版rが、古い精算に対して autoKm から距離だけの記録を書き込んでしまいました。
+   　その距離は地図を作った道のものとは限らないので、
+   　**距離だけの記録は、高速を使う道に対しては信用しません。**
+   　（本当に地図を作ったときの記録なら、高速の道なら乗り降りのICも入っています）
+   ------------------------------------------------------------------ */
+function mapKnown_() {
+  var d = lastRouteList[lastRouteIdx];
+  if (routeMapIn || routeMapOut) return true;          /* ICの記録があれば確か */
+  if (routeMapKm == null || isNaN(routeMapKm)) return false;
+  /* 距離だけの記録。いまの道が高速を使うなら、その記録は当てにならない */
+  if (d && !d.noHw && ((d.tollIn && d.tollIn.name) || (d.tollOut && d.tollOut.name))) return false;
+  return true;
+}
+function mapMatchesNow_() {
+  if (!routeMapUrl) return false;
+  var d = lastRouteList[lastRouteIdx];
+  if (!d) return true;                       /* まだ道を選んでいない＝比べられない */
+  if (!mapKnown_()) return true;             /* 記録が無い／当てにならない。注意書きを出す */
+  var a = (d.tollIn && d.tollIn.name) || "", b = (d.tollOut && d.tollOut.name) || "";
+  if (routeMapIn && routeMapOut && a && b) {
+    return (routeMapIn === a && routeMapOut === b);
+  }
+  if (routeMapKm != null && !isNaN(routeMapKm)) {
+    return Math.abs(Number(d.km) - routeMapKm) <= 0.5;
+  }
+  return true;
+}
+
+function mapSaveAreaHtml_(url) {
+  if (url && mapMatchesNow_()) {
+    var h = '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
+            'style="' + MAP_BTN_CSS + 'background:#fff;color:var(--club);">' +
+            '🗺 地図を見る（PDF）</a>' +
+            '<a href="javascript:void(0)" onclick="saveRouteMap()" ' +
+            'style="margin-left:10px;font-size:13px;color:#5a6b5c;">作り直す</a>';
+    /* ★どの道で作った地図か記録が無いときは、はっきりそう書きます（2026-08-17s）。
+       　推測で「この道の地図です」と書くと、まちがった案内になるためです。 */
+    if (!mapKnown_()) {
+      h += '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
+           'この地図が<b>どの道順で作ったものかは記録がありません</b>' +
+           '（古い精算のため）。いまの道順で<a href="javascript:void(0)" ' +
+           'onclick="saveRouteMap()" style="color:var(--club);font-weight:bold;">作り直す</a>と、' +
+           '次からはっきり分かります。</div>';
+    }
+    return h;
+  }
+  if (url) {
+    /* 残してある地図が、いま選んでいる道と違うとき */
+    return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
+           'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:var(--club);">' +
+           '🗺 この道順で地図を作る</a>' +
+           '<div style="margin-top:5px;font-size:12px;color:#8a5a00;">' +
+           'いま残っている地図は <b>' + escapeHtml(routeMapLabel || "別の道") +
+           '</b> のものです。' +
+           '<a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" ' +
+           'style="color:#5a6b5c;">（その地図を見る）</a></div>';
+  }
+  return '<a href="javascript:void(0)" id="mapSaveLink" onclick="saveRouteMap()" ' +
+         'style="' + MAP_BTN_CSS + 'background:#eaf2ea;color:var(--club);">' +
+         '🗺 地図をPDFで残す</a>';
+}
+
+/* ------------------------------------------------------------------
+   ★地図のボタンを出すタイミング。（2026-08-17p）
+
+   「この道順を地図で見る」（緑）を押して道を確かめてから、
+   その地図を残すかどうかを決める——という順番なので、
+   **緑を押すまではボタンを出しません。** 画面がすっきりします。
+
+   ただし、**すでに地図を残してある山行**（過去の精算を開いたとき）は、
+   すぐ見られるように最初から出します。
+   ------------------------------------------------------------------ */
+var mapViewed_ = false;
+function onMapViewed_() {
+  mapViewed_ = true;
+  /* ★「押した」ことを控えに残します（2026-08-17t）。
+     　アプリとして開いていると、地図を見て戻ったときにページが
+     　読み直されることがあります。JSの変数だけで覚えていると、
+     　**そのときボタンがまた消えてしまいます**（実際に起きました）。 */
+  try { saveForm(); } catch (eV) {}
+  placeMapSaveArea_();
+}
+function mapAreaShouldShow_() {
+  return mapViewed_ || !!routeMapUrl;
+}
+
+/* 高速の乗り降りする場所を、箇条書きの1行にします */
+function tollLi_(t, label) {
+  if (!t) return "";
+  var link = "https://www.google.com/maps/search/?api=1&query=" + t.lat + "," + t.lng;
+  return label + '：' +
+    (t.name ? '<b>' + escapeHtml(t.name) + '</b>　' : '<span style="color:#888;">名前が出ませんでした</span>　') +
+    '<a href="' + link + '" target="_blank" rel="noopener">地図で見る</a>';
+}
+
+/* 高速に乗る場所・降りる場所。名前が分からないときは、地図で開けるようにする */
+function tollHtml(t, label) {
+  if (!t) return "";
+  var link = "https://www.google.com/maps/search/?api=1&query=" + t.lat + "," + t.lng;
+  return '<br>' + label + '：' +
+         (t.name ? '<b>' + escapeHtml(t.name) + '</b>　' : '<span style="color:#888;">名前が出ませんでした</span>　') +
+         '<a href="' + link + '" target="_blank" rel="noopener">地図で見る</a>';
+}
+
+function routePointsHtml(points) {
+  if (!points || !points.length) return "";
+  var h = '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--club);">' +
+          'どこで乗り降りするか（' + points.length + '件）</summary>' +
+          '<div style="margin-top:6px;line-height:1.7;">';
+  for (var i = 0; i < points.length; i++) {
+    h += '・' + escapeHtml(points[i].text) +
+         (points[i].km ? '　<span style="color:#888;">' + points[i].km + 'km</span>' : '') +
+         '<br>';
+  }
+  h += '</div></details>';
+  return h;
+}
+
+/* ==================================================================
+   道順の地図を画像にして、ドライブに残す。
+   文字の説明だけでなく、**線の引かれた地図**であとから確かめられます。
+   保存先は「（クラブ名）　精算の地図」フォルダ。全員が見られます。
+   ================================================================== */
+var routeMapUrl = "";
+
+/* ------------------------------------------------------------------
+   いま画面が分かっているインター名を返します。
+   Googleの案内文は「高速の入口」に名前を付けないことが多く、
+   地図だけでは「？」になってしまいます。
+   けれど精算アプリは、もっと確かな名前を持っています。
+     ①「地図で走行距離を調べる」で読み取れた名前
+     ②料金表のルート名（例「南関⇔杷木」）── 幹事さんが入れた名前
+   これをサーバーに渡して、足りないほうを埋めてもらいます。
+   ------------------------------------------------------------------ */
+function icNamesNow_() {
+  /* 行き先が変わっていたら、前に調べた名前は使いません（別の山の名前になるため） */
+  var nowTo = document.getElementById("destPlace").value.replace(/^[\s\u3000]+|[\s\u3000]+$/g, "");
+  var fresh = (lastTollFor && lastTollFor === nowTo);
+  var a = fresh ? (lastTollIn || "") : "", b = fresh ? (lastTollOut || "") : "";
+
+  /* ------------------------------------------------------------------
+     料金表のルート名を探します。
+     ①どれか1台が選んでいるルート
+     ②選んでいなくても、行き先が同じ行があればそれ
+     ②を入れたのは、只隈さんが以前ちゃんと入れていた名前が、
+     「車がまだ選んでいない」というだけで使われなかったためです。（2026/7/30）
+     ------------------------------------------------------------------ */
+  var nm = "";
+  var rows = etcRowsInOrder();
+  document.querySelectorAll("#cars .car-route").forEach(function (sel) {
+    if (nm || sel.value === "") return;
+    var r = rows[parseInt(sel.value, 10)];
+    if (!r) return;
+    var el = r.querySelector(".etc-name");
+    if (el) nm = (el.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
+  });
+  if (!nm) {
+    var di = findRouteByDest(nowTo);
+    if (di >= 0 && rows[di]) {
+      var el2 = rows[di].querySelector(".etc-name");
+      if (el2) nm = (el2.value || "").replace(/^[\s　]+|[\s　]+$/g, "");
+    }
+  }
+
+  /* 入口と出口が同じ名前になったら読み違いです。確かなほう（出口）だけ残します。 */
+  if (a && a === b) a = "";
+
+  /* ★ルート名は、そのままサーバーに渡します。
+     「杷木⇔南関」の⇔は区間を表すだけで、どちらが入口かは分かりません。
+     Googleから確かに分かっているほうと照らして、
+     残ったほうを当てはめる——それはサーバー側でやります。 */
+  return { a: a, b: b, routeName: nm };
+}
+
+var mapSaveBusy_ = false;
+
+function saveRouteMap() {
+  if (mapSaveBusy_) return;
+  var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var msg  = document.getElementById("mapSaveMsg");
+  if (!from || !to) { msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>"; return; }
+
+  mapSaveBusy_ = true;
+  msg.innerHTML = "地図を作っています…<br>" +
+    "<b>10秒ほどかかります。</b>そのまま下の入力を続けてかまいません。<br>" +
+    "できあがると、ここにリンクが出ます。";
+  var title = (document.getElementById("hikeDate").value || "") + "_" +
+              (document.getElementById("hikeName").value || "山行");
+  var icNow = icNamesNow_();
+  apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
+            icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
+            pref: routePrefNow_(), routeIdx: lastRouteIdx },
+          function (err, data) {
+    mapSaveBusy_ = false;
+    if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+    if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+    routeMapUrl = data.url;
+    /* ★どの道で作った地図かを覚える（2026-08-17q／r） */
+    rememberMapRoute_();
+    saveForm();
+    /* 地図を残した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
+    lockRoute_();
+    /* ------------------------------------------------------------------
+       Googleは高速の「入口」に名前を付けないことがあります（2026/7/30に確認）。
+       そのときは「分かりませんでした」で終わらせず、
+       次から自動で入るようにする手順を、その場で出します。
+       ------------------------------------------------------------------ */
+    /* 地図の説明も箇条書きにします（2026-08-03e） */
+    var mli = [];
+    mli.push("道の選びかた：<b>" +
+      (data.noHw ? "短い道（高速を使わない道）"
+                 : (data.pref === "dist" ? "短い道（距離優先）" : "早い道（時間優先）")) + "</b>");
+    if (data.km) mli.push("片道 <b>" + escapeHtml(String(data.km)) + "</b>" +
+                          (data.mins ? "（車で約" + escapeHtml(String(data.mins)) + "）" : ""));
+    if (data.icIn && data.icOut) {
+      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗り、<b>" +
+               escapeHtml(data.icOut) + "</b> で降ります");
+    } else if (data.icOut) {
+      var shortOut = String(data.icOut).replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+      var guess = data.signHint ? String(data.signHint) : "";
+      mli.push("高速：<b>" + escapeHtml(data.icOut) + "</b> で降ります");
+      mli.push('<span style="color:#8a5a00;"><b>乗ったインターは、Googleが名前を教えてくれませんでした。</b>' +
+        (guess ? "案内には「<b>" + escapeHtml(guess) + "</b>」の標識が出ています。" : "") +
+        "下の<b>高速料金表</b>のルート名を <b>「" + escapeHtml(guess || "南関") + "⇔" +
+        escapeHtml(shortOut) + "」</b>のように直しておくと、<b>次から自動で入ります</b></span>");
+    } else if (data.icIn) {
+      mli.push("高速：<b>" + escapeHtml(data.icIn) + "</b> で乗ります");
+    } else if (data.noHw) {
+      mli.push("高速には乗りません");
+    }
+    mli.push(data.pdf === false
+      ? "地図の目印：<b>S</b>集合場所　<b>G</b>行き先　<b>1</b>高速に乗る　<b>2</b>高速を降りる"
+      : "<b>A4・1枚のPDF</b>です。地図の下に日付・行き先・インター名・距離が付いていて、そのまま印刷できます");
+    mli.push("この山行の記録として残ります（履歴にもリンクが付きます）");
+
+    msg.innerHTML = "地図を残しました。" + ul_(mli) +
+      '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener" ' +
+      'style="display:inline-block;margin-top:4px;padding:8px 12px;background:var(--club);' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+      '🗺 保存した地図を見る</a>';
+  });
+}
+
+/* 最初に選んでおく道。時間のいちばん短いものにします。
+   （2026-08-03i：候補から選べるようになったので、選びかたの欄は外しました） */
+function routePrefNow_() { return "time"; }
+
+/* このアプリが自動で入れた距離をおぼえておきます。
+   選びかたを変えて調べ直したとき、**自分が入れた数字だけ**を書き替えるためです。
+   手で直した数字には、いっさい触りません。 */
+var lastAutoKm = "";
+
+/* 候補の道の一覧と、いま選んでいる番号（2026-08-03h） */
+var lastRouteList = [], lastRouteIdx = -1;
+var lastRouteFrom = "", lastRouteTo = "", lastRouteFor = "";
+
+/* ------------------------------------------------------------------
+   ルートの確定（2026-08-17）
+   「計算する」を押した・地図をPDFで残した、のどちらかをしたら、
+   もう選び直している途中ではないはずなので、候補の一覧を閉じて
+   選んだ道だけを表示します。「別の道に変更する」で、いつでも開き直せます。
+   ------------------------------------------------------------------ */
+var routeLocked = false;
+var lastRouteDetailHtml = "";
+
+function renderRouteArea_() {
+  var msg = document.getElementById("distMsg");
+  if (!msg || !lastRouteList.length) return;
+  /* ★「地図をPDFで残す」の段落は、描き直すと消えてしまいます。
+     　 いったん元の置き場へ避難させ、描いたあとにボタンの下へ戻します。 */
+  detachMapSaveArea_();
+  msg.innerHTML = routeListHtml_(lastRouteDetailHtml) +
+    '<div><b>実際に走った距離と違うときは、手で直してください。</b></div>';
+  placeMapSaveArea_();
+}
+function lockRoute_() {
+  if (!lastRouteList.length || lastRouteIdx < 0) return;
+  routeLocked = true;
+  renderRouteArea_();
+}
+function unlockRoute_() {
+  routeLocked = false;
+  renderRouteArea_();
+}
+
+function prefChanged() {
+  saveForm();
+  /* すでに候補があるなら、聞き直さずにその中から選び直します（2026-08-03h） */
+  var nowTo = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  if (lastRouteList.length && lastRouteFor === nowTo) {
+    var dist = (routePrefNow_() === "dist"), pk = 0, best = -1;
+    for (var i = 0; i < lastRouteList.length; i++) {
+      var v = dist ? lastRouteList[i].km : lastRouteList[i].mins;
+      if (best < 0 || v < best) { best = v; pk = i; }
+    }
+    showRoute_(pk);
+    return;
+  }
+  var msg = document.getElementById("distMsg");
+  if (msg) {
+    msg.innerHTML = "道の選びかたを変えました。<b>「地図で走行距離を調べる」を" +
+                    "もう一度押してください。</b>";
+  }
+}
+
+function lookupDistance() {
+  var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var msg  = document.getElementById("distMsg");
+  var btn  = document.getElementById("distBtn");
+  if (!from || !to) {
+    msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>";
+    return;
+  }
+  btn.disabled = true;
+  msg.innerHTML = "地図で調べています…";
+  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_() },
+          function (err, data) {
+    btn.disabled = false;
+    if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+    if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+
+    /* ------------------------------------------------------------------
+       取ってくるのは**片道**の距離です。
+       入れた車だけ、プルダウンも「片道」にします
+       （計算のときに自動で2倍されて、往復になります）。
+       すでに距離が入っている車には、いっさい触りません。
+       ------------------------------------------------------------------ */
+    /* ------------------------------------------------------------------
+       ★2026-08-03h
+       　候補の道を一覧で出し、**実際に走る道を選んでもらいます。**
+       　「短いが遅い道」と「少し長いが速い道」のどちらが良いかは、
+       　その日の事情で変わるので、機械が決めるものではありません。
+       ------------------------------------------------------------------ */
+    lastRouteList = data.list || [];
+    lastRouteFrom = data.from || "";
+    lastRouteTo   = data.to || "";
+    lastRouteFor  = to;
+    routeLocked   = false; /* 新しく調べ直したので、確定は解く */
+    if (!lastRouteList.length) {
+      msg.innerHTML = "<b>道順が見つかりませんでした。</b>";
+      return;
+    }
+    showRoute_(data.pick || 0);
+  });
+}
+
+/* ------------------------------------------------------------------
+   候補1つぶんの「どの道を通るか」の一行。（2026-08-17f）
+
+   ★高速を使う道　… 「乗るIC〜降りるIC」を出します。
+   　　　　　　　　　 サーバーが調べたIC名（tollIn／tollOut）を使います。
+   　　　　　　　　　 IC名が取れなかったときだけ、道の名前で代用します。
+   ★高速を使わない道… 「高速なし」だけでは候補の見分けがつかないので、
+   　　　　　　　　　 通る道の名前（県道52号など）も必ず出します。
+   ------------------------------------------------------------------ */
+function routeSubLabel_(r) {
+  if (r.noHw) return String(r.summary || '');
+  var inNm  = (r.tollIn  && r.tollIn.name)  ? r.tollIn.name  : '';
+  var outNm = (r.tollOut && r.tollOut.name) ? r.tollOut.name : '';
+  if (inNm && outNm) return inNm + '〜' + outNm;
+  if (inNm || outNm) return (inNm || outNm);
+  return String(r.summary || '');
+}
+
+function routeCandTag_(r) {
+  var head = r.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '';
+  var sub  = routeSubLabel_(r);
+  var line = sub ? '<br><span style="color:#5a6b5c;font-size:14px;margin-left:2.6em;">' +
+                   escapeHtml(sub) + '</span>' : '';
+  return head + line;
+}
+
+/* ------------------------------------------------------------------
+   「この道順の地図をPDFで残す」の段落を、緑の「この道順を地図で見る」
+   ボタンのすぐ下へ引っ越します。（2026-08-17f）
+   見る・残す が離れていると分かりにくい、というご指摘への対応です。
+
+   一覧を描き直すと中身ごと消えてしまうので、
+   　①描き直す前に、元の置き場（mapSaveHome）へ避難させる
+   　②描き直したあとに、ボタンの下（mapSaveSlot）へ入れ直す
+   という順で動かします。
+   ------------------------------------------------------------------ */
+function detachMapSaveArea_() {
+  var p = document.getElementById("mapSaveMsg");
+  var home = document.getElementById("mapSaveHome");
+  if (p && home && p.parentNode !== home) home.appendChild(p);
+}
+function placeMapSaveArea_() {
+  var p = document.getElementById("mapSaveMsg");
+  var slot = document.getElementById("mapSaveSlot");
+  if (!p || !slot) return;
+  /* ★「この道順を地図で見る」を押すまでは出しません（2026-08-17p）。
+     　すでに残してある地図があるときだけ、最初から出します。 */
+  if (!mapAreaShouldShow_()) { detachMapSaveArea_(); return; }
+  if (p.parentNode !== slot) {
+    slot.appendChild(p);
+    p.style.marginTop = "6px";
+  }
+}
+
+/* 候補の一覧。押すと、その道に切り替わります（2026-08-17：候補1〜4の番号付き） */
+function routeListHtml_(detail) {
+  var cur = lastRouteList[lastRouteIdx];
+  var h = '';
+
+  /* ★いま選んでいる道が、一目で分かるように上に出します
+     （「選択しているルートがもっとよくわかるように」2026-08-17） */
+  if (cur) {
+    h += '<div style="margin:0 0 8px;padding:8px 11px;background:#eaf2ea;' +
+         'border:1px solid #b9d2ba;border-radius:8px;font-size:14px;">' +
+         '<span style="color:var(--club);font-weight:bold;">✅ 選択中：候補' + (lastRouteIdx + 1) + '</span>　' +
+         '<b>' + cur.km + 'km</b>・' + cur.mins + '分' +
+         (cur.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
+         (routeSubLabel_(cur) ? '（' + escapeHtml(routeSubLabel_(cur)) + '）' : '') +
+         '</div>';
+  }
+
+  /* ★計算する／地図を残す、をしたあとは、選び直しの一覧は畳んで
+     選んだ道だけを見せます（2026-08-17） */
+  if (routeLocked) {
+    h += '<div style="margin:0 0 4px;color:var(--club);font-weight:bold;">' +
+         'この道順で確定しています' +
+         '　<a href="javascript:void(0)" onclick="unlockRoute_()" ' +
+         'style="font-weight:normal;font-size:13px;">（別の道に変更する）</a></div>';
+    if (detail) {
+      h += '<div style="margin:0 0 10px 0;padding:8px 12px;' +
+           'border-left:4px solid var(--club);background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           detail + '</div>';
+    }
+    return h;
+  }
+
+  h += '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
+       '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
+  for (var i = 0; i < lastRouteList.length; i++) {
+    var r = lastRouteList[i], on = (i === lastRouteIdx);
+    h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
+      'style="display:block;width:100%;text-align:left;margin:4px 0;padding:9px 11px;' +
+      'border-radius:9px;border:2px solid ' + (on ? 'var(--club)' : '#cfd8cd') + ';' +
+      'background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;line-height:1.6;' +
+      (on ? '' : 'color:#7a857a;') + '">' +
+      '<span style="display:inline-block;background:' + (on ? 'var(--club)' : '#9aa89a') + ';' +
+      'color:#fff;font-size:12px;font-weight:bold;border-radius:5px;padding:1px 7px;' +
+      'margin-right:6px;">候補' + (i + 1) + '</span>' +
+      (on ? '✅ ' : '') + '<b style="color:' + (on ? '#1f3a20' : '#7a857a') + ';">' + r.km + 'km</b>・' + r.mins + '分' +
+      routeCandTag_(r) +
+      '</button>';
+    /* ★選んだ道のすぐ下に、その道の明細を出します（2026-08-03j）。
+       　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
+    if (on && detail) {
+      h += '<div style="margin:0 0 10px 10px;padding:8px 12px;' +
+           'border-left:4px solid var(--club);background:#f7faf7;border-radius:0 8px 8px 0;">' +
+           detail + '</div>';
+    }
+  }
+  return h;
+}
+
+/* i番目の道に切り替えます */
+function showRoute_(i) {
+  var d = lastRouteList[i];
+  if (!d) return;
+  lastRouteIdx = i;
+  routeLocked = false; /* 選び直している最中なので、確定表示は解いておく */
+
+  /* 空いている欄と、前にこのアプリが入れた数字だけを入れ替えます。
+     手で直した数字はそのままにします。 */
+  var filled = 0;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var km = c.querySelector(".car-km");
+    if (!km) return;
+    if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
+    km.value = d.km;
+    var tp = c.querySelector(".car-kmtype");
+    if (tp) tp.value = "one";
+    filled++;
+  });
+  lastAutoKm = String(d.km);
+  lastTollIn  = (d.tollIn  && d.tollIn.name)  ? d.tollIn.name  : "";
+  lastTollOut = (d.tollOut && d.tollOut.name) ? d.tollOut.name : "";
+  lastTollFor = lastRouteFor;
+
+  var li = [];
+  li.push("片道 <b>" + d.km + "km</b>（車で約" + d.mins + "分）");
+  if (d.summary) li.push("おもに <b>" + escapeHtml(d.summary) + "</b> を通ります");
+  li.push(filled ? "<b>" + filled + "台</b> に「片道」として入れました（往復ぶんは自動で計算）"
+                 : "各車の距離は、手で直した数字をそのままにしています");
+  var t1 = tollLi_(d.tollIn,  "高速に乗るところ");
+  var t2 = tollLi_(d.tollOut, "高速を降りるところ");
+  if (t1) li.push(t1);
+  if (t2) li.push(t2);
+  if (d.noHw) li.push("<b>高速には乗りません</b>");
+  li.push('<span style="color:#5a6b5c;">出発地：' + escapeHtml(lastRouteFrom) + "</span>");
+  li.push('<span style="color:#5a6b5c;">到着地：' + escapeHtml(lastRouteTo) + "</span>");
+
+  /* ★「この道順を地図で見る」（緑）のすぐ下に、
+     　 「地図をPDFで残す／残した地図を見る」を差し込む場所を用意します。 */
+  var slot = '<div id="mapSaveSlot" style="margin:2px 0 6px;"></div>';
+  var btn2 = "";
+  if (d.mapUrl) {
+    btn2 = '<a href="' + escapeHtml(d.mapUrl) + '" target="_blank" rel="noopener" ' +
+      'onclick="onMapViewed_()" ' +
+      'style="display:inline-block;margin:4px 0 2px;padding:8px 12px;background:var(--club);' +
+      'color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">' +
+      '🗺 この道順を地図で見る</a>' + slot +
+      foot_(['<b>アプリと同じ道順</b>が開きます（通る地点を渡して固定しています）',
+             d.noHw ? '高速に乗らないので、<b>高速料金はいりません</b>'
+                    : '地図に出る <b>「有料道路あり・¥○○○」</b> は、下の「高速料金」の目安です',
+             '所要時間だけは、そのときの渋滞で変わります']);
+  } else {
+    btn2 = slot;
+  }
+
+  var detail = ul_(li) + btn2 + '<div id="icLink" style="margin-top:6px;"></div>';
+  lastRouteDetailHtml = detail;
+  /* ★候補を切り替えたら、地図のボタンも作り直します（2026-08-17q）。
+     　残してある地図が別の道のものなら、そう表示するためです。 */
+  try {
+    var msEl = document.getElementById("mapSaveMsg");
+    if (msEl) msEl.innerHTML = mapSaveAreaHtml_(routeMapUrl);
+  } catch (eMs) {}
+  renderRouteArea_();
+
+  applyIcRoute_(d);
+  if (!d.noHw) autoPickRoute(true);
+  /* ★候補を切り替えたら、高速料金の照合もやり直します（2026-08-17u）。
+     　走る道が変われば通る区間も変わるので、
+     　「その区間が料金表にあるか」「金額が合っているか」を見直す必要があります。
+     　ここを呼んでいなかったため、候補を切り替えても何も言いませんでした。 */
+  try { syncFeesFromTable_(); } catch (eSy) {}
+  saveForm();
+  document.querySelectorAll("#cars .car-etc").forEach(function (el2) { feeChanged(el2); });
+}
+
+/* ---------- 参加人数 ---------- */
+var nPeople = 4;
+function changeN(d) {
+  nPeople = Math.max(1, nPeople + d);
+  document.getElementById("nDisp").textContent = nPeople;
+  saveForm();
+}
+
+/* ---------- 高速料金表（メンバー全員で共有） ---------- */
+function getEtcRoutes() {
+  var rows = document.querySelectorAll("#etcRows .etc-row");
+  var routes = [];
+  rows.forEach(function (tr) {
+    var name = tr.querySelector(".etc-name").value.trim();
+    var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
+    var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
+    var holiEl = tr.querySelector(".etc-holi");
+    var holi = holiEl ? parseInt(holiEl.value, 10) : NaN;
+    if (name && (!isNaN(etc) || !isNaN(normal) || !isNaN(holi))) {
+      routes.push({
+        name: name,
+        etc: isNaN(etc) ? null : etc,
+        normal: isNaN(normal) ? null : normal,
+        etcHoli: isNaN(holi) ? null : holi,
+        dest: (tr.querySelector(".etc-dest") ? tr.querySelector(".etc-dest").value.trim() : "")
+      });
+    }
+  });
+  return routes;
+}
+
+/* ------------------------------------------------------------------
+   その山行日が「休日料金」の日かどうか。（2026-08-17i）
+
+   ETCの休日割引があるため、同じ区間でも平日と土日祝で金額が違います。
+   土日はカレンダーから自動で分かりますが、**祝日は自動では分かりません。**
+   そこで「休日料金（土日・祝日）」のチェックを画面に出し、
+   土日なら自動でチェックを付け、祝日のときは手で付けていただきます。
+   ------------------------------------------------------------------ */
+function isHolidayRate_() {
+  var el = document.getElementById("holiRate");
+  return !!(el && el.checked);
+}
+/* ★2026-10-01（㊴）帰る日。空なら山行日（＝日帰り） */
+function retDateVal_() {
+  var d = document.getElementById("hikeDate").value;
+  var r = document.getElementById("retDate");
+  return (r && r.value && r.value >= d) ? r.value : d;
+}
+function isOvernight_() {
+  var d = document.getElementById("hikeDate").value;
+  return !!(d && retDateVal_() > d);
+}
+/* 帰りの日の休日料金。日帰りなら行きと同じ */
+function isHolidayRateRet_() {
+  if (!isOvernight_()) return isHolidayRate_();
+  var el = document.getElementById("holiRateRet");
+  return !!(el && el.checked);
+}
+function isWeekend_(d) {
+  if (!d) return false;
+  var p = d.split("-");
+  var w = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
+  return (w === 0 || w === 6);
+}
+function mdOf_(d) {
+  if (!d) return "";
+  var p = d.split("-");
+  return parseInt(p[1], 10) + "/" + parseInt(p[2], 10) + "（" + youbiOf(d) + "）";
+}
+/* 帰る日の欄と「帰りの日も休日料金」の見せ方を整えます */
+function syncRetUi_() {
+  var w = document.getElementById("holiRetWrap");
+  var on = isOvernight_();
+  if (w) w.style.display = on ? "flex" : "none";
+  var dd = document.getElementById("holiRetDay");
+  if (dd) dd.textContent = mdOf_(retDateVal_());
+  var lb = document.getElementById("holiLabel");
+  if (lb) lb.textContent = on ? ("行きの日（" + mdOf_(document.getElementById("hikeDate").value) + "）は休日料金")
+                              : "休日料金（土日・祝日）";
+  var ry = document.getElementById("retYoubiDisp");
+  if (ry) { var y = youbiOf(retDateVal_()); ry.textContent = y ? y + "曜日" : ""; }
+}
+/* 山行日が土日なら、休日料金のチェックを自動で付けます。
+   手で変えたあとは、日付を変えたときだけ付け直します。 */
+function syncHolidayByDate_() {
+  var el = document.getElementById("holiRate");
+  var d = document.getElementById("hikeDate").value;
+  if (!el || !d) return;
+  var p = d.split("-");
+  var w = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
+  el.checked = (w === 0 || w === 6);
+  var er = document.getElementById("holiRateRet");
+  if (er) er.checked = isWeekend_(retDateVal_());
+  syncRetUi_();
+  holiNote_();
+}
+function holiNote_() {
+  var n = document.getElementById("holiNote");
+  if (!n) return;
+  if (isOvernight_()) {
+    n.textContent = "行き：" + (isHolidayRate_() ? "休日料金" : "平日料金") +
+                    "／帰り：" + (isHolidayRateRet_() ? "休日料金" : "平日料金") +
+                    " で計算します。祝日のときはチェックを入れてください。";
+    return;
+  }
+  n.textContent = isHolidayRate_()
+    ? "休日料金（ETCの休日割引）で計算します。"
+    : "平日料金で計算します。祝日のときはチェックを入れてください。";
+}
+/* チェックを手で変えたとき */
+function holiChanged() {
+  holiNote_();
+  refreshAllDropdowns();
+  syncFeesFromTable_();
+  saveForm();
+}
+/* いまの日付・ETCの有無に合う、料金表の金額を返します */
+function routeFeeFor_(r, use, ret) {
+  if (!r) return null;
+  if (use !== "etc") return (r.normal == null ? null : r.normal);
+  if (ret ? isHolidayRateRet_() : isHolidayRate_()) {
+    /* 土日祝の金額が未登録なら、平日の金額で代用します */
+    return (r.etcHoli != null) ? r.etcHoli : (r.etc == null ? null : r.etc);
+  }
+  return (r.etc == null ? null : r.etc);
+}
+/* その金額が「料金表に載っている金額」かどうか。
+   載っていれば、アプリが入れた金額とみなして日付に合わせ直します。
+   載っていなければ、手で入れた金額とみなして触りません。 */
+function isTableFee_(r, v) {
+  if (v === "" || v == null) return false;
+  var n = parseInt(v, 10);
+  if (isNaN(n)) return false;
+  return (r.etc === n) || (r.normal === n) || (r.etcHoli === n);
+}
+/* ------------------------------------------------------------------
+   プルダウンに並ぶのは「名前と金額が入っている行」だけです。
+   画面上の行番号とはずれるので、同じ条件で数え直した一覧を使います。
+   （2026/7/29：ここを取り違えて、別のルートを指していました）
+   ------------------------------------------------------------------ */
+function etcRowsInOrder() {
+  var out = [];
+  document.querySelectorAll("#etcRows .etc-row").forEach(function (tr) {
+    var name = tr.querySelector(".etc-name").value.trim();
+    var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
+    var normal = parseInt(tr.querySelector(".etc-normal").value, 10);
+    var holiEl = tr.querySelector(".etc-holi");
+    var holi = holiEl ? parseInt(holiEl.value, 10) : NaN;
+    if (name && (!isNaN(etc) || !isNaN(normal) || !isNaN(holi))) out.push(tr);
+  });
+  return out;
+}
+
+var etcSaveTimer = null;
+function saveEtc() {
+  var routes = getEtcRoutes();
+  lsSet(LS_ETC, routes);
+  refreshAllDropdowns();
+  /* みんなで使えるよう、サーバーにも保存する（連続入力は1秒待ってまとめて送る） */
+  if (etcSaveTimer) clearTimeout(etcSaveTimer);
+  etcSaveTimer = setTimeout(function () {
+    apiPost({ action: "saveRoutes", routes: getEtcRoutes() }, function (err, data) {
+      var m = document.getElementById("etcSyncMsg");
+      if (!m) return;
+      /* ★2026-09-28　サーバーが断ったとき（名乗っていない端末など）も、失敗として知らせます */
+      m.textContent = err ? "共有の保存に失敗しました。電波の良い所でもう一度直してください"
+                    : (data && data.error) ? "共有の保存ができませんでした：" + data.error
+                    : "みんなの料金表に保存しました";
+      m.style.display = "block";
+      setTimeout(function () { m.style.display = "none"; }, 3000);
+    });
+  }, 1000);
+}
+function addEtcRow(name, etcFee, normalFee, dest, holiFee) {
+  var box = document.getElementById("etcRows");
+  var div = document.createElement("div");
+  div.className = "etc-row";
+  div.innerHTML =
+    '<input type="text" class="etc-name" placeholder="ルート名　例：南関⇔鳥栖" onchange="saveEtc()">' +
+    '<div class="etc-fees">' +
+    '<div><span class="fee-label">ETC片道(平日)</span><input type="number" class="etc-fee" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">ETC片道(土日祝)</span><input type="number" class="etc-holi" placeholder="0" onchange="saveEtc()"></div>' +
+    '<div><span class="fee-label">通常片道(円)</span><input type="number" class="etc-normal" placeholder="0" onchange="saveEtc()"></div>' +
+    '<button type="button" class="btn-small" onclick="this.closest(\'.etc-row\').remove(); saveEtc();">削除</button>' +
+    '</div>' +
+    '<input type="text" class="etc-dest" placeholder="この料金を使う行き先（自動で覚えます）" ' +
+      'onchange="saveEtc()" style="margin-top:6px;font-size:14px;">';
+  div.querySelector(".etc-name").value = name || "";
+  if (etcFee != null) div.querySelector(".etc-fee").value = etcFee;
+  if (holiFee != null) div.querySelector(".etc-holi").value = holiFee;
+  if (normalFee != null) div.querySelector(".etc-normal").value = normalFee;
+  div.querySelector(".etc-dest").value = dest || "";
+  box.appendChild(div);
+}
+function rebuildEtcRows(routes) {
+  var box = document.getElementById("etcRows");
+  box.innerHTML = "";
+  if (routes && routes.length) {
+    routes.forEach(function (r) { addEtcRow(r.name, r.etc, r.normal, r.dest, r.etcHoli); });
+  } else {
+    addEtcRow();
+  }
+}
+function loadEtc() {
+  var saved = lsGet(LS_ETC);
+  if (saved && saved.length) {
+    saved.forEach(function (r) {
+      /* 旧形式（fee）からの移行：feeはETC料金として扱う */
+      if (r.fee != null && r.etc == null) {
+        addEtcRow(r.name, r.fee, null, r.dest, r.etcHoli);
+      } else {
+        addEtcRow(r.name, r.etc, r.normal, r.dest, r.etcHoli);
+      }
+    });
+  } else {
+    addEtcRow();
+  }
+}
+/* サーバーからみんなの料金表を取り込む（起動時） */
+function fetchRoutes() {
+  apiPost({ action: "listRoutes" }, function (err, data) {
+    if (err || !data) return;
+    /* サーバー（GAS）の版も画面いちばん下に出す。
+       貼り替えとデプロイができているかを、目で確かめられるように。 */
+    try {
+      var vl = document.getElementById("verLine");
+      if (vl && data.gasver) vl.textContent = "版 " + APP_VER + "（サーバー " + data.gasver + "）";
+    } catch (eV) {}
+    /* ★2026-09-07（工事B B-3）クラブの見た目と呼び名を当て、端末に控える */
+    if (data.club) { applyClub_(data.club); saveClubCfg_(data.club); }
+    if (!data.routes) return;
+    var local = getEtcRoutes();
+    /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
+    if (!data.routes.length && local.length) {
+      apiPost({ action: "saveRoutes", routes: local }, function () {});
+      return;
+    }
+    var cur = JSON.stringify(local);
+    var svr = JSON.stringify(data.routes);
+    if (cur !== svr) {
+      lsSet(LS_ETC, data.routes);
+      rebuildEtcRows(data.routes);
+      refreshAllDropdowns();
+      /* みんなの料金表が届いた（＝金額が直っていることがある）ので、
+         区間を選んでいる車の金額を合わせ直す（2026-08-17h） */
+      syncFeesFromTable_();
+    }
+  });
+}
+
+/* ---------- 車 ---------- */
+function addCar(data) {
+  carCount++;
+  var div = document.createElement("div");
+  div.className = "car-card";
+  div.innerHTML =
+    '<div class="car-head"><span class="car-title">車 ' + carCount + '</span>' +
+    '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
+    '<label>車の持ち主（行きの運転手）</label>' + carNameFieldHtml("car-name") +
+    /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
+    '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
+      'background:#fff3e0;border:2px solid #e8a000;border-radius:8px;' +
+      'color:#8a5a00;font-size:14px;"></div>' +
+    '<label>走行距離（km・片道）</label>' +
+    '<input type="number" class="car-km" placeholder="例：45" min="0" step="0.1">' +
+    '<div class="subhead">かかる費用にチェック</div>' +
+    '<div class="chk-row">' +
+      '<label><input type="checkbox" class="chk-etc" onchange="toggleOpt(this,\'blk-etc\')">高速道路</label>' +
+      '<label><input type="checkbox" class="chk-ferry" onchange="toggleOpt(this,\'blk-ferry\')">フェリー</label>' +
+      '<label><input type="checkbox" class="chk-park" onchange="toggleOpt(this,\'blk-park\')">駐車料金</label>' +
+      '<label><input type="checkbox" class="chk-ent" onchange="toggleOpt(this,\'blk-ent\')">入場料</label>' +
+    '</div>' +
+    '<div class="opt-blk blk-etc">' +
+      '<label>高速ルート（料金表から選ぶ）</label>' +
+      '<select class="car-route" onchange="routeSelected(this)"><option value="">使わない／下に直接入力</option></select>' +
+      '<label>ETCの有無</label>' +
+      '<select class="car-etcuse" onchange="routeSelected(this)">' +
+      '<option value="etc">ETCあり（ETC料金）</option>' +
+      '<option value="normal">ETCなし（通常料金）</option></select>' +
+      '<label>高速料金（円・片道）</label>' +
+      '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)">' +
+      '<div class="fee-remember" style="display:none;margin-top:8px;">' +
+        '<button type="button" class="btn btn-sub" onclick="rememberFee(this)">' +
+        '⭐ この料金を覚える（次から自動で入ります）</button>' +
+        '<p class="note" style="margin-top:4px;">この行き先で、次に精算するときに自動で入ります。</p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="opt-blk blk-ferry"><label>フェリー（車分・片道）</label>' +
+      '<input type="number" class="car-ferry" placeholder="0" min="0"></div>' +
+    '<div class="opt-blk blk-park"><label>駐車料金</label>' +
+      '<input type="number" class="car-park" placeholder="0" min="0">' +
+      '<div class="park-by" style="display:none;">' +
+        '<label>駐車料金を払った人</label>' +
+        '<select class="car-parkby" onchange="saveForm()">' +
+        '<option value="owner">車の持ち主</option><option value="driver">帰りの運転手</option></select>' +
+      '</div></div>' +
+    '<div class="opt-blk blk-ent"><label>入場料（車分）</label>' +
+      '<input type="number" class="car-ent" placeholder="0" min="0"></div>' +
+    /* ★2026-10-01（㊴）帰り。ふだんは「帰りも同じ」＝行きの数字を2回使う（往復） */
+    '<div style="margin-top:12px;background:#f2f7f2;border-radius:8px;padding:9px 11px;">' +
+      '<label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:bold;">' +
+        '<input type="checkbox" class="chk-retsame" checked onchange="toggleRet(this)" style="width:20px;height:20px;">' +
+        '帰りも同じ（同じ運転手・同じ道）</label>' +
+      '<p class="note ret-same-note" style="margin:4px 0 0;">行きの距離・料金を帰りにも使います（往復）。' +
+        '帰りの運転手や道が違うときは、チェックを外してください。</p>' +
+      '<div class="opt-blk blk-ret">' +
+        '<label>帰りの運転手</label>' + carNameFieldHtml("car-rname") +
+        '<label>帰りの走行距離（km）</label>' +
+        '<input type="number" class="car-rkm" placeholder="例：45" min="0" step="0.1">' +
+        '<div class="ret-etc">' +
+          '<label>帰りの高速ルート（料金表から選ぶ）</label>' +
+          '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">使わない／下に直接入力</option></select>' +
+          '<label>帰りのETCの有無</label>' +
+          '<select class="car-retcuse" onchange="retRouteSelected(this)">' +
+          '<option value="etc">ETCあり（ETC料金）</option>' +
+          '<option value="normal">ETCなし（現金などで手払い）</option></select>' +
+          '<label>帰りの高速料金（円）</label>' +
+          '<input type="number" class="car-retc" placeholder="0（帰りは高速に乗らない）" min="0">' +
+        '</div>' +
+        '<div class="ret-ferry"><label>帰りのフェリー（車分）</label>' +
+          '<input type="number" class="car-rferry" placeholder="0（帰りは乗らない）" min="0"></div>' +
+        '<div class="ret-cash" style="display:none;">' +
+          '<label>帰りに手払いした分（ETCなしの高速・フェリー）を戻す相手</label>' +
+          '<select class="car-rcash" onchange="saveForm()">' +
+          '<option value="owner">車の持ち主</option><option value="driver">帰りの運転手</option></select>' +
+          '<p class="hint">ETCで払った高速料金は、車の持ち主へ戻します。</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  if (data) {
+    data = carDataToLegs_(data);
+    setCarName(div, data.name || "");
+    setIf(div, ".car-km", data.km);
+    setIf(div, ".car-etc", data.etc);
+    /* ★ETCの有無を戻します。（2026-08-17h）
+       これまで保存していなかったため、開き直すと必ず「ETCあり」に
+       戻ってしまい、金額（通常料金で入れた額など）と食い違っていました。 */
+    if (data.etcUse) div.querySelector(".car-etcuse").value = data.etcUse;
+    setIf(div, ".car-ferry", data.ferry);
+    setIf(div, ".car-park", data.park);
+    if (data.parkBy) div.querySelector(".car-parkby").value = data.parkBy;
+    div.querySelector(".chk-retsame").checked = (data.same !== false);
+    if (data.same === false) {
+      setCarName(div, data.rname || "", "car-rname");
+      setIf(div, ".car-rkm", data.rkm);
+      setIf(div, ".car-retc", data.retc);
+      if (data.retcUse) div.querySelector(".car-retcuse").value = data.retcUse;
+      setIf(div, ".car-rferry", data.rferry);
+      if (data.rcash) div.querySelector(".car-rcash").value = data.rcash;
+      var selRR = div.querySelector(".car-rroute");
+      selRR.dataset.routeName = data.rrouteName || "";
+      selRR.dataset.routeIdx  = (data.rroute != null) ? String(data.rroute) : "";
+    }
+    setIf(div, ".car-ent", data.ent);
+    setChk(div, ".chk-etc", "blk-etc", data.useEtc != null ? data.useEtc : has(data.etc));
+    setChk(div, ".chk-ferry", "blk-ferry", data.useFerry != null ? data.useFerry : has(data.ferry));
+    setChk(div, ".chk-park", "blk-park", data.usePark != null ? data.usePark : has(data.park));
+    setChk(div, ".chk-ent", "blk-ent", data.useEnt != null ? data.useEnt : has(data.ent));
+    /* 高速ルートの選択を戻します。実際に選び直すのは、このあとの
+       refreshAllDropdowns（選択肢を作ったあと）です。 */
+    var selR = div.querySelector(".car-route");
+    if (selR) {
+      selR.dataset.routeName = data.routeName || "";
+      selR.dataset.routeIdx  = (data.route != null) ? String(data.route) : "";
+    }
+  }
+  document.getElementById("cars").appendChild(div);
+  refreshAllDropdowns();
+  renumberCars();
+}
+/* ------------------------------------------------------------------
+   ★2026-10-01（㊴）前の形の記録（走行距離・高速・フェリーに［往復／片道］）を、
+   　新しい形（いつも片道の数字＋「帰りも同じ」）に読み替えます。記録そのものは書き換えません。
+   　・往復で入れていた数字 … 半分にして、行きと帰りに1つずつ
+   　・片道で入れていた数字 … そのまま（前も計算のときに2倍していた）
+   　・半分にすると1円ずれる金額（奇数）は、帰りを別に持たせて合計を変えない
+   ------------------------------------------------------------------ */
+function carDataToLegs_(d) {
+  if (!d || d.same != null) return d;   /* 新しい形 */
+  var o = {}; for (var k in d) if (d.hasOwnProperty(k)) o[k] = d[k];
+  var odd = false, rEtc = null, rFerry = null;
+  if (has(d.km) && d.kmType !== "one") {
+    o.km = String(parseFloat(d.km) / 2);   /* 小数のまま（合計を変えない） */
+  }
+  if (has(d.etc) && d.etcType !== "one") {
+    var e = parseInt(d.etc, 10) || 0;
+    o.etc = String(Math.ceil(e / 2)); rEtc = String(e - Math.ceil(e / 2));
+    if (rEtc !== o.etc) odd = true;
+  }
+  if (has(d.ferry) && d.ferryType !== "one") {
+    var f = parseInt(d.ferry, 10) || 0;
+    o.ferry = String(Math.ceil(f / 2)); rFerry = String(f - Math.ceil(f / 2));
+    if (rFerry !== o.ferry) odd = true;
+  }
+  o.same = true;
+  if (odd) {
+    o.same = false;
+    o.rname = d.name || "";
+    o.rkm = o.km || "";
+    o.retc = (rEtc != null) ? rEtc : (d.etc || "");
+    o.retcUse = d.etcUse || "etc";
+    o.rferry = (rFerry != null) ? rFerry : (d.ferry || "");
+    o.rroute = d.route; o.rrouteName = d.routeName || "";
+  }
+  return o;
+}
+/* 「帰りも同じ」を外したとき。帰りの欄に、行きの内容を写してから開きます */
+function toggleRet(chk) {
+  var c = chk.closest(".car-card");
+  if (!chk.checked) {
+    var rk = c.querySelector(".car-rkm");
+    if (rk && rk.value === "") {
+      setCarName(c, c.querySelector(".car-name").value, "car-rname");
+      rk.value = c.querySelector(".car-km").value;
+      c.querySelector(".car-retcuse").value = c.querySelector(".car-etcuse").value;
+      var sg = c.querySelector(".car-route"), sr = c.querySelector(".car-rroute");
+      sr.value = sg.value; rememberRouteName_(sr);
+      var fee = c.querySelector(".car-etc").value;
+      if (sg.value !== "") {
+        var r = getEtcRoutes()[parseInt(sg.value, 10)];
+        if (r && isTableFee_(r, fee)) { var w = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true); if (w != null) fee = String(w); }
+      }
+      c.querySelector(".car-retc").value = fee;
+      c.querySelector(".car-rferry").value = c.querySelector(".car-ferry").value;
+    }
+  }
+  updateRetUi_(c);
+  saveForm();
+}
+/* 帰りの欄の見せ方（運転手が持ち主と違うときだけ「戻す相手」を出す） */
+function updateRetUi_(c) {
+  var same = c.querySelector(".chk-retsame").checked;
+  c.querySelector(".blk-ret").classList.toggle("on", !same);
+  var n1 = c.querySelector(".ret-same-note");
+  if (n1) n1.style.display = same ? "block" : "none";
+  c.querySelector(".ret-etc").style.display = c.querySelector(".chk-etc").checked ? "block" : "none";
+  c.querySelector(".ret-ferry").style.display = c.querySelector(".chk-ferry").checked ? "block" : "none";
+  var owner = (c.querySelector(".car-name").value || "").trim();
+  var rd = (c.querySelector(".car-rname").value || "").trim();
+  var other = !same && rd !== "" && rd !== "__other" && rd !== owner;
+  c.querySelector(".ret-cash").style.display = other ? "block" : "none";
+  c.querySelector(".park-by").style.display = other ? "block" : "none";
+}
+/* 帰りの高速ルートを選んだとき。帰る日（平日／休日）に合う金額を入れます */
+function retRouteSelected(el) {
+  var c = el.closest(".car-card");
+  var sel = c.querySelector(".car-rroute");
+  rememberRouteName_(sel);
+  if (sel.value !== "") {
+    var r = getEtcRoutes()[parseInt(sel.value, 10)];
+    var fee = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true);
+    c.querySelector(".car-retc").value = (fee == null) ? "" : fee;
+  }
+  updateRetUi_(c);
+  saveForm();
+}
+function setIf(div, sel, v) { if (v != null && v !== "") div.querySelector(sel).value = v; }
+function has(v) { return v != null && v !== "" && v !== "0"; }
+function setChk(scope, chkSel, blkCls, on) {
+  if (!on) return;
+  var chk = scope.querySelector(chkSel);
+  chk.checked = true;
+  scope.querySelector("." + blkCls).classList.add("on");
+  chk.parentNode.classList.add("on");
+}
+/* チェックで入力欄の表示を切り替える（車・人 共通） */
+function toggleOpt(chk, blkCls) {
+  var scope = chk.closest(".car-card") || chk.closest(".card");
+  var blk = scope.querySelector("." + blkCls);
+  if (blk) blk.classList.toggle("on", chk.checked);
+  chk.parentNode.classList.toggle("on", chk.checked);
+  if (chk.closest(".car-card")) updateRetUi_(chk.closest(".car-card"));
+  saveForm();
+}
+/* 人にかかる費用のチェック切り替え */
+function togglePerson() {
+  var f = document.getElementById("chkPFerry");
+  var e = document.getElementById("chkPEnt");
+  document.querySelector(".blk-pferry").classList.toggle("on", f.checked);
+  document.querySelector(".blk-pent").classList.toggle("on", e.checked);
+  document.querySelector(".blk-payer").classList.toggle("on", f.checked || e.checked);
+  f.parentNode.classList.toggle("on", f.checked);
+  e.parentNode.classList.toggle("on", e.checked);
+  var rs = document.getElementById("pFerryRetSame");
+  var rb = document.getElementById("pFerryRetBox");
+  if (rs && rb) rb.style.display = rs.checked ? "none" : "block";
+  saveForm();
+}
+function removeCar(btn) {
+  btn.closest(".car-card").remove();
+  renumberCars();
+  saveForm();
+}
+function renumberCars() {
+  var cards = document.querySelectorAll("#cars .car-card");
+  cards.forEach(function (c, i) {
+    c.querySelector(".car-title").textContent = "車 " + (i + 1);
+    updateRetUi_(c);
+  });
+  refreshPayerDropdown();
+  checkDrivers_();
+}
+
+/* ==================================================================
+   ★2026-08-23　ドライバーが「不参加」になったときに知らせる
+
+   これまで：出欠から参加者を受け取り直しても、すでに入っているドライバー名は
+   　　　　　そのまま残っていました。その方が「不参加」に変えても、
+   　　　　　画面には何も出ないため、気づかないまま精算していました。
+   これから：いま「参加」と答えている方の一覧に無い名前が入っていたら、
+   　　　　　その車の欄に橙色で知らせます。名前は消しません
+   　　　　　（助っ人・退会された方など、わざと手入力している場合があるため）。
+   ================================================================== */
+function checkDrivers_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var w = c.querySelector(".drv-warn");
+    var f = c.querySelector(".car-name");
+    if (!w || !f) return;
+    var nm = (f.value || "").trim();
+    /* 出欠から参加者を受け取れていないとき（手入力の場合）は何も出さない */
+    if (!JOINED.length || !nm) { w.style.display = "none"; return; }
+    if (JOINED.indexOf(nm) >= 0) { w.style.display = "none"; return; }
+    w.innerHTML = "<b>" + escapeHtml(nm) + "さんは、いま「参加」と答えていません。</b><br>" +
+      "不参加になった方がドライバーのままになっていないか確かめて、" +
+      "選び直してください。<br>" +
+      "<span style=\"font-size:13px;\">※ 助っ人や退会された方など、名簿に無い方を" +
+      "わざと入れている場合は、このままで構いません。</span>";
+    w.style.display = "block";
+  });
+}
+
+function refreshAllDropdowns() {
+  var routes = getEtcRoutes();
+  document.querySelectorAll(".car-route, .car-rroute").forEach(function (sel) {
+    var isRet = sel.classList.contains("car-rroute");
+    /* ------------------------------------------------------------------
+       選んでいた高速ルートを「名前」で覚えておき、作り直したあとに
+       同じ名前の行を選び直します。（2026/7/30）
+
+       これまでは番号（何行目か）だけで覚えていました。
+       料金表はみんなで共有していて、行が増えたり並びが変わったりするため、
+       開き直すと選択が消えて、金額だけが残っていました。
+       名前で覚えれば、並びが変わっても元に戻せます。
+       ------------------------------------------------------------------ */
+    var wantName = sel.dataset.routeName || "";
+    var wantIdx  = (sel.value !== "") ? sel.value : (sel.dataset.routeIdx || "");
+    sel.innerHTML = '<option value="">使わない／下に直接入力</option>';
+    routes.forEach(function (r, i) {
+      var op = document.createElement("option");
+      op.value = String(i);
+      /* ★いまの山行日に使う金額を先に出します（2026-08-17i）。
+         　どれが使われるのか、選ぶ前に分かるようにするためです。 */
+      var nowFee = routeFeeFor_(r, "etc", isRet);
+      op.textContent = r.name +
+        "（ETC" + ((isRet ? isHolidayRateRet_() : isHolidayRate_()) ? "土日祝 " : "平日 ") +
+        (nowFee != null ? yen(nowFee) : "未登録") +
+        "／通常 " + (r.normal != null ? yen(r.normal) : "未登録") + "）";
+      sel.appendChild(op);
+    });
+    var idx = -1;
+    if (wantName) {
+      for (var i = 0; i < routes.length; i++) {
+        if (String(routes[i].name || "") === wantName) { idx = i; break; }
+      }
+      /* 名前で覚えていたのに見つからない＝その行が消された、ということ。
+         別の行を勝手に選ぶと料金を間違えるので、選ばないままにします。 */
+    } else if (wantIdx !== "" && routes[parseInt(wantIdx, 10)]) {
+      idx = parseInt(wantIdx, 10);
+    }
+    sel.value = (idx >= 0) ? String(idx) : "";
+    if (idx >= 0) {
+      rememberRouteName_(sel);
+    } else {
+      /* ------------------------------------------------------------------
+         ★見つからなくても、覚えていた名前は消さないこと。（2026-08-17h）
+
+         料金表はサーバーから少し遅れて届きます。届く前にここを通ると
+         表が空なので必ず見つからず、これまではそこで名前を消していました。
+         その結果、**その端末で初めて開いたときだけ高速ルートの選択が
+         戻らず、金額だけが残る**という状態になっていました。
+         名前を残しておけば、料金表が届いたあとにもう一度ここを通ったとき、
+         ちゃんと選び直せます。
+         ------------------------------------------------------------------ */
+      sel.dataset.routeName = wantName;
+      sel.dataset.routeIdx  = wantIdx;
+    }
+  });
+}
+
+/* ------------------------------------------------------------------
+   料金表から選んだ区間の金額を、料金表と合わせ直します。（2026-08-17h）
+
+   「高速ルート（料金表から選ぶ）」で区間を選んでいるのに、高速料金の欄に
+   別の金額が入っていることがありました。原因は2つあります。
+
+   　①ETCあり／なしを保存していなかったので、開き直すと必ず「ETCあり」に
+   　　戻り、通常料金で入れた金額と食い違ってしまう
+   　②料金表はみんなで共有していて、あとから金額が直されることがある
+
+   区間を選んでいる以上、金額は料金表に従うのが筋なので、ここで合わせます。
+   ただし**黙って書き換えると精算の金額が勝手に変わってしまう**ので、
+   直したときは必ず画面に出してお知らせします。
+   「使わない／下に直接入力」を選んでいる車は、手入力とみなして触りません。
+   ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   行き先が一致する料金表の行を**すべて**返します。（2026-08-17n）
+
+   ★1つだけ返す `findRouteByDest` は、行き先が同じ区間が2つ以上あると
+   　先に見つかったほうを返してしまいます。
+   　実際、英彦山には「八女⇔杷木」と「杷木⇔南関」の両方が登録されており、
+   　行き先だけで決めて**まったく別の区間（八女⇔杷木 1,060円）を
+   　当ててしまう**事故が起きました。
+   　迷ったときは決めない、という判断をするために全部返します。
+   ------------------------------------------------------------------ */
+function findRoutesByDest_(dest) {
+  var d = normDest(dest), out = [];
+  if (!d) return out;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var rd = normDest(routes[i].dest);
+    if (!rd) continue;
+    if (rd === d || rd.indexOf(d) >= 0 || d.indexOf(rd) >= 0) out.push(i);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------
+   いま調べた道の「乗ったIC〜降りたIC」から、料金表の行を決めます。
+   これがいちばん確かな手がかりです。分からなければ -1。
+   ------------------------------------------------------------------ */
+function routeIdxByIc_() {
+  var nowTo = document.getElementById("destPlace").value
+                .replace(/^[\s　]+|[\s　]+$/g, "");
+  /* 行き先が変わっていたら、前に調べたIC名は別の山のものなので使わない */
+  if (!lastTollFor || lastTollFor !== nowTo) return -1;
+  if (!lastTollIn || !lastTollOut) return -1;
+  return findRouteByIcPair_(lastTollIn, lastTollOut);
+}
+
+function syncFeesFromTable_() {
+  var routes = getEtcRoutes();
+  var changed = [], suggest = [], missing = [], noHwLeft = [];
+  var destNow = document.getElementById("destPlace").value;
+  /* ------------------------------------------------------------------
+     ★実際に走った区間が、料金表にまだ無いとき。（2026-08-17u）
+
+     只隈さんのご指摘。候補2（南関IC〜甘木IC）を選んでいるのに、
+     料金表に「南関⇔甘木」が無いため、**別の区間「杷木⇔南関」の
+     ¥1,370 がそのまま入りっぱなし**になっていた。
+     区間が無いなら「無いので作ってください、金額を入れてください」と
+     はっきり言うべき、というのがご指摘の趣旨。
+     ------------------------------------------------------------------ */
+  var destTrim = String(destNow).replace(/^[\s　]+|[\s　]+$/g, "");
+  var icPairKnown = !!(lastTollFor && lastTollFor === destTrim && lastTollIn && lastTollOut);
+  var icPairNm = icPairKnown ? icPairName_() : "";
+  /* ★区間を決める手がかりは、この順で強い（2026-08-17n）
+     　①実際に走った道のIC（南関IC〜杷木IC）… いちばん確か
+     　②行き先。ただし**候補が1つだけのとき**に限る。
+     　　2つ以上あるときは決められないので、何も言わない。 */
+  var icIdx = routeIdxByIc_();
+  document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
+    var sel = c.querySelector(".car-route");
+    var fee = c.querySelector(".car-etc");
+    if (!sel || !fee) return;
+    var chosen = (sel.value !== "");
+    var use = c.querySelector(".car-etcuse").value;
+    var label = (use === "etc")
+                  ? ("ETC・" + (isHolidayRate_() ? "土日祝" : "平日"))
+                  : "通常料金";
+
+    /* ------------------------------------------------------------------
+       ★高速に乗らない道を選んでいるのに、高速料金が残っているとき。
+       　（2026-08-17v　只隈さんのご指摘）
+
+       候補3（高速なし・県道52号）を選んでいるのに、
+       「高速道路」のチェックが入ったまま、区間「杷木⇔南関」と
+       ¥1,370 が残っていた。
+       applyIcRoute_ は手で入れた金額を守るために外さない作りなので、
+       **残ること自体は正しい。けれど黙っているのは間違い。**
+       残っていることを伝えて、1タップで外せるようにします。
+       ------------------------------------------------------------------ */
+    var dNow = lastRouteList[lastRouteIdx];
+    if (dNow && dNow.noHw) {
+      var chkE = c.querySelector(".chk-etc");
+      if (chkE && chkE.checked && (fee.value !== "" || chosen)) {
+        noHwLeft.push({ no: i + 1, idx: i, now: fee.value,
+                        name: chosen && routes[parseInt(sel.value, 10)]
+                                ? routes[parseInt(sel.value, 10)].name : "" });
+      }
+      return;   /* 高速を使わない道なので、料金表との照合はしません */
+    }
+
+    /* ★実際の区間が料金表に無いとき（2026-08-17u）。
+       　比べる相手がいないので、他の判定はせず、作るよう案内します。 */
+    if (icPairKnown && icPairNm && icIdx < 0) {
+      if (chosen || fee.value !== "") {
+        missing.push({ no: i + 1, pair: icPairNm,
+                       curName: chosen && routes[parseInt(sel.value, 10)]
+                                  ? routes[parseInt(sel.value, 10)].name : "",
+                       now: fee.value });
+      }
+      return;
+    }
+
+    /* ★選ばれている区間が、実際に走った道と食い違っていないか。
+       　（誤って別の区間を選んでしまったときに気づけるように） */
+    if (chosen && icIdx >= 0 && icIdx !== parseInt(sel.value, 10)) {
+      var rc = routes[icIdx];
+      var wantC = routeFeeFor_(rc, use);
+      if (rc && wantC != null) {
+        suggest.push({ no: i + 1, idx: i, routeIdx: icIdx, name: rc.name, use: label,
+                       now: fee.value, want: wantC, needRoute: false,
+                       wrongRoute: routes[parseInt(sel.value, 10)]
+                                     ? routes[parseInt(sel.value, 10)].name : "",
+                       icPair: lastTollIn + "〜" + lastTollOut });
+        return;
+      }
+    }
+
+    var ri;
+    if (chosen) {
+      ri = parseInt(sel.value, 10);
+    } else {
+      /* ------------------------------------------------------------------
+         区間が選ばれていない車（古い下書きなど）。
+         ICで決まればそれ、決まらなければ行き先。
+         ★行き先の候補が2つ以上あるときは、**当てずっぽうにしない。**
+         ------------------------------------------------------------------ */
+      if (icIdx >= 0) {
+        ri = icIdx;
+      } else {
+        var cand = findRoutesByDest_(destNow);
+        if (cand.length !== 1) return;   /* 決められないので黙る */
+        ri = cand[0];
+      }
+    }
+    if (ri < 0 || !routes[ri]) return;
+    if (!chosen && fee.value === "") return;   /* 金額も空なら、何も言わない */
+    var r = routes[ri];
+    var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
+    if (want == null) return;                          /* 料金表に未登録なら触らない */
+    if (String(fee.value) === String(want)) return;    /* すでに合っている */
+    /* 区間が選ばれていない車は、必ず「ボタンで確認」にします */
+    if (!chosen) {
+      suggest.push({ no: i + 1, idx: i, routeIdx: ri, name: r.name, use: label,
+                     now: fee.value, want: want, needRoute: true });
+      return;
+    }
+    /* ★ここが肝（2026-08-17j）。金額の直し方を2段構えにします。
+
+       (1) いま入っている金額が料金表のどれかと一致する
+       　　＝アプリが入れた金額なので、日付に合う金額へ**自動で**直す。
+       　　例：日曜なのに平日の1,960円 → 1,370円へ。
+
+       (2) 料金表に無い金額（手で入れた可能性がある）
+       　　＝**勝手に直さない。** そのかわり
+       　　「料金表では¥1,370です → これにする」ボタンを出す。
+       　　黙って消さず、かつ1回のタップで直せるようにするためです。 */
+    if (fee.value !== "" && !isTableFee_(r, fee.value)) {
+      suggest.push({ no: i + 1, idx: i, routeIdx: -1, name: r.name, use: label,
+                     now: fee.value, want: want, needRoute: false });
+      return;
+    }
+    var before = fee.value;
+    fee.value = want;
+    fee.setAttribute("data-auto", String(want));
+    var tp = c.querySelector(".car-etctype");
+    if (tp) tp.value = "one";                          /* 料金表は片道の金額 */
+    changed.push({ no: i + 1, name: r.name, use: label,
+                   before: before, after: want });
+  });
+  /* ★2026-10-01（㊴）帰りの欄。料金表から選んだ区間で、いまの金額が料金表の金額なら、
+     　帰る日（平日／休日）に合う金額へ合わせます。手で入れた金額は触りません。 */
+  var retChanged = false;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    if (c.querySelector(".chk-retsame").checked) return;
+    var sr = c.querySelector(".car-rroute"), fr = c.querySelector(".car-retc");
+    if (!sr || !fr || sr.value === "") return;
+    var rr = routes[parseInt(sr.value, 10)];
+    if (!rr) return;
+    if (fr.value !== "" && !isTableFee_(rr, fr.value)) return;
+    var wr = routeFeeFor_(rr, c.querySelector(".car-retcuse").value, true);
+    if (wr != null && String(fr.value) !== String(wr)) { fr.value = wr; retChanged = true; }
+  });
+  renderFeeSyncMsg_(changed, suggest, missing, noHwLeft);
+  if (changed.length || retChanged) saveForm();
+}
+
+/* 「高速料金を外す」を押したとき（2026-08-17v）。
+   高速道路のチェック・区間・金額を、その車だけまとめて空にします。 */
+function clearEtcForCar_(i) {
+  var c = document.querySelectorAll("#cars .car-card")[i];
+  if (!c) return;
+  var chk = c.querySelector(".chk-etc");
+  if (chk && chk.checked) { chk.checked = false; toggleOpt(chk, "blk-etc"); }
+  var fee = c.querySelector(".car-etc");
+  if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
+  var sel = c.querySelector(".car-route");
+  if (sel) { sel.value = ""; rememberRouteName_(sel); }
+  saveForm();
+  /* ★明細の文言（「◯台は高速料金が入ったままです」）も書き直します。
+     　showRoute_ を呼ぶと autoPickRoute で区間が入り直してしまうので、
+     　明細だけを作り直す applyIcRoute_ を直接呼びます。 */
+  try {
+    var dNow2 = lastRouteList[lastRouteIdx];
+    if (dNow2) applyIcRoute_(dNow2);
+  } catch (eC) {}
+  syncFeesFromTable_();
+}
+
+/* 高速料金のお知らせを描きます（自動で直した分と、ボタンでご確認いただく分） */
+function renderFeeSyncMsg_(changed, suggest, missing, noHwLeft) {
+  missing = missing || [];
+  noHwLeft = noHwLeft || [];
+  var box = document.getElementById("feeSyncMsg");
+  if (!box) return;
+  if (!changed.length && !suggest.length && !missing.length && !noHwLeft.length) {
+    box.style.display = "none"; box.innerHTML = ""; return;
+  }
+  var h = "", k, g;
+  /* ★高速に乗らない道なのに、高速料金が残っているとき（2026-08-17v） */
+  if (noHwLeft.length) {
+    h += '<b>この道は<span style="color:#8a5a00;">高速に乗りません</span>が、' +
+         '高速料金が入ったままです。</b><br>';
+    for (k = 0; k < noHwLeft.length; k++) {
+      g = noHwLeft[k];
+      h += '車' + g.no + '：' +
+           (g.name ? ('区間 <b>' + escapeHtml(g.name) + '</b>／') : '') +
+           '<b>' + escapeHtml(g.now === "" ? "金額は空欄" : g.now + '円') + '</b>' +
+           ' <button type="button" class="btn-small" style="margin-left:6px;" ' +
+           'onclick="clearEtcForCar_(' + g.idx + ')">高速料金を外す</button><br>';
+    }
+    h += '<span style="color:#5a6b5c;">実際は高速に乗った、というときは' +
+         'そのままにしてください。</span>';
+    if (changed.length || suggest.length || missing.length) {
+      h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    }
+  }
+  /* ★実際に走った区間が料金表に無いとき（2026-08-17u） */
+  if (missing.length) {
+    var pair = missing[0].pair;
+    h += '<b>実際に走った区間 <span style="color:#8a5a00;">' + escapeHtml(pair) +
+         '</span> が、料金表にありません。</b><br>' +
+         '<button type="button" class="btn-small" style="margin:6px 0;" ' +
+         'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(pair) + '」を足す</button><br>';
+    for (k = 0; k < missing.length; k++) {
+      g = missing[k];
+      h += '車' + g.no + '：';
+      if (g.curName) {
+        h += 'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b> が入っていますが、' +
+             'これは <b>' + escapeHtml(g.curName) + '</b> の金額です。<br>';
+      } else {
+        h += 'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b> が入っています。<br>';
+      }
+    }
+    h += '<span style="color:#5a6b5c;">金額が分かるときは、足したあと料金表に入れてください。' +
+         'その場で分からないときは、上の「高速料金」に直接入れてもかまいません。</span>';
+    if (changed.length || suggest.length) {
+      h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    }
+  }
+  if (changed.length) {
+    h += '<b>高速料金を、料金表の金額に合わせました。</b><br>';
+    for (k = 0; k < changed.length; k++) {
+      g = changed[k];
+      h += '車' + g.no + '　' + escapeHtml(g.name) + '（' + g.use + '）：' +
+           (g.before === "" ? "空欄" : escapeHtml(g.before) + '円') +
+           ' → <b>' + yen(g.after) + '</b><br>';
+    }
+  }
+  if (suggest.length) {
+    if (h) h += '<hr style="border:none;border-top:1px solid #e8c46a;margin:8px 0;">';
+    h += '<b>高速料金が、料金表とちがいます。</b><br>';
+    for (k = 0; k < suggest.length; k++) {
+      g = suggest[k];
+      var head;
+      if (g.wrongRoute) {
+        /* 選ばれている区間が、実際に走った道と違うとき */
+        head = '実際に走った道は <b>' + escapeHtml(g.icPair) + '</b> です。' +
+               '選ばれている区間 <b>' + escapeHtml(g.wrongRoute) + '</b> とちがいます。<br>' +
+               '　→ <b>' + escapeHtml(g.name) + '</b>（' + g.use + '）：';
+      } else if (g.needRoute) {
+        head = '行き先から <b>' + escapeHtml(g.name) + '</b> が使えます（' + g.use + '）：';
+      } else {
+        head = escapeHtml(g.name) + '（' + g.use + '）：';
+      }
+      h += '車' + g.no + '　' + head +
+           'いま <b>' + escapeHtml(g.now === "" ? "空欄" : g.now + '円') + '</b>' +
+           '／料金表は <b>' + yen(g.want) + '</b>' +
+           ' <button type="button" class="btn-small" style="margin-left:6px;" ' +
+           'onclick="applyFeeSuggest_(' + g.idx + ',' + g.want + ',' + g.routeIdx + ')">' +
+           'この区間にする</button><br>';
+    }
+    h += '<span style="color:#5a6b5c;">いまの金額のままでよければ、そのままにしてください。</span><br>';
+  }
+  if (changed.length || suggest.length) {
+    h += '<span style="color:#5a6b5c;">料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+  }
+  box.innerHTML = h;
+  box.style.display = "block";
+}
+
+/* 「¥○○○ にする」を押したとき。
+   区間が選ばれていなかった車は、あわせて区間も選びます（2026-08-17m）。 */
+function applyFeeSuggest_(i, amount, routeIdx) {
+  var c = document.querySelectorAll("#cars .car-card")[i];
+  if (!c) return;
+  /* ★区間も入れ直します。空のときだけでなく、
+     　まちがった区間が選ばれているときも入れ替えます（2026-08-17n）。 */
+  if (routeIdx != null && routeIdx >= 0) {
+    var sel = c.querySelector(".car-route");
+    if (sel) {
+      var chk = c.querySelector(".chk-etc");
+      if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+      sel.value = String(routeIdx);
+      rememberRouteName_(sel);
+    }
+  }
+  var fee = c.querySelector(".car-etc");
+  if (!fee) return;
+  fee.value = amount;
+  fee.setAttribute("data-auto", String(amount));
+  var tp = c.querySelector(".car-etctype");
+  if (tp) tp.value = "one";
+  saveForm();
+  syncFeesFromTable_();   /* お知らせを描き直す（消える） */
+}
+
+/* いま選んでいるルートの名前を、選択欄そのものに覚えさせます */
+function rememberRouteName_(sel) {
+  if (!sel) return;
+  sel.dataset.routeIdx = sel.value;
+  if (sel.value === "") { sel.dataset.routeName = ""; return; }
+  var r = getEtcRoutes()[parseInt(sel.value, 10)];
+  sel.dataset.routeName = r ? String(r.name || "") : "";
+}
+/* 行き先の名前をそろえる（空白と全角半角のゆれを吸収） */
+function normDest(t) {
+  return String(t || "").replace(/[\s　]/g, "").toLowerCase();
+}
+
+/* 行き先に合う料金表を探す */
+function findRouteByDest(dest) {
+  var d = normDest(dest);
+  if (!d) return -1;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var rd = normDest(routes[i].dest);
+    if (!rd) continue;
+    /* どちらかがどちらかを含んでいれば同じ行き先とみなす */
+    if (rd === d || rd.indexOf(d) >= 0 || d.indexOf(rd) >= 0) return i;
+  }
+  return -1;
+}
+
+/* ==================================================================
+   行き先から、高速ルートと料金を自動で入れる
+
+   初回だけ人がルートを選びます。そのとき「行き先」を覚えるので、
+   **次に同じ場所へ行くときは、行き先を入れるだけで料金まで入ります。**
+   ================================================================== */
+function autoPickRoute(quiet) {
+  var dest = document.getElementById("destPlace").value;
+  var idx = findRouteByDest(dest);
+  var msg = document.getElementById("distMsg");
+  if (idx < 0) return false;
+
+  var routes = getEtcRoutes();
+  var filled = 0;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var sel = c.querySelector(".car-route");
+    if (!sel || sel.value !== "") return;             /* すでに選ばれていれば触らない */
+    var fee = c.querySelector(".car-etc");
+    if (fee && fee.value !== "") return;              /* 料金が入っていれば触らない */
+    var chk = c.querySelector(".chk-etc");
+    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    sel.value = String(idx);
+    routeSelected(sel);
+    filled++;
+  });
+  if (filled && !quiet && msg) {
+    msg.innerHTML += "<br>高速ルート「" + escapeHtml(routes[idx].name) +
+                     "」の料金も入れました。";
+  }
+  return filled > 0;
+}
+
+/* 地図で調べたときのIC名を覚えておく（料金表の名前づけに使う） */
+var lastTollIn = "", lastTollOut = "", lastTollFor = "";
+
+/* ==================================================================
+   高速の区間と、料金表をつなぐ　2026-08-03f
+   ------------------------------------------------------------------
+   これまでは「高速道路にチェック → ルートを選ぶ → 金額を入れる」を
+   手でやっていました。地図を調べれば、どのインターで乗り降りするかは
+   分かっているので、そこから料金表を引いて自動で入れます。
+   ================================================================== */
+/* 「杷木IC」→「杷木」。名前をくらべやすくします */
+function icShort_(v) {
+  return String(v || "").replace(/^[\s　]+|[\s　]+$/g, "")
+                        .replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+}
+
+/* いまの区間の名前。例：「南関⇔杷木」 */
+function icPairName_() {
+  var a = icShort_(lastTollIn), b = icShort_(lastTollOut);
+  return (a && b) ? (a + "⇔" + b) : "";
+}
+
+/* 料金表から、この区間の行をさがします。
+   「杷木⇔南関」と「南関⇔杷木」は同じ区間なので、順番は見ません。 */
+function findRouteByIcPair_(a, b) {
+  a = icShort_(a); b = icShort_(b);
+  if (!a || !b) return -1;
+  var routes = getEtcRoutes();
+  for (var i = 0; i < routes.length; i++) {
+    var p = String(routes[i].name).split(/[⇔↔〜～~\-–—]/);
+    if (p.length < 2) continue;
+    var x = icShort_(p[0]), y = icShort_(p[1]);
+    if (!x || !y) continue;
+    if ((x === a && y === b) || (x === b && y === a)) return i;
+  }
+  return -1;
+}
+
+/* 料金表にこの区間を足して、金額を入れてもらう */
+function addIcRoute_() {
+  var nm = icPairName_();
+  if (!nm) return;
+  addEtcRow(nm, "", "", document.getElementById("destPlace").value.trim());
+  saveEtc();
+  var box = document.getElementById("etcRows");
+  if (box) {
+    var d = box.closest("details");
+    if (d) d.open = true;
+    var rows = box.querySelectorAll(".etc-row");
+    var last = rows[rows.length - 1];
+    if (last) {
+      last.scrollIntoView({ behavior: "smooth", block: "center" });
+      var f = last.querySelector(".etc-fee");
+      if (f) setTimeout(function () { f.focus(); }, 400);
+    }
+  }
+}
+
+/* 調べた結果に合わせて、各車の高速料金の欄を整えます */
+function applyIcRoute_(data) {
+  var box = document.getElementById("icLink");
+  if (!box) return;
+  var cars = document.querySelectorAll("#cars .car-card");
+
+  /* --- 高速を使わない道のとき --- */
+  if (data.noHw) {
+    var off = 0, left = 0;
+    cars.forEach(function (c) {
+      var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc");
+      if (!chk || !chk.checked) return;
+      /* 手で入れた金額には触りません。空か、アプリが入れた値のときだけ外します */
+      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) { left++; return; }
+      chk.checked = false; toggleOpt(chk, "blk-etc");
+      if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
+      var sel = c.querySelector(".car-route"); if (sel) sel.value = "";
+      off++;
+    });
+    /* ★2026-08-17v　外さなかった車がいるのに
+       　「チェックの入った車はありません」と書いていたのは誤り。
+       　残っている台数をそのまま書きます（下に外すボタンも出ます）。 */
+    var li0 = ["高速に乗らないので、<b>高速料金はかかりません</b>"];
+    if (off)  li0.push("「高速道路」のチェックを <b>" + off + "台</b> 分はずしました");
+    if (left) li0.push("<b>" + left + "台</b> は高速料金が入ったままです（下でご確認ください）");
+    if (!off && !left) li0.push("「高速道路」にチェックの入った車はありません");
+    box.innerHTML = ul_(li0);
+    saveForm();
+    return;
+  }
+
+  /* --- 高速を使う道のとき --- */
+  var nm = icPairName_();
+  if (!nm) { box.innerHTML = ""; return; }
+  var idx = findRouteByIcPair_(lastTollIn, lastTollOut);
+
+  if (idx < 0) {
+    box.innerHTML =
+      '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
+      '<button type="button" class="btn btn-sub" style="margin-top:6px;" ' +
+      'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>' +
+      '<div style="color:#5a6b5c;font-size:14px;margin-top:4px;">' +
+      '金額を1回入れれば、<b>次から自動で入ります。</b></div>';
+    return;
+  }
+
+  var routes = getEtcRoutes(), n = 0;
+  cars.forEach(function (c) {
+    var fee = c.querySelector(".car-etc");
+    /* 手で入れた金額には触りません */
+    if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+    var chk = c.querySelector(".chk-etc");
+    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    var sel = c.querySelector(".car-route");
+    if (!sel) return;
+    sel.value = String(idx);
+    routeSelected(sel);
+    if (fee) fee.setAttribute("data-auto", fee.value);
+    n++;
+  });
+  box.innerHTML = ul_([
+    "区間：<b>" + escapeHtml(nm) + "</b>",
+    n ? "料金表の <b>" + escapeHtml(routes[idx].name) + "</b> から、<b>" + n +
+        "台</b> 分の高速料金を入れました"
+      : "各車の高速料金は、すでに入っているのでそのままにしています"]);
+  saveForm();
+}
+
+/* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
+function feeChanged(el) {
+  saveForm();
+  var card = el.closest(".car-card");
+  if (!card) return;
+  var box = card.querySelector(".fee-remember");
+  if (!box) return;
+  var fee  = card.querySelector(".car-etc").value;
+  var used = card.querySelector(".car-route").value;
+  var dest = document.getElementById("destPlace").value.trim();
+  /* 料金表から選んだのでなく、手で入れていて、行き先が分かっているときだけ */
+  box.style.display = (fee !== "" && used === "" && dest !== "") ? "block" : "none";
+}
+
+/* 手で入れた高速料金を、料金表に覚えさせる */
+function rememberFee(btn) {
+  var card = btn.closest(".car-card");
+  var dest = document.getElementById("destPlace").value.trim();
+  var fee  = parseInt(card.querySelector(".car-etc").value, 10);
+  if (!dest || isNaN(fee)) return;
+
+  /* 料金表は「片道」の金額。★2026-10-01 入れる数字はいつも片道 */
+  var isEtc = card.querySelector(".car-etcuse").value === "etc";
+
+  /* ------------------------------------------------------------------
+     ルート名は「どこからどこまで高速に乗ったか」です。
+     地図でIC名が分かっていればそれを使い、分からなければ聞きます。
+     行き先の名前で代用すると、あとで見たときに
+     どの区間の料金か分からなくなるためです。
+     ------------------------------------------------------------------ */
+  var a = lastTollIn.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+  var b = lastTollOut.replace(/(IC|ＩＣ|インターチェンジ)$/, "");
+  var nm = "";
+  if (a && b) nm = a + "⇔" + b;
+  else {
+    var hint = (a || b) ? (a || b) + "⇔" : "";
+    nm = prompt(
+      "どのインターからどのインターまでの料金ですか？\n" +
+      "（例）南関⇔杷木\n\n" +
+      "分からなければ、空欄のままOKを押してください。", hint);
+    if (nm === null) return;                 /* やめた */
+    nm = nm.replace(/^[\s　]+|[\s　]+$/g, "");
+    if (!nm) nm = dest;                      /* それでも分からなければ行き先で */
+  }
+
+  /* すでに同じ行き先の行があれば、そこへ入れる */
+  var target = null;
+  document.querySelectorAll("#etcRows .etc-row").forEach(function (r) {
+    var d = r.querySelector(".etc-dest");
+    if (!target && d && normDest(d.value) && normDest(d.value) === normDest(dest)) target = r;
+  });
+  if (!target) {
+    addEtcRow(nm, null, null, dest);
+    var all = document.querySelectorAll("#etcRows .etc-row");
+    target = all[all.length - 1];
+  }
+  target.querySelector(isEtc ? ".etc-fee" : ".etc-normal").value = fee;
+  if (!target.querySelector(".etc-name").value.trim()) {
+    target.querySelector(".etc-name").value = nm;
+  }
+  target.querySelector(".etc-dest").value = dest;
+  saveEtc();
+
+  /* この車を、その料金表のルートに結びつけておく */
+  refreshAllDropdowns();
+  var idx = etcRowsInOrder().indexOf(target);
+  if (idx >= 0) {
+    card.querySelector(".car-route").value = String(idx);
+    rememberRouteName_(card.querySelector(".car-route"));
+    card.querySelector(".car-etc").value = fee;
+  }
+  card.querySelector(".fee-remember").innerHTML =
+    '<p class="note" style="color:var(--club);"><b>「' + escapeHtml(nm) + '」として覚えました。</b><br>' +
+    '行き先「' + escapeHtml(dest) + '」で、次から自動で入ります。</p>';
+  saveForm();
+}
+
+function routeSelected(el) {
+  var card = el.closest(".car-card");
+  var selRoute = card.querySelector(".car-route");
+  var idx = selRoute.value;
+  rememberRouteName_(selRoute);
+  if (idx === "") { saveForm(); return; }
+  var routes = getEtcRoutes();
+  var r = routes[parseInt(idx, 10)];
+  if (!r) return;
+  var use = card.querySelector(".car-etcuse").value;
+  /* ★山行日（平日／土日祝）に合う金額を選びます（2026-08-17i） */
+  var fee = routeFeeFor_(r, use);
+  if (fee == null) {
+    alert("このルートの" +
+      (use === "etc" ? ("ETC料金（" + (isHolidayRate_() ? "土日祝" : "平日") + "）") : "通常料金") +
+      "が料金表に未登録です。料金表に入力するか、下に直接入力してください。");
+    card.querySelector(".car-etc").value = "";
+    return;
+  }
+  card.querySelector(".car-etc").value = fee;
+  /* 料金表は「片道」の金額。計算のときに自動で2倍される */
+  var tp0 = card.querySelector(".car-etctype");
+  if (tp0) tp0.value = "one";
+  saveForm();
+
+  /* このルートに行き先が未登録なら、いまの行き先を覚える。
+     次から、行き先を入れるだけで料金が入るようになります。 */
+  try {
+    var dNow = document.getElementById("destPlace").value.trim();
+    if (dNow) {
+      var row = etcRowsInOrder()[parseInt(idx, 10)];
+      if (row) {
+        var de = row.querySelector(".etc-dest");
+        if (de && de.value.trim() === "") { de.value = dNow; saveEtc(); }
+      }
+    }
+  } catch (e) {}
+}
+/* 立替者ドロップダウン（人にかかる費用） */
+function refreshPayerDropdown() {
+  var sel = document.getElementById("personPayer");
+  if (!sel) return;
+  var current = sel.value;
+  var cards = document.querySelectorAll("#cars .car-card");
+  sel.innerHTML = '<option value="-1">各自でその場払い（精算しない）</option>';
+  cards.forEach(function (c, i) {
+    var nm = c.querySelector(".car-name").value.trim() || ("車" + (i + 1));
+    var op = document.createElement("option");
+    op.value = String(i);
+    op.textContent = nm + "さん（車" + (i + 1) + "）が立替え";
+    sel.appendChild(op);
+  });
+  sel.value = current;
+  if (sel.selectedIndex === -1) sel.value = "-1";
+}
+
+/* ---------- 計算 ---------- */
+function calc(noScroll) {
+  var gasRate = parseFloat(document.getElementById("gasRate").value) || 50;
+  var unit = parseInt(document.getElementById("roundUnit").value, 10) || 1;
+  var cards = document.querySelectorAll("#cars .car-card");
+  var resultDiv = document.getElementById("result");
+  var body = document.getElementById("resultBody");
+
+  if (cards.length === 0) {
+    showWarn("「＋ 車を追加する」で車の情報を入れてください。");
+    return;
+  }
+  /* 入力チェック：走行距離が未入力・不正な車を洗い出す（★帰りの欄も） */
+  var badCars = [];
+  cards.forEach(function (c, i) {
+    var bad = false;
+    [".car-km", ".car-rkm"].forEach(function (sel) {
+      var el = c.querySelector(sel);
+      el.classList.remove("err");
+      if (sel === ".car-rkm" && c.querySelector(".chk-retsame").checked) return;
+      var km = parseFloat(el.value);
+      if (el.value.trim() === "" || isNaN(km) || km < 0) { bad = true; el.classList.add("err"); }
+    });
+    if (bad) badCars.push(i + 1);
+  });
+  if (badCars.length) {
+    showWarn("車 " + badCars.join("・") + " の走行距離が入っていません（赤い枠の欄）。入力してから、もう一度「計算する」を押してください。");
+    return;
+  }
+
+  /* ------------------------------------------------------------------
+     ★2026-10-01（㊴）行きと帰りで持つ。入れる数字はいつも片道。
+     　お金を戻す相手（9/30 只隈さんの決定）：
+     　・ガソリン代・ETCで払った高速料金 … 車の持ち主
+     　・手払い（ETCなしの高速・フェリー）… 帰りの欄で「持ち主／帰りの運転手」を選ぶ
+     　・駐車料金 … 同じく選ぶ（既定は持ち主）
+     ------------------------------------------------------------------ */
+  var routesNow = getEtcRoutes();
+  var overnight = isOvernight_();
+  var cars = [];
+  var carTotal = 0;
+  cards.forEach(function (c, i) {
+    var name = c.querySelector(".car-name").value.trim() || ("車" + (i + 1) + "のドライバー");
+    var same = c.querySelector(".chk-retsame").checked;
+    var kmGo = parseFloat(c.querySelector(".car-km").value);
+    var useEtc = c.querySelector(".chk-etc").checked;
+    var useFerry = c.querySelector(".chk-ferry").checked;
+    var etcGo = useEtc ? numOf(c.querySelector(".car-etc")) : 0;
+    var ferryGo = useFerry ? numOf(c.querySelector(".car-ferry")) : 0;
+    var rDriver = name, kmRet = kmGo, etcRet = etcGo, etcUseRet = c.querySelector(".car-etcuse").value;
+    var ferryRet = ferryGo, cashTo = "owner";
+    if (same) {
+      /* 1泊で帰りの日の料金が違うとき（料金表から選んだ区間で、料金表の金額のときだけ） */
+      var sg = c.querySelector(".car-route");
+      if (useEtc && overnight && sg && sg.value !== "") {
+        var rg = routesNow[parseInt(sg.value, 10)];
+        if (rg && isTableFee_(rg, etcGo)) {
+          var wg = routeFeeFor_(rg, etcUseRet, true);
+          if (wg != null) etcRet = wg;
+        }
+      }
+    } else {
+      var rn = (c.querySelector(".car-rname").value || "").trim();
+      rDriver = (rn && rn !== "__other") ? rn : name;
+      kmRet = parseFloat(c.querySelector(".car-rkm").value);
+      etcUseRet = c.querySelector(".car-retcuse").value;
+      etcRet = useEtc ? numOf(c.querySelector(".car-retc")) : 0;
+      ferryRet = useFerry ? numOf(c.querySelector(".car-rferry")) : 0;
+      if (rDriver !== name && c.querySelector(".car-rcash").value === "driver") cashTo = "driver";
+    }
+    var park = c.querySelector(".chk-park").checked ? numOf(c.querySelector(".car-park")) : 0;
+    var ent = c.querySelector(".chk-ent").checked ? numOf(c.querySelector(".car-ent")) : 0;
+    var parkTo = (rDriver !== name && c.querySelector(".car-parkby").value === "driver") ? rDriver : name;
+    var km = kmGo + kmRet;
+    var gas = Math.round(km * gasRate);
+    var etc = etcGo + etcRet, ferry = ferryGo + ferryRet;
+    var cost = gas + etc + ferry + park + ent;
+    /* だれに戻すか */
+    var credit = {};
+    function add_(nm, v) { if (!v) return; credit[nm] = (credit[nm] || 0) + v; }
+    add_(name, gas + etcGo + ferryGo + ent);
+    add_((etcUseRet === "etc" || cashTo === "owner") ? name : rDriver, etcRet);
+    add_(cashTo === "owner" ? name : rDriver, ferryRet);
+    add_(parkTo, park);
+    cars.push({ name: name, rDriver: rDriver, same: same, kmGo: kmGo, kmRet: kmRet, km: km, gas: gas,
+                etcGo: etcGo, etcRet: etcRet, etc: etc, ferryGo: ferryGo, ferryRet: ferryRet, ferry: ferry,
+                park: park, ent: ent, cost: cost, credit: credit });
+    carTotal += cost;
+  });
+
+  /* 精算に名前が出る方（持ち主と、帰りの運転手） */
+  var people = [], P = {};
+  function acct_(nm) {
+    if (!P[nm]) { P[nm] = { name: nm, recv: 0, roles: [], paidExtra: 0, bonus: 0 }; people.push(P[nm]); }
+    return P[nm];
+  }
+  cars.forEach(function (c, i) {
+    var o = acct_(c.name);
+    o.roles.push((c.rDriver === c.name) ? (cars.length > 1 ? "車" + (i + 1) + "のドライバー" : "ドライバー")
+                                        : "車" + (i + 1) + "の持ち主・行きの運転手");
+    if (c.rDriver !== c.name) acct_(c.rDriver).roles.push("車" + (i + 1) + "の帰りの運転手");
+    for (var nm in c.credit) if (c.credit.hasOwnProperty(nm)) acct_(nm).recv += c.credit[nm];
+  });
+  if (nPeople < people.length) {
+    showWarn("参加人数（" + nPeople + "名）が、運転する方の人数（" + people.length + "名）より少なくなっています。人数を確認してください。");
+    return;
+  }
+
+  /* 人にかかる費用（★行きと帰り） */
+  var ferryPerson = 0;
+  if (document.getElementById("chkPFerry").checked) {
+    var fpGo = numOf(document.getElementById("ferryPerson"));
+    var fpRet = document.getElementById("pFerryRetSame").checked ? fpGo : numOf(document.getElementById("ferryPersonRet"));
+    ferryPerson = fpGo + fpRet;
+  }
+  var entPerson = document.getElementById("chkPEnt").checked ? numOf(document.getElementById("entPerson")) : 0;
+  var personRate = ferryPerson + entPerson;
+  var personTotal = personRate * nPeople;
+  var payerIdx = parseInt(document.getElementById("personPayer").value, 10);
+  var personPooled = (payerIdx >= 0 && payerIdx < cars.length);
+
+  var grandTotal = carTotal + (personPooled ? personTotal : 0);
+  var share = Math.ceil(grandTotal / nPeople / unit) * unit;
+  var surplus = share * nPeople - grandTotal;
+
+  /* 切り上げの余りは車の持ち主が受け取る（等分・端数は車1へ） */
+  var perDriver = Math.floor(surplus / cars.length);
+  var remBonus = surplus - perDriver * cars.length;
+  cars.forEach(function (c, i) { acct_(c.name).bonus += perDriver + (i === 0 ? remBonus : 0); });
+  if (personPooled) acct_(cars[payerIdx].name).paidExtra += personTotal;
+
+  /* 表示情報 */
+  var dateVal = document.getElementById("hikeDate").value;
+  var dateStr = "";
+  if (dateVal) {
+    var p = dateVal.split("-");
+    dateStr = parseInt(p[1], 10) + "月" + parseInt(p[2], 10) + "日（" + youbiOf(dateVal) + "）";
+  }
+  var hikeName = document.getElementById("hikeName").value.trim();
+  var meetPlace = document.getElementById("meetPlace").value.trim();
+  var meetTime = document.getElementById("meetTime").value;
+  var passengers = nPeople - people.length;
+  var displayTotal = share + (personPooled ? 0 : personRate);
+  var retVal = retDateVal_();
+  if (overnight && dateStr) {
+    var rp = retVal.split("-");
+    dateStr += "〜" + (rp[1] !== dateVal.split("-")[1] ? parseInt(rp[1], 10) + "月" : "") +
+               parseInt(rp[2], 10) + "日（" + youbiOf(retVal) + "）";
+  }
+
+  /* ---------- 画面表示 ---------- */
+  var html = "";
+  if (meetPlace || meetTime) {
+    html += '<p class="note" style="font-size:17px;"><b>集合：' +
+      (meetTime ? meetTime + "　" : "") + escapeHtml(meetPlace) + '</b></p>';
+  }
+  html += '<div class="per-person"><div class="label">一人あたりの支払い</div>' +
+          '<div class="yen">' + yen(displayTotal) + '</div>';
+  if (!personPooled && personRate > 0) {
+    html += '<div class="sub">内訳：車の費用 ' + yen(share) + '　＋　人の費用（各自現地払い） ' + yen(personRate) + '</div>';
+  }
+  html += '</div>';
+
+  html += '<p class="note" style="margin-top:12px;"><b>車費用の合計：' + yen(carTotal) + '</b>' +
+          (personPooled ? '　＋ 人費用 ' + yen(personTotal) + '（' + escapeHtml(cars[payerIdx].name) + 'さん立替え）' : '') + '</p>';
+
+  /* 車ごとの費用 */
+  function legs_(g, r) { return (g === r) ? ("往復 " + yen(g + r)) : ("行き " + yen(g) + "＋帰り " + yen(r)); }
+  cars.forEach(function (c, i) {
+    var kmTxt = (c.kmGo === c.kmRet) ? ("往復" + c.km + "km") : ("行き" + c.kmGo + "km＋帰り" + c.kmRet + "km");
+    var parts = ['ガソリン ' + kmTxt + '×' + gasRate + '円＝' + yen(c.gas)];
+    if (c.etc) parts.push('高速 ' + legs_(c.etcGo, c.etcRet));
+    if (c.ferry) parts.push('フェリー車分 ' + legs_(c.ferryGo, c.ferryRet));
+    if (c.park) parts.push('駐車 ' + yen(c.park));
+    if (c.ent) parts.push('入場料車分 ' + yen(c.ent));
+    html += '<div class="result-car" style="background:#f7faf7;">' +
+      '<div class="name">車' + (i + 1) + '（' + escapeHtml(c.name) + 'さんの車）' +
+      (c.rDriver !== c.name ? '　帰りの運転：' + escapeHtml(c.rDriver) + 'さん' : '') + '</div>' +
+      '<div class="detail">車の費用 ' + yen(c.cost) + '（' + parts.join('　＋　') + '）</div></div>';
+  });
+
+  /* 人ごとの受け取り・支払い */
+  people.forEach(function (p) {
+    var net = p.recv + p.paidExtra - share + p.bonus;
+    var netLabel = net >= 0
+      ? '受け取り <span class="receive">' + yen(net) + '</span>'
+      : '支払い <span class="receive" style="color:#c33">' + yen(-net) + '</span>';
+    html += '<div class="result-car">' +
+      '<div class="name">' + escapeHtml(p.name) + 'さん（' + escapeHtml(p.roles.join('・')) + '）：' + netLabel + '</div>' +
+      '<div class="detail">立替え ' + yen(p.recv) +
+      (p.paidExtra ? '　＋ 人費用立替 ' + yen(p.paidExtra) : '') +
+      '　－ 本人負担 ' + yen(share) +
+      (p.bonus > 0 ? '　＋ 余り ' + yen(p.bonus) : '') + '</div></div>';
+  });
+  if (passengers > 0) {
+    html += '<div class="result-car"><div class="name">同乗者 ' + passengers + '名：一人 ' + yen(displayTotal) + '</div>' +
+      (personPooled && personRate > 0 ? '<div class="detail">車費用 ' + yen(share) + '（人費用 ' + yen(personRate) + ' は立替者へ含む）</div>' : '') +
+      '</div>';
+  }
+  if (surplus > 0) {
+    html += '<p class="note"><b>切り上げの余り ' + yen(surplus) + ' は車の持ち主の受け取りに含めています。</b></p>';
+  }
+
+  /* 検算：受け取り合計＝支払い合計 を確認して表示 */
+  var totalReceive = 0, totalPay = 0;
+  people.forEach(function (p) {
+    var net = p.recv + p.paidExtra - share + p.bonus;
+    if (net >= 0) totalReceive += net; else totalPay += -net;
+  });
+  totalPay += passengers * share;
+  if (totalReceive === totalPay) {
+    html += '<div class="check-ok">✓ 検算OK：受け取り合計 ' + yen(totalReceive) +
+            ' ＝ 支払い合計 ' + yen(totalPay) + '</div>';
+  } else {
+    html += '<div class="warn">検算：受け取り ' + yen(totalReceive) + ' と支払い ' + yen(totalPay) +
+            ' が一致しません。入力を確認してください。</div>';
+  }
+  if (!personPooled && personRate > 0) {
+    html += '<p class="note">※ 人の費用（一人 ' + yen(personRate) + '）は各自が現地で支払うため、上の精算には含みません。</p>';
+  }
+
+  body.innerHTML = html;
+  resultDiv.style.display = "block";
+  if (!noScroll) resultDiv.scrollIntoView({ behavior: "smooth" });
+
+  /* 計算した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
+  lockRoute_();
+
+  /* ---------- コピー用テキスト ---------- */
+  var t = "【マイカー精算】" + (dateStr ? dateStr + " " : "") + (hikeName ? hikeName : "") + "\n";
+  if (meetPlace || meetTime) t += "集合：" + (meetTime ? meetTime + " " : "") + meetPlace + "\n";
+  t += "参加 " + nPeople + "名 / 車 " + cars.length + "台\n";
+  t += "一人あたり：" + jpn(displayTotal) + "円";
+  if (!personPooled && personRate > 0) t += "（車費用" + jpn(share) + "円＋人費用" + jpn(personRate) + "円は各自現地払い）";
+  t += "\n――――――――――\n";
+  people.forEach(function (p) {
+    var net = p.recv + p.paidExtra - share + p.bonus;
+    t += "■" + p.name + "さん（" + p.roles.join("・") + "）\n";
+    t += "　立替え " + jpn(p.recv) + "円" + (p.paidExtra ? "＋人費用立替" + jpn(p.paidExtra) + "円" : "") + "\n";
+    t += net >= 0
+      ? "　→ 受け取り " + jpn(net) + "円\n"
+      : "　→ 支払い " + jpn(-net) + "円\n";
+  });
+  if (passengers > 0) t += "■同乗者" + passengers + "名 → 一人 " + jpn(displayTotal) + "円\n";
+  if (surplus > 0) t += "（切り上げの余り " + jpn(surplus) + "円は車の持ち主の受け取り）\n";
+  lastResultText = t;
+  lastResultData = {
+    savedAt: new Date().toLocaleString("ja-JP"),
+    dateStr: dateStr,
+    hikeName: hikeName,
+    n: nPeople,
+    carsCount: cars.length,
+    share: displayTotal,
+    total: grandTotal,
+    text: t,
+    /* 走行距離・高速料金など、入れた内容もそのまま残す。
+       あとから「あの時いくらだった？」を確かめられるようにするため。 */
+    eventId: EVENT_ID,
+    form: getFormData()
+  };
+
+  /* 計算結果を保存して、次に開いたときも表示したままにする */
+  lsSet(LS_FORM + "_result", { html: html, text: t, data: lastResultData });
+}
+function showWarn(msg) {
+  document.getElementById("resultBody").innerHTML = '<p class="warn">' + escapeHtml(msg) + '</p>';
+  var r = document.getElementById("result");
+  r.style.display = "block";
+  r.scrollIntoView({ behavior: "smooth" });
+}
+
+/* ---------- 履歴 ---------- */
+/* 履歴どうしが「同じ山行」かどうかを見分ける目印 */
+function histKey(e) {
+  if (!e) return "";
+  if (e.eventId) return "E:" + e.eventId;
+  return "D:" + (e.dateStr || "") + "/" + (e.hikeName || "");
+}
+
+function saveHistory() {
+  if (!lastResultData) { alert("先に「計算する」を押してください。"); return; }
+  /* ------------------------------------------------------------------
+     ★2026-08-18　記録する前に、地図が「この道順のもの」か確かめます。
+
+     地図のPDFは作ったときの道で作られます。そのあと別の道を選んで
+     精算しても、作り直さないかぎり地図は前のままです。
+     そのまま記録すると、**カレンダーに別の道の地図が残ります。**
+     （実際に、高速なしの道で精算したのに 南関IC〜甘木IC の地図が
+     　カレンダーに出てしまいました）
+     黙って記録せず、ここで一度おたずねします。
+     ------------------------------------------------------------------ */
+  if (routeMapUrl && !mapMatchesNow_()) {
+    /* ★道の名前だけでは見分けがつかないことがあります
+       　（候補3「県道52号」と候補4「県道52号 と 国道500号」など）。
+       　片道の距離も一緒に出します。 */
+    var dSel = lastRouteList[lastRouteIdx];
+    var nowNm = (routeLabelNow_() || "いまの道順") +
+                (dSel ? "／片道 " + dSel.km + "km" : "");
+    var mapNm = (routeMapLabel || "別の道") +
+                ((routeMapKm != null && !isNaN(routeMapKm)) ? "／片道 " + routeMapKm + "km" : "");
+    if (!confirm(
+      "残っている地図は「" + mapNm + "」のものです。\n" +
+      "いま精算しているのは「" + nowNm + "」です。\n\n" +
+      "このまま記録すると、カレンダーには別の道の地図が残ります。\n\n" +
+      "OK：このまま記録する\n" +
+      "キャンセル：いったんやめる（「この道順で地図を作る」を押してから記録できます）")) {
+      return;
+    }
+  }
+  var h = lsGet(LS_HIST) || [];
+  /* 同じ山行を計算し直したときは、前の記録を消して置き換える。
+     同じ山行の古い金額が並んで、どれが正しいか分からなくなるのを防ぐため。 */
+  var key = histKey(lastResultData);
+  if (key) {
+    h = h.filter(function (e) { return histKey(e) !== key; });
+  }
+  h.unshift(lastResultData);
+  if (h.length > 50) h = h.slice(0, 50);
+  lsSet(LS_HIST, h);
+  renderHist();
+
+  /* カレンダーの予定から開かれた場合は、結果と入力内容をカレンダーにも記録して
+     全員が見られる・引き継げるようにする */
+  if (EVENT_ID && lastResultText) {
+    var m0 = document.getElementById("histSavedMsg");
+    m0.textContent = "カレンダーに記録しています…";
+    m0.style.display = "block";
+    apiPost({
+      action: "setSettle",
+      id: EVENT_ID,
+      text: lastResultText,
+      form: JSON.stringify(getFormData())
+    }, function (err, data) {
+      /* ★2026-09-28　サーバーが断ったとき（名乗っていない端末など）は、記録できていません。
+         　これまでは「記録しました」と出てカレンダーへ戻っていました。 */
+      if (!err && data && data.error) {
+        m0.textContent = "カレンダーに記録できませんでした：" + data.error;
+        return;
+      }
+      if (!err) {
+        m0.textContent = "カレンダーに記録しました！カレンダーに戻ります…";
+        setTimeout(function () { location.href = CAL_PAGE + "?goto=" + EVENT_ID; }, 1200);
+      } else {
+        m0.textContent = "カレンダーへの記録に失敗しました。電波の良い所でもう一度押してください";
+        setTimeout(function () { m0.style.display = "none"; }, 4000);
+      }
+    });
+    return;
+  }
+
+  var m = document.getElementById("histSavedMsg");
+  m.style.display = "block";
+  setTimeout(function () { m.style.display = "none"; }, 2000);
+}
+function renderHist() {
+  var h = lsGet(LS_HIST) || [];
+  var box = document.getElementById("histList");
+  if (!h.length) {
+    box.innerHTML = '<p class="note">まだ履歴はありません。</p>';
+    return;
+  }
+  var html = "";
+  h.forEach(function (e, i) {
+    html += '<div class="hist-item">' +
+      '<div class="h-title">' + escapeHtml((e.dateStr || "日付なし") + (e.hikeName ? "　" + e.hikeName : "")) + '</div>' +
+      '<div class="h-sub">参加' + e.n + '名／車' + e.carsCount + '台　一人 ' + yen(e.share) + '（合計 ' + yen(e.total) + '）<br>保存日時：' + escapeHtml(e.savedAt) + '</div>' +
+      '<div class="hist-btns">' +
+      '<button type="button" class="h-btn" onclick="toggleHist(' + i + ')">内容を見る</button>' +
+      '<button type="button" class="h-btn" onclick="copyHist(' + i + ')">コピー</button>' +
+      '<button type="button" class="btn-small" onclick="delHist(' + i + ')">削除</button></div>' +
+      '<pre id="histText' + i + '" style="display:none;">' +
+        escapeHtml(e.text) + escapeHtml(formDetailText(e.form)) + '</pre>' +
+      '</div>';
+  });
+  box.innerHTML = html;
+}
+/* 入れた内容（走行距離・高速料金など）を、読める形の文にする */
+function formDetailText(f) {
+  if (!f) return "";
+  var t = "\n――― 入れた内容 ―――\n";
+  if (f.place || f.time) t += "集合：" + (f.time || "") + " " + (f.place || "") + "\n";
+  if (f.dest) t += "行き先：" + f.dest + "\n";
+  if (f.mapUrl) t += "道順の地図：" + f.mapUrl + "\n";
+  t += "参加 " + (f.n || "") + "名\n";
+  if (f.retDate && f.date && f.retDate > f.date) t += "帰る日：" + f.retDate + "\n";
+  (f.cars || []).forEach(function (c0, i) {
+    if (c0.same != null) {   /* ★2026-10-01 新しい形 */
+      var c = c0;
+      t += "\n■車" + (i + 1) + "　" + (c.name || "（名前なし）") + "さんの車\n";
+      t += "　行き：" + (c.km || "") + "km" +
+           (c.useEtc && c.etc ? "・高速 " + jpn(Number(c.etc)) + "円" : "") +
+           (c.useFerry && c.ferry ? "・フェリー " + jpn(Number(c.ferry)) + "円" : "") + "\n";
+      if (c.same) t += "　帰り：行きと同じ\n";
+      else t += "　帰り：運転 " + (c.rname || c.name || "") + "さん・" + (c.rkm || "") + "km" +
+           (c.useEtc && c.retc ? "・高速 " + jpn(Number(c.retc)) + "円（" + (c.retcUse === "normal" ? "手払い" : "ETC") + "）" : "") +
+           (c.useFerry && c.rferry ? "・フェリー " + jpn(Number(c.rferry)) + "円" : "") + "\n";
+      if (c.usePark && c.park) t += "　駐車料金：" + jpn(Number(c.park)) + "円\n";
+      if (c.useEnt && c.ent)   t += "　入場料　：" + jpn(Number(c.ent)) + "円\n";
+      return;
+    }
+    var c = c0;
+    t += "\n■車" + (i + 1) + "　" + (c.name || "（名前なし）") + "さん\n";
+    if (c.km) t += "　走行距離：" + c.km + "km（" + (c.kmType === "one" ? "片道" : "往復") + "）\n";
+    if (c.useEtc && c.etc) {
+      t += "　高速料金：" + jpn(Number(c.etc)) + "円（" + (c.etcType === "one" ? "片道" : "往復") + "）\n";
+    }
+    if (c.useFerry && c.ferry) {
+      t += "　フェリー：" + jpn(Number(c.ferry)) + "円（" + (c.ferryType === "one" ? "片道" : "往復") + "）\n";
+    }
+    if (c.usePark && c.park) t += "　駐車料金：" + jpn(Number(c.park)) + "円\n";
+    if (c.useEnt && c.ent)   t += "　入場料　：" + jpn(Number(c.ent)) + "円\n";
+  });
+  if (f.pFerryOn && f.ferryPerson) {
+    t += "\n人のフェリー：" + jpn(Number(f.ferryPerson)) + "円／人\n";
+  }
+  if (f.pEntOn && f.entPerson) {
+    t += "人の入場料　：" + jpn(Number(f.entPerson)) + "円／人\n";
+  }
+  if (f.gasRate)   t += "\nガソリン単価：" + f.gasRate + "円/km\n";
+  if (f.roundUnit) t += "端数の丸め：" + f.roundUnit + "円単位\n";
+  return t;
+}
+
+function toggleHist(i) {
+  var p = document.getElementById("histText" + i);
+  p.style.display = (p.style.display === "none") ? "block" : "none";
+}
+function copyHist(i) {
+  var h = lsGet(LS_HIST) || [];
+  if (!h[i]) return;
+  doCopy(h[i].text, function () { alert("コピーしました。LINE等に貼り付けできます。"); });
+}
+function delHist(i) {
+  var h = lsGet(LS_HIST) || [];
+  if (!h[i]) return;
+  if (!confirm("この履歴を削除します。よろしいですか？")) return;
+  h.splice(i, 1);
+  lsSet(LS_HIST, h);
+  renderHist();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* ---------- コピー ---------- */
+function doCopy(text, done) {
+  function legacy() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); done(); } catch (e) { alert("コピーできませんでした。"); }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, legacy);
+  } else {
+    legacy();
+  }
+}
+function copyResult() {
+  if (!lastResultText) return;
+  doCopy(lastResultText, function () {
+    var m = document.getElementById("copiedMsg");
+    m.style.display = "block";
+    setTimeout(function () { m.style.display = "none"; }, 2000);
+  });
+}
+
+/* ---------- 入力の記憶 ---------- */
+function getFormData() {
+  var cars = [];
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    cars.push({
+      name: c.querySelector(".car-name").value,
+      km: c.querySelector(".car-km").value,
+      etc: c.querySelector(".car-etc").value,
+      /* ★ETCあり／なしも残します。（2026-08-17h）
+         残していなかったので、開き直すと必ず「ETCあり」に戻り、
+         金額と食い違って見えていました。 */
+      etcUse: c.querySelector(".car-etcuse").value,
+      ferry: c.querySelector(".car-ferry").value,
+      park: c.querySelector(".car-park").value,
+      /* ★2026-10-01（㊴）帰り。same が入っていれば新しい形（数字はいつも片道） */
+      same: c.querySelector(".chk-retsame").checked,
+      rname: c.querySelector(".car-rname").value,
+      rkm: c.querySelector(".car-rkm").value,
+      retc: c.querySelector(".car-retc").value,
+      retcUse: c.querySelector(".car-retcuse").value,
+      rroute: c.querySelector(".car-rroute").value,
+      rrouteName: c.querySelector(".car-rroute").dataset.routeName || "",
+      rferry: c.querySelector(".car-rferry").value,
+      rcash: c.querySelector(".car-rcash").value,
+      parkBy: c.querySelector(".car-parkby").value,
+      ent: c.querySelector(".car-ent").value,
+      useEtc: c.querySelector(".chk-etc").checked,
+      useFerry: c.querySelector(".chk-ferry").checked,
+      usePark: c.querySelector(".chk-park").checked,
+      useEnt: c.querySelector(".chk-ent").checked,
+      /* 高速ルートは「番号」と「名前」の両方を残します。
+         名前があれば、料金表の並びが変わっても元に戻せます。 */
+      route: c.querySelector(".car-route").value,
+      routeName: c.querySelector(".car-route").dataset.routeName || ""
+    });
+  });
+  return {
+    date: document.getElementById("hikeDate").value,
+    retDate: retDateVal_(),
+    holiRateRet: isHolidayRateRet_(),
+    hikeName: document.getElementById("hikeName").value,
+    place: document.getElementById("meetPlace").value,
+    dest: document.getElementById("destPlace").value,
+    mapUrl: routeMapUrl,
+    /* 道の選びかたと、アプリが入れた距離も覚えます。
+       開き直したときに選び直さなくてよいようにです。（2026-08-03） */
+    pref: routePrefNow_(),
+    autoKm: lastAutoKm,
+    /* ★休日料金（土日祝）かどうかも覚えます。
+       祝日は日付から自動で分からないので、残しておかないと開くたびに消えます。 */
+    holiRate: isHolidayRate_(),
+    /* ★実際に走った道の「乗ったIC・降りたIC」も覚えます（2026-08-17n）。
+       開き直したときに、選ばれている区間が正しいかを確かめる手がかりになります。 */
+    tollIn: lastTollIn,
+    tollOut: lastTollOut,
+    tollFor: lastTollFor,
+    /* ★地図のPDFを、どの道で作ったか（2026-08-17r） */
+    mapKm: routeMapKm,
+    mapIn: routeMapIn,
+    mapOut: routeMapOut,
+    mapLabel: routeMapLabel,
+    /* ★「この道順を地図で見る」を押したか（2026-08-17t）。
+       読み直してもボタンが消えないようにするため。 */
+    mapViewed: mapViewed_,
+    time: document.getElementById("meetTime").value,
+    n: nPeople,
+    cars: cars,
+    ferryPerson: document.getElementById("ferryPerson").value,
+    pFerryRetSame: document.getElementById("pFerryRetSame").checked,
+    ferryPersonRet: document.getElementById("ferryPersonRet").value,
+    entPerson: document.getElementById("entPerson").value,
+    payer: document.getElementById("personPayer").value,
+    pFerryOn: document.getElementById("chkPFerry").checked,
+    pEntOn: document.getElementById("chkPEnt").checked,
+    /* 履歴に残して、あとから条件を確かめられるようにする */
+    gasRate: document.getElementById("gasRate").value,
+    roundUnit: document.getElementById("roundUnit").value
+  };
+}
+function saveForm() {
+  lsSet(LS_FORM, getFormData());
+}
+function applyForm(f) {
+  if (!f) return false;
+  if (f.date) document.getElementById("hikeDate").value = f.date;
+  document.getElementById("retDate").value = f.retDate || f.date || "";
+  var hdEl = document.getElementById("hikeDate");
+  hdEl.dataset.prev = hdEl.value;
+  /* ★休日料金（土日祝）の設定を戻します。（2026-08-17i）
+     保存されていない古い精算は、山行日の曜日から決め直します。 */
+  if (f.holiRate != null) {
+    document.getElementById("holiRate").checked = !!f.holiRate;
+    document.getElementById("holiRateRet").checked =
+      (f.holiRateRet != null) ? !!f.holiRateRet : isWeekend_(retDateVal_());
+    syncRetUi_();
+    holiNote_();
+  } else {
+    syncHolidayByDate_();
+  }
+  document.getElementById("hikeName").value = f.hikeName || "";
+  document.getElementById("meetPlace").value = f.place || "";
+  document.getElementById("destPlace").value = f.dest || "";
+  if (f.pref) {
+    var pfEl = document.getElementById("routePref");
+    if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
+  }
+  if (f.autoKm) lastAutoKm = String(f.autoKm);
+  /* ★前に調べた「乗ったIC・降りたIC」を戻す（2026-08-17n）。
+     これがあると、開いた直後から区間の食い違いに気づける。 */
+  if (f.tollIn != null)  lastTollIn  = String(f.tollIn);
+  if (f.tollOut != null) lastTollOut = String(f.tollOut);
+  if (f.tollFor != null) lastTollFor = String(f.tollFor);
+  /* ------------------------------------------------------------------
+     ★地図をどの道で作ったか（2026-08-17r）
+     ①版r以降 … mapKm / mapIn / mapOut がそのまま入っている
+     ②版q     … mapKey（"105.6|南関IC|杷木IC|0" の形）から取り出す
+     ③それ以前 … 記録が無い。**片道の距離（autoKm）から推し量る。**
+     　　　　　　 これをしないと、別の候補に切り替えても気づけない。
+     ------------------------------------------------------------------ */
+  routeMapKm = null; routeMapIn = ""; routeMapOut = ""; routeMapLabel = "";
+  routeMapUrl = f.mapUrl || "";
+  if (f.mapViewed) mapViewed_ = true;   /* 一度押していれば、読み直しても出す */
+  if (f.mapKm != null && f.mapKm !== "") {
+    routeMapKm  = Number(f.mapKm);
+    routeMapIn  = String(f.mapIn  || "");
+    routeMapOut = String(f.mapOut || "");
+  } else if (f.mapKey) {
+    var mk = String(f.mapKey).split("|");
+    routeMapKm  = mk[0] ? Number(mk[0]) : null;
+    routeMapIn  = mk[1] || "";
+    routeMapOut = mk[2] || "";
+  }
+  /* ★autoKm からの推測はしません（2026-08-17s）。
+     　autoKm は「最後に選んでいた候補」の距離で、地図を作った道とは限らないためです。
+     　分からないときは分からないままにして、画面でそう伝えます。 */
+  routeMapLabel = (f.mapLabel != null && f.mapLabel !== "")
+                    ? String(f.mapLabel)
+                    : ((routeMapIn && routeMapOut) ? (routeMapIn + "〜" + routeMapOut)
+                       : ((routeMapKm != null && !isNaN(routeMapKm))
+                            ? ("片道 " + routeMapKm + "km の道") : ""));
+  if (routeMapUrl) {
+    var mm = document.getElementById("mapSaveMsg");
+    if (mm) mm.innerHTML = mapSaveAreaHtml_(routeMapUrl);
+  }
+  document.getElementById("meetTime").value = f.time || "";
+  if (f.n) { nPeople = f.n; document.getElementById("nDisp").textContent = nPeople; }
+  /* ★2026-10-01（㊴）人のフェリー。前の形（往復／片道）は片道の数字に読み替える */
+  var fpv = (f.ferryPerson != null) ? String(f.ferryPerson) : "";
+  var fpSame = (f.pFerryRetSame != null) ? !!f.pFerryRetSame : true;
+  var fpRet = f.ferryPersonRet || "";
+  if (f.pFerryRetSame == null && has(fpv) && f.ferryPersonType !== "one") {
+    var fpn = parseInt(fpv, 10) || 0;
+    fpv = String(Math.ceil(fpn / 2));
+    if (fpn % 2) { fpSame = false; fpRet = String(fpn - Math.ceil(fpn / 2)); }
+  }
+  document.getElementById("ferryPerson").value = fpv;
+  document.getElementById("pFerryRetSame").checked = fpSame;
+  document.getElementById("ferryPersonRet").value = fpRet;
+  if (f.entPerson != null) document.getElementById("entPerson").value = f.entPerson;
+  document.getElementById("chkPFerry").checked = f.pFerryOn != null ? f.pFerryOn : has(f.ferryPerson);
+  document.getElementById("chkPEnt").checked = f.pEntOn != null ? f.pEntOn : has(f.entPerson);
+  togglePerson();
+  var hasCars = false;
+  if (f.cars && f.cars.length) {
+    f.cars.forEach(function (c) { addCar(c); });
+    hasCars = true;
+  }
+  refreshPayerDropdown();
+  if (f.payer != null) document.getElementById("personPayer").value = f.payer;
+  return hasCars;
+}
+function loadForm() {
+  return applyForm(lsGet(LS_FORM));
+}
+/* ==================================================================
+   カレンダーが持っている控えから、前回の精算内容をすぐ取り出す。
+
+   精算アプリはカレンダーと同じ場所にあるので、
+   カレンダーが端末に残した控えを、そのまま読めます。
+   サーバーに聞き直さないので、**待ち時間がありません。**
+   ================================================================== */
+/* カレンダーの控えから、その山行に「参加」と答えている方を取り出す。
+   サーバーに聞かないので、開いた瞬間に名前が並びます。 */
+/* ★2026-09-30　読むのは「このクラブ・この版（本番／開発版）」の控え1つだけ。
+   　前は cache_ で始まる控えを全部見ていたので、同じ端末に開発版や別のクラブの控えがあると、
+   　そちらの出欠で人数を数えてしまうことがあった（カレンダーと人数がずれる原因）。
+   　カレンダー側の名前：本番・新クラブ用 cache_<クラブID>／開発版 cache_dev_<クラブID> */
+var CAL_CACHE_KEY = "cache_" + (USE_DEV ? "dev_" : "") + CLUB_ID;
+function calCache_() {
+  try { return JSON.parse(localStorage.getItem(CAL_CACHE_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+function calCachedJoined(eventId) {
+  try {
+    {
+      var c = calCache_();
+      var att = c.attendance || [], mem = c.members || [];
+      if (!att.length) return [];
+      var yes = {};
+      for (var a = 0; a < att.length; a++) {
+        if (att[a].eventId === eventId && att[a].status === "yes" && att[a].name) {
+          yes[att[a].name] = true;
+        }
+      }
+      var out = [];
+      for (var m = 0; m < mem.length; m++) { if (yes[mem[m]]) out.push(mem[m]); }
+      for (var y in yes) { if (yes.hasOwnProperty(y) && out.indexOf(y) < 0) out.push(y); }
+      return out;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function calCachedForm(eventId) {
+  try {
+    {
+      var c = calCache_();
+      var evs = c.events || [];
+      for (var j = 0; j < evs.length; j++) {
+        if (evs[j].id === eventId && evs[j].settleForm) return evs[j].settleForm;
+      }
+    }
+  } catch (e) {}
+  return "";
+}
+
+/* ------------------------------------------------------------------
+   ★2026-10-01（㊴）1泊の2日目の予定から開いたとき。
+   　前の日の予定の精算が、帰る日＝この日まで含んでいれば、
+   　「その精算にまとめています」と出して、そちらを開けるようにします。
+   ------------------------------------------------------------------ */
+function linkedSettleFor_(eventId, date) {
+  if (!eventId || !date) return null;
+  try {
+    var evs = calCache_().events || [];
+    for (var j = 0; j < evs.length; j++) {
+      var ev = evs[j];
+      if (!ev || ev.id === eventId || !ev.settleForm) continue;
+      var f = ev.settleForm;
+      if (typeof f === "string") { try { f = JSON.parse(f); } catch (e) { continue; } }
+      var d0 = f.date || ev.date, d1 = f.retDate || "";
+      if (d0 && d1 && d0 < date && date <= d1) return { ev: ev, form: f };
+    }
+  } catch (e) {}
+  return null;
+}
+function showLinkedSettle_() {
+  var hit = linkedSettleFor_(EVENT_ID, EVENT_DATE);
+  if (!hit) return;
+  var ev = hit.ev;
+  var q = "?club=" + encodeURIComponent(CLUB_ID) + (USE_DEV ? "&gas=dev" : "") +
+          "&event=" + encodeURIComponent(ev.id) + "&date=" + encodeURIComponent(ev.date || hit.form.date || "") +
+          "&title=" + encodeURIComponent(ev.title || "") + "&time=" + encodeURIComponent(ev.time || "") +
+          "&place=" + encodeURIComponent(ev.place || "");
+  var box = document.getElementById("linkedMsg");
+  if (!box) return;
+  box.innerHTML = "<b>この予定の車代は、" + escapeHtml(mdOf_(hit.form.date || ev.date)) + "「" +
+    escapeHtml(ev.title || "") + "」の精算にまとめています（帰る日 " + escapeHtml(mdOf_(hit.form.retDate)) + "）。</b><br>" +
+    "ここで別に精算しないでください。<br>" +
+    '<a class="btn" style="margin-top:8px;display:block;text-align:center;" href="' + escapeHtml(location.pathname + q) + '">' +
+    "その精算を開く</a>";
+  box.style.display = "block";
+}
+
+/* この予定で前に誰かが精算していれば、その内容を初期値として取り込む */
+function fetchPrevSettle(skipForm) {
+  apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
+    if (err || !data) return;
+    /* ★2026-09-30　返事が届く前に画面に出ていた人数。変わったら1行で知らせる */
+    var shownN = nPeople;
+    /* この山行に「参加」と答えている方を受け取る。
+       下書きが無いときだけ、人数も自動で入れる。 */
+    JOINED = data.joined || [];
+    /* ★2026-08-17d：人数は、下書きの有無にかかわらず、開くたび毎回いまの
+       「参加」人数へ合わせ直す。参加者が増えるたびに手で＋を押す手間を無くすため。
+       実際の欠席・現地合流は、出欠（○△×）のほうをメンテしてもらう運用にする。 */
+    applyJoined(true);
+    if (skipForm) { noteCountChanged_(shownN); return; }
+    if (data.form) {
+      try {
+        var f = JSON.parse(data.form);
+        document.getElementById("cars").innerHTML = "";
+        carCount = 0;
+        if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
+        /* ★料金表から選んだ区間の金額を、料金表と合わせ直す（2026-08-17h）。
+           古い精算にはETCあり／なしが保存されていないため、ここで食い違いが出る。 */
+        syncFeesFromTable_();
+        /* 保存されていた精算の n は古いことがある（その後に参加者が増えた場合）。
+           いまの生きた人数で入れ直す。人数いがいの下書きはそのまま活かす。 */
+        var liveN = JOINED.length || EVENT_N;
+        if (liveN > 0 && liveN !== nPeople) {
+          nPeople = liveN;
+          document.getElementById("nDisp").textContent = nPeople;
+        }
+        saveForm();
+        /* 前回の入力を読み込み、計算結果も表示する。ただし画面は入力の先頭のまま
+           （結果へ自動でスクロールしない）。修正したら「計算する」を押す */
+        calc(true);
+        var m = document.getElementById("loadMsg");
+        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。";
+        m.style.display = "block";
+        noteCountChanged_(shownN);
+        window.scrollTo(0, 0);
+      } catch (e) {}
+    } else if (data.text) {
+      noteCountChanged_(shownN);
+      /* 昔の記録（入力内容なし）の場合は、前回の結果の文章を表示する */
+      document.getElementById("resultBody").innerHTML =
+        '<p class="note"><b>前回記録された精算結果</b></p>' +
+        '<pre style="white-space:pre-wrap;font-family:inherit;background:#f4f7f4;padding:10px;border-radius:8px;">' +
+        escapeHtml(data.text) + "</pre>";
+      document.getElementById("result").style.display = "block";
+      var m2 = document.getElementById("loadMsg");
+      m2.textContent = "この予定は前に精算の記録があります。下に結果を表示しています。";
+      m2.style.display = "block";
+      window.scrollTo(0, 0);
+    } else {
+      noteCountChanged_(shownN);
+    }
+  });
+}
+/* ★2026-09-30　開いたときの人数（カレンダーから渡された数）と、サーバーの返事の人数が
+   　違ったときだけ、参加者の欄の上に1行出す。
+   　（開いてから返事が届くまでのあいだに、だれかが出欠を変えた場合など） */
+function noteCountChanged_(shownN) {
+  if (!JOINED.length || nPeople === shownN) return;
+  var note = document.getElementById("joinedNote");
+  if (!note) return;
+  var res = document.getElementById("result");
+  var again = "";
+  if (res && res.style.display !== "none") {
+    try { calc(true); again = "下の結果も、この人数で計算し直しました。"; } catch (e) {}
+  }
+  note.innerHTML = '<b style="color:#b3261e;">出欠の回答が変わったので、人数を ' + shownN + "名 → " + nPeople + "名 に直しました。" + again + "</b><br>" + note.innerHTML;
+  note.style.display = "block";
+}
+function clearForm() {
+  if (!confirm("入力内容を全部消して最初からにします。よろしいですか？\n（高速料金表・設定・履歴は残ります）")) return;
+  try { localStorage.removeItem(LS_FORM); } catch (e) {}
+  try { localStorage.removeItem(LS_FORM + "_result"); } catch (e) {}
+  document.getElementById("hikeName").value = "";
+  document.getElementById("meetPlace").value = "";
+  document.getElementById("meetTime").value = "";
+  document.getElementById("ferryPerson").value = "";
+  document.getElementById("pFerryRetSame").checked = true;
+  document.getElementById("ferryPersonRet").value = "";
+  document.getElementById("entPerson").value = "";
+  document.getElementById("chkPFerry").checked = false;
+  document.getElementById("chkPEnt").checked = false;
+  togglePerson();
+  setToday();
+  document.getElementById("retDate").value = document.getElementById("hikeDate").value;
+  document.getElementById("hikeDate").dataset.prev = document.getElementById("hikeDate").value;
+  updateYoubi();
+  syncHolidayByDate_();
+  nPeople = 4;
+  document.getElementById("nDisp").textContent = nPeople;
+  document.getElementById("cars").innerHTML = "";
+  carCount = 0;
+  addCar();
+  refreshPayerDropdown();
+  document.getElementById("result").style.display = "none";
+  lastResultText = "";
+  lastResultData = null;
+}
+
+/* ---------- 設定 ---------- */
+function saveSettings() {
+  lsSet(LS_SET, {
+    gasRate: document.getElementById("gasRate").value,
+    roundUnit: document.getElementById("roundUnit").value
+  });
+}
+function loadSettings() {
+  var s = lsGet(LS_SET);
+  if (s) {
+    if (s.gasRate) document.getElementById("gasRate").value = s.gasRate;
+    if (s.roundUnit) document.getElementById("roundUnit").value = s.roundUnit;
+  }
+}
+
+/* ---------- 初期化 ---------- */
+function setToday() {
+  var today = new Date();
+  document.getElementById("hikeDate").value =
+    today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+}
+/* ------------------------------------------------------------------
+   下書きに、人が入れたものが1つでもあるかを見ます。
+
+   ★以前は「走行距離」だけで見ていました。（2026/7/30に修正）
+   　 そのため、行き先や高速ルートだけ入れて閉じると、
+   　 開き直したときに下書きごと捨てられていました。
+   　 いまは、行き先・地図・高速ルート・各種の金額も数えます。
+
+   ドライバー名は数えません。参加者から自動で入ることがあり、
+   「人が入れたもの」とは言えないためです。
+   ------------------------------------------------------------------ */
+function draftHasInput_() {
+  var d = document.getElementById("destPlace");
+  if (d && d.value.replace(/^[\s\u3000]+|[\s\u3000]+$/g, "") !== "") return true;
+  if (routeMapUrl) return true;                      /* 地図を残していた */
+  var found = false;
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    if (found) return;
+    var sels = [".car-km", ".car-etc", ".car-ferry", ".car-park", ".car-ent", ".car-route"];
+    for (var i = 0; i < sels.length; i++) {
+      var el = c.querySelector(sels[i]);
+      if (el && el.value !== "") { found = true; return; }
+    }
+  });
+  return found;
+}
+
+(function init() {
+  setToday();
+  loadSettings();
+  /* ★地図のボタンは mapSaveAreaHtml_ ひとつから作ります（2026-08-17p）。
+     　HTMLに直接書いておくと見た目がずれるので、ここで作り直します。
+     　このあと精算を読み込めば、地図があるときの表示に置きかわります。 */
+  try {
+    var ms0 = document.getElementById("mapSaveMsg");
+    if (ms0) ms0.innerHTML = mapSaveAreaHtml_("");
+  } catch (eM0) {}
+  loadEtc();
+  renderHist();
+  /* 先に参加者を用意しておく。こうすると、車の欄が最初から
+     「選ぶ形」で作られ、待ち時間がありません。 */
+  if (EVENT_ID) JOINED = calCachedJoined(EVENT_ID);
+
+  var hadLocal = loadForm();
+  /* 下書きはあるが、まだ何も入れていない＝実質からの状態なら、
+     前回カレンダーに記録した精算内容を読み込む。
+     「前に計算したのに消えている」を防ぐため。 */
+  if (hadLocal && !draftHasInput_() && EVENT_ID) hadLocal = false;
+
+  /* 下書きが無いときは、まずカレンダーの控えから前回の内容を出す（待たない） */
+  if (!hadLocal && EVENT_ID) {
+    var cachedF = calCachedForm(EVENT_ID);
+    if (cachedF) {
+      try {
+        var cf = JSON.parse(cachedF);
+        document.getElementById("cars").innerHTML = "";
+        carCount = 0;
+        if (applyForm(cf)) {
+          hadLocal = true;
+          saveForm();
+          calc(true);
+          var lm = document.getElementById("loadMsg");
+          lm.textContent = "前回の精算内容を読み込みました。修正したら「計算する」を押してください。";
+          lm.style.display = "block";
+          window.scrollTo(0, 0);
+        }
+      } catch (eC) {}
+    }
+  }
+
+  if (!hadLocal) {
+    document.getElementById("cars").innerHTML = "";
+    carCount = 0;
+    addCar();
+    refreshPayerDropdown();
+    /* 予定から開かれた初回は、日付・山名・集合場所・時間を自動で入れる */
+    if (EVENT_DATE) document.getElementById("hikeDate").value = EVENT_DATE;
+    if (EVENT_TITLE) document.getElementById("hikeName").value = EVENT_TITLE;
+    if (EVENT_PLACE) document.getElementById("meetPlace").value = EVENT_PLACE;
+    if (EVENT_TIME) {
+      var tmm = EVENT_TIME.match(/(\d{1,2}):(\d{2})/);
+      if (tmm) document.getElementById("meetTime").value = ("0" + tmm[1]).slice(-2) + ":" + tmm[2];
+    }
+    /* ★2026-08-17：不具合②の修正。カレンダーから渡された人数を、
+       まずここで初期値として入れる（fetchPrevSettleの返事を待たない）。
+       この直後にfetchPrevSettleが「保存済みの精算」を見つけたときは、
+       そちらの人数を優先し、ここでは上書きしない（applyJoinedの中で判定）。 */
+    if (EVENT_N > 0) {
+      nPeople = EVENT_N;
+      document.getElementById("nDisp").textContent = nPeople;
+    }
+    /* 前に誰かがこの予定の精算を記録していれば、それを初期値にする */
+    if (EVENT_ID) fetchPrevSettle(false);
+  } else if (EVENT_ID) {
+    /* 下書きがある場合も、参加者だけは取りに行く（人数は上書きしない） */
+    fetchPrevSettle(true);
+  }
+  /* 控えから取れた参加者を、画面に反映する
+     ★2026-09-30　カレンダーから人数（&n=）が渡されたときは、開いた瞬間からその数を出す
+     　（下書きや前回の精算の人数より、カレンダーの画面の数がいちばん新しいため）。
+     　控えの参加者がその数と合わないときは、控えが古いので名前は出さず、サーバーの返事を待つ。 */
+  var nFixedAtOpen_ = false;
+  if (EVENT_ID && EVENT_N > 0) {
+    if (JOINED.length !== EVENT_N) JOINED = [];
+    nFixedAtOpen_ = hadLocal && nPeople !== EVENT_N;
+    nPeople = EVENT_N;
+    document.getElementById("nDisp").textContent = nPeople;
+    saveForm();
+    if (JOINED.length) applyJoined(false);
+  } else if (JOINED.length) applyJoined(!hadLocal);
+
+  /* 前回の計算結果があれば表示したままにする */
+  var savedResult = lsGet(LS_FORM + "_result");
+  if (savedResult && savedResult.html) {
+    document.getElementById("resultBody").innerHTML = savedResult.html;
+    document.getElementById("result").style.display = "block";
+    lastResultText = savedResult.text || "";
+    lastResultData = savedResult.data || null;
+  }
+  /* ★2026-09-30　開いた瞬間に人数をカレンダーの数へ直したときは、前の人数で出ていた結果を計算し直す */
+  if (nFixedAtOpen_ && document.getElementById("result").style.display !== "none") {
+    try { calc(true); } catch (eR) {}
+  }
+  updateYoubi();
+  /* みんなの料金表を取り込む */
+  fetchRoutes();
+  /* 予定と連動しているときはボタンの文言を変える */
+  if (EVENT_ID) {
+    /* ★★2026-09-28b（只隈さん「このボタンわかりづらくないですか？」）
+       　予定から開いたときは、これがいちばん大事な仕上げのボタンなので、
+       　・塗りつぶしの目立つ形にし、文を短く「カレンダーに記録する」に
+       　・結果のすぐ下（コピーより上）へ移し
+       　・「全員が見られます」はボタンの下に小さく添え
+       　・計算する前にも「押すと下に出ます」と1行出します */
+    var shb = document.getElementById("saveHistBtn");
+    shb.textContent = "📅 カレンダーに記録する";
+    shb.className = "btn";
+    shb.style.background = "var(--club)";
+    shb.style.color = "#fff";
+    shb.style.border = "2px solid var(--club)";
+    try {
+      var rb = document.getElementById("resultBody");
+      var shm = document.getElementById("histSavedMsg");
+      var shn = document.getElementById("saveHistNote");
+      rb.parentNode.insertBefore(shn, rb.nextSibling);
+      rb.parentNode.insertBefore(shm, rb.nextSibling);
+      rb.parentNode.insertBefore(shb, rb.nextSibling);
+      shn.style.display = "block";
+      document.getElementById("calcHint").style.display = "block";
+    } catch (eSh) {}
+    /* 「戻る」で、見ていた予定の場所に戻す。
+       同じタブでカレンダーから来ているときは、ブラウザの「戻る」を使う。
+       画面をそのまま覚えているので**一瞬で戻ります**（読み込み直しません）。 */
+    var back = document.getElementById("backCalBtn");
+    back.href = CAL_PAGE + "?goto=" + EVENT_ID;
+    back.onclick = function (e) {
+      try {
+        if (document.referrer && document.referrer.indexOf(CAL_PAGE) === 0 && history.length > 1) {
+          e.preventDefault();
+          history.back();
+        }
+      } catch (err) {}
+    };
+  }
+  /* どの予定の精算かをヘッダーに表示 */
+  if (EVENT_DATE || EVENT_TITLE) {
+    var hp = document.querySelector("header p");
+    var dLabel = "";
+    var dm = EVENT_DATE.match(/^\d{4}-0?(\d+)-0?(\d+)$/);
+    if (dm) dLabel = dm[1] + "月" + dm[2] + "日";
+    if (hp) hp.textContent = (dLabel + " " + EVENT_TITLE).replace(/^\s+|\s+$/g, "") + " の精算";
+  }
+  var m = document.querySelector("main");
+  m.addEventListener("input", function () { saveForm(); updateYoubi(); });
+  m.addEventListener("change", function () { saveForm(); updateYoubi(); });
+  /* ★山行日を変えたら、土日かどうかを見て休日料金のチェックを付け直し、
+     　高速料金も日付に合う金額へ入れ替えます。（2026-08-17i） */
+  var dEl = document.getElementById("hikeDate");
+  if (dEl) dEl.addEventListener("change", function () {
+    /* ★2026-10-01（㊴）日帰りだった（帰る日＝前の山行日）なら、帰る日もついて動く */
+    var rEl0 = document.getElementById("retDate");
+    if (rEl0 && (!rEl0.value || rEl0.value === dEl.dataset.prev || rEl0.value < dEl.value)) rEl0.value = dEl.value;
+    dEl.dataset.prev = dEl.value;
+    syncHolidayByDate_();
+    refreshAllDropdowns();
+    syncFeesFromTable_();
+  });
+  var rEl = document.getElementById("retDate");
+  if (rEl) {
+    if (!rEl.value) rEl.value = dEl ? dEl.value : "";
+    if (dEl) dEl.dataset.prev = dEl.value;
+    rEl.addEventListener("change", function () {
+      if (dEl && (!rEl.value || rEl.value < dEl.value)) rEl.value = dEl.value;
+      var er = document.getElementById("holiRateRet");
+      if (er) er.checked = isWeekend_(retDateVal_());
+      syncRetUi_();
+      holiNote_();
+      refreshAllDropdowns();
+      syncFeesFromTable_();
+    });
+  }
+  syncRetUi_();
+  showLinkedSettle_();
+  holiNote_();
+  /* ------------------------------------------------------------------
+     ★高速料金のつき合わせを、ここでも必ず1回やります。（2026-08-17m）
+
+     これまで、つき合わせは「サーバーから前回の精算を読んだとき」だけ
+     動いていました。ところが**この端末に下書きが残っていると、
+     そちらが優先されてサーバーを読みに行きません。**
+     その結果、古い下書きの金額（例：1,960円）がいつまでも直らず、
+     「反映されていない」ように見えていました。
+     下書きから戻したときも通るよう、ここで呼びます。
+     ------------------------------------------------------------------ */
+  try { syncFeesFromTable_(); } catch (eS) {}
+  /* 画面いちばん下の版を、APP_VER から入れ直す（表示のずれを無くすため） */
+  try {
+    var vl0 = document.getElementById("verLine");
+    if (vl0) vl0.textContent = "版 " + APP_VER;
+  } catch (eV0) {}
+  /* ★新しい版が出ていないか確認する（出ていれば上に帯を出す） */
+  checkNewVersion_();
+})();
+</script>
+</body>
+</html>
