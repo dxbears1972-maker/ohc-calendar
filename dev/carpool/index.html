@@ -430,6 +430,12 @@ var CAL_API  = USE_DEV ? GAS_DEV : GAS_PROD;
 /* クラブのID。★カレンダーと同じ控え（clubId）を使います。
    　同じ場所に置いてあるアプリなので、カレンダーで一度開けばこちらも分かります。 */
 var CLUB_LAST_KEY = "clubId";
+/* ★2026-10-01（㊴）試し版（…/dev/carpool/）として置かれているときは、
+   　本番の精算アプリと端末の控えを分けます（同じ github.io の中なので、分けないと混ざる）。
+   　・クラブIDの控え（clubId）を書かない
+   　・下書き・料金表・履歴の控えは carpooldev_ で始める
+   　★合流の日に carpool/ へ写すと、自動で本番の控えに戻ります。 */
+var IS_DEV_COPY = /\/dev\/carpool\//.test(location.pathname || "");
 function clubOk_(v) { return /^[a-z0-9]{2,10}$/.test(String(v || "")); }
 function pickClubId_() {
   try {
@@ -438,11 +444,11 @@ function pickClubId_() {
       var v = "";
       try { v = decodeURIComponent(m[1]); } catch (e1) { v = m[1]; }
       if (clubOk_(v)) {
-        try { localStorage.setItem(CLUB_LAST_KEY, v); } catch (e2) {}
+        if (!IS_DEV_COPY) { try { localStorage.setItem(CLUB_LAST_KEY, v); } catch (e2) {} }
         return v;
       }
     }
-    var s0 = localStorage.getItem(CLUB_LAST_KEY);
+    var s0 = IS_DEV_COPY ? "" : localStorage.getItem(CLUB_LAST_KEY);
     if (clubOk_(s0)) return s0;
   } catch (e) {}
   return "ohc";
@@ -451,7 +457,7 @@ var CLUB_ID = pickClubId_();
 
 /* 端末に残す控えは、★クラブごとに別々にします。
    　（同じ端末で2つのクラブを使っても、入力途中の下書きが混ざりません） */
-var LSP     = "carpool_" + CLUB_ID + "_";
+var LSP     = (IS_DEV_COPY ? "carpooldev_" : "carpool_") + CLUB_ID + "_";
 var OLD_LSP = "ohc_carpool_";
 var LS_ETC  = LSP + "etc";
 var LS_SET  = LSP + "set";
@@ -578,7 +584,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-01c";
+var APP_VER = "2026-10-01d";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
