@@ -286,8 +286,20 @@
     <h2>3. 人にかかる費用</h2>
     <p class="note">一人ずつにかかる費用です。あるものだけチェックを入れてください。</p>
     <div class="chk-row">
+      <label id="pStayWrap" style="display:none;"><input type="checkbox" id="chkPStay" onchange="togglePerson()">宿泊（一人あたり）</label>
       <label><input type="checkbox" id="chkPFerry" onchange="togglePerson()">フェリー（一人あたり）</label>
       <label><input type="checkbox" id="chkPEnt" onchange="togglePerson()">入場料（一人あたり）</label>
+    </div>
+    <!-- ★2026-10-01（㊴）宿泊代。1泊以上の山行のときだけ出ます -->
+    <div class="opt-blk blk-pstay" style="background:#f2f7f2;border-radius:8px;padding:9px 11px;margin-bottom:10px;">
+      <label id="stayLabel">宿泊代（一人あたり）</label>
+      <input type="number" id="stayPerson" placeholder="例：8000" min="0">
+      <p class="hint" id="stayHint">お一人の宿泊代を入れてください。</p>
+      <label>宿泊代を払ったのは？</label>
+      <select id="stayPayer" onchange="saveForm()">
+        <option value="-1">それぞれが宿で払う</option>
+      </select>
+      <p class="hint">それぞれが払うときは、精算には入れません。どなたかが全員分をまとめて払ったときは、その方を選んでください。その方へ戻す金額が、精算に入ります。</p>
     </div>
     <div class="opt-blk blk-pferry">
       <label>フェリー（1人あたり・行き）</label>
@@ -305,11 +317,11 @@
       <input type="number" id="entPerson" placeholder="0" min="0">
     </div>
     <div class="opt-blk blk-payer">
-      <label>この費用を立替えた人</label>
-      <select id="personPayer">
-        <option value="-1">各自でその場払い（精算しない）</option>
+      <label>フェリー・入場料を払ったのは？</label>
+      <select id="personPayer" onchange="saveForm()">
+        <option value="-1">それぞれがその場で払う</option>
       </select>
-      <p class="hint">「各自でその場払い」なら一人あたり金額に含めて表示だけします。誰かがまとめて払った場合はその人を選ぶと精算に入ります。</p>
+      <p class="hint">それぞれが払うときは、精算には入れません。どなたかが全員分をまとめて払ったときは、その方を選んでください。その方へ戻す金額が、精算に入ります。</p>
     </div>
   </div>
 
@@ -566,7 +578,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-01a";
+var APP_VER = "2026-10-01b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1455,6 +1467,7 @@ function syncRetUi_() {
                               : "休日料金（土日・祝日）";
   var ry = document.getElementById("retYoubiDisp");
   if (ry) { var y = youbiOf(retDateVal_()); ry.textContent = y ? y + "曜日" : ""; }
+  syncStayUi_();
 }
 /* 山行日が土日なら、休日料金のチェックを自動で付けます。
    手で変えたあとは、日付を変えたときだけ付け直します。 */
@@ -1860,7 +1873,33 @@ function togglePerson() {
   var rs = document.getElementById("pFerryRetSame");
   var rb = document.getElementById("pFerryRetBox");
   if (rs && rb) rb.style.display = rs.checked ? "none" : "block";
+  syncStayUi_();
   saveForm();
+}
+/* ★2026-10-01（㊴）泊数（帰る日 − 山行日） */
+function nightsOf_() {
+  var d = document.getElementById("hikeDate").value, r = retDateVal_();
+  if (!d || !r || r <= d) return 0;
+  var a = d.split("-"), b = r.split("-");
+  var t0 = Date.UTC(+a[0], +a[1] - 1, +a[2]), t1 = Date.UTC(+b[0], +b[1] - 1, +b[2]);
+  return Math.round((t1 - t0) / 86400000);
+}
+/* 宿泊の欄は、1泊以上のとき（または前に入れてあるとき）だけ出します */
+function syncStayUi_() {
+  var chk = document.getElementById("chkPStay");
+  if (!chk) return;
+  var nights = nightsOf_();
+  var w = document.getElementById("pStayWrap");
+  if (w) w.style.display = (nights > 0 || chk.checked) ? "" : "none";
+  chk.parentNode.classList.toggle("on", chk.checked);
+  var blk = document.querySelector(".blk-pstay");
+  if (blk) blk.classList.toggle("on", chk.checked);
+  var lb = document.getElementById("stayLabel");
+  if (lb) lb.textContent = (nights > 1) ? ("宿泊代（一人あたり・" + nights + "泊分の合計）") : "宿泊代（一人あたり）";
+  var hn = document.getElementById("stayHint");
+  if (hn) hn.textContent = (nights > 1)
+    ? ("お一人の宿泊代を、" + nights + "泊分まとめて入れてください。")
+    : "お一人の宿泊代を入れてください。";
 }
 function removeCar(btn) {
   btn.closest(".car-card").remove();
@@ -2602,22 +2641,41 @@ function routeSelected(el) {
     }
   } catch (e) {}
 }
-/* 立替者ドロップダウン（人にかかる費用） */
-function refreshPayerDropdown() {
-  var sel = document.getElementById("personPayer");
-  if (!sel) return;
-  var current = sel.value;
-  var cards = document.querySelectorAll("#cars .car-card");
-  sel.innerHTML = '<option value="-1">各自でその場払い（精算しない）</option>';
-  cards.forEach(function (c, i) {
-    var nm = c.querySelector(".car-name").value.trim() || ("車" + (i + 1));
-    var op = document.createElement("option");
-    op.value = String(i);
-    op.textContent = nm + "さん（車" + (i + 1) + "）が立替え";
-    sel.appendChild(op);
+/* 立替者ドロップダウン（人にかかる費用・宿泊代）
+   ★2026-10-01（㊴）車の持ち主だけでなく、参加者全員から選べます。値は「名前」で持ちます。
+   　（前は車の番号でした。前の記録は applyForm で名前に読み替えます） */
+function payerNames_() {
+  var names = [];
+  function add(n) { n = (n || "").trim(); if (n && n !== "__other" && names.indexOf(n) < 0) names.push(n); }
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    add(c.querySelector(".car-name").value);
+    if (!c.querySelector(".chk-retsame").checked) add(c.querySelector(".car-rname").value);
   });
-  sel.value = current;
-  if (sel.selectedIndex === -1) sel.value = "-1";
+  JOINED.forEach(add);
+  return names;
+}
+function refreshPayerDropdown() {
+  var names = payerNames_();
+  [["personPayer", "それぞれがその場で払う"],
+   ["stayPayer", "それぞれが宿で払う"]].forEach(function (x) {
+    var sel = document.getElementById(x[0]);
+    if (!sel) return;
+    var current = sel.dataset.want || sel.value;
+    sel.innerHTML = "";
+    var op0 = document.createElement("option");
+    op0.value = "-1"; op0.textContent = x[1]; sel.appendChild(op0);
+    var list = names.slice();
+    if (current && current !== "-1" && list.indexOf(current) < 0) list.push(current);
+    list.forEach(function (nm) {
+      var op = document.createElement("option");
+      op.value = nm;
+      op.textContent = nm + "さんが全員分を払った";
+      sel.appendChild(op);
+    });
+    sel.value = current || "-1";
+    if (sel.selectedIndex === -1) sel.value = "-1";
+    delete sel.dataset.want;
+  });
 }
 
 /* ---------- 計算 ---------- */
@@ -2713,7 +2771,7 @@ function calc(noScroll) {
   /* 精算に名前が出る方（持ち主と、帰りの運転手） */
   var people = [], P = {};
   function acct_(nm) {
-    if (!P[nm]) { P[nm] = { name: nm, recv: 0, roles: [], paidExtra: 0, bonus: 0 }; people.push(P[nm]); }
+    if (!P[nm]) { P[nm] = { name: nm, recv: 0, roles: [], paidExtra: 0, bonus: 0, extras: [] }; people.push(P[nm]); }
     return P[nm];
   }
   cars.forEach(function (c, i) {
@@ -2738,10 +2796,31 @@ function calc(noScroll) {
   var entPerson = document.getElementById("chkPEnt").checked ? numOf(document.getElementById("entPerson")) : 0;
   var personRate = ferryPerson + entPerson;
   var personTotal = personRate * nPeople;
-  var payerIdx = parseInt(document.getElementById("personPayer").value, 10);
-  var personPooled = (payerIdx >= 0 && payerIdx < cars.length);
+  var payerName = document.getElementById("personPayer").value;
+  var personPooled = (personRate > 0 && payerName && payerName !== "-1");
+  /* ★2026-10-01（㊴）宿泊代 */
+  var stayRate = document.getElementById("chkPStay").checked ? numOf(document.getElementById("stayPerson")) : 0;
+  var stayTotal = stayRate * nPeople;
+  var stayPayer = document.getElementById("stayPayer").value;
+  var stayPooled = (stayRate > 0 && stayPayer && stayPayer !== "-1");
+  if (personPooled) { var pa = acct_(payerName); pa.paidExtra += personTotal; pa.extras.push({ t: "フェリー・入場料", v: personTotal }); if (!pa.roles.length) pa.roles.push("立て替えた方"); }
+  if (stayPooled) { var sa = acct_(stayPayer); sa.paidExtra += stayTotal; sa.extras.push({ t: "宿泊代", v: stayTotal }); if (!sa.roles.length) sa.roles.push("立て替えた方"); }
+  if (nPeople < people.length) {
+    showWarn("参加人数（" + nPeople + "名）が、運転する方・立て替えた方の人数（" + people.length + "名）より少なくなっています。人数を確認してください。");
+    return;
+  }
+  /* その場で各自が払うもの（精算には入れず、一人あたりに足して見せるだけ） */
+  var selfPay = (personPooled ? 0 : personRate) + (stayPooled ? 0 : stayRate);
+  /* 呼び名は、入れたものだけ（入場料だけなら「入場料」） */
+  var pName = [];
+  if (ferryPerson > 0) pName.push("フェリー");
+  if (entPerson > 0) pName.push("入場料");
+  pName = pName.join("・");
+  var selfParts = [], selfPartsT = [];
+  if (!stayPooled && stayRate > 0) { selfParts.push("宿泊代は宿で " + yen(stayRate)); selfPartsT.push("宿泊代は宿で " + jpn(stayRate) + "円"); }
+  if (!personPooled && personRate > 0) { selfParts.push(pName + "はその場で " + yen(personRate)); selfPartsT.push(pName + "はその場で " + jpn(personRate) + "円"); }
 
-  var grandTotal = carTotal + (personPooled ? personTotal : 0);
+  var grandTotal = carTotal + (personPooled ? personTotal : 0) + (stayPooled ? stayTotal : 0);
   var share = Math.ceil(grandTotal / nPeople / unit) * unit;
   var surplus = share * nPeople - grandTotal;
 
@@ -2749,7 +2828,6 @@ function calc(noScroll) {
   var perDriver = Math.floor(surplus / cars.length);
   var remBonus = surplus - perDriver * cars.length;
   cars.forEach(function (c, i) { acct_(c.name).bonus += perDriver + (i === 0 ? remBonus : 0); });
-  if (personPooled) acct_(cars[payerIdx].name).paidExtra += personTotal;
 
   /* 表示情報 */
   var dateVal = document.getElementById("hikeDate").value;
@@ -2762,7 +2840,7 @@ function calc(noScroll) {
   var meetPlace = document.getElementById("meetPlace").value.trim();
   var meetTime = document.getElementById("meetTime").value;
   var passengers = nPeople - people.length;
-  var displayTotal = share + (personPooled ? 0 : personRate);
+  var displayTotal = share + selfPay;
   var retVal = retDateVal_();
   if (overnight && dateStr) {
     var rp = retVal.split("-");
@@ -2778,13 +2856,20 @@ function calc(noScroll) {
   }
   html += '<div class="per-person"><div class="label">一人あたりの支払い</div>' +
           '<div class="yen">' + yen(displayTotal) + '</div>';
-  if (!personPooled && personRate > 0) {
-    html += '<div class="sub">内訳：車の費用 ' + yen(share) + '　＋　人の費用（各自現地払い） ' + yen(personRate) + '</div>';
+  if (selfParts.length) {
+    /* ★2026-10-01（㊴）年配の方にも分かるように、払い先ごとに分けて見せます */
+    var pooledWhat = ["車の費用"];
+    if (stayPooled) pooledWhat.push("宿泊代");
+    if (personPooled) pooledWhat.push(pName);
+    html += '<div class="sub" style="text-align:left;line-height:1.7;">' +
+      '・精算で払う ' + yen(share) + '（' + pooledWhat.join('・') + '）<br>' +
+      '・自分で払う ' + yen(selfPay) + '（' + selfParts.join('、') + '）</div>';
   }
   html += '</div>';
 
   html += '<p class="note" style="margin-top:12px;"><b>車費用の合計：' + yen(carTotal) + '</b>' +
-          (personPooled ? '　＋ 人費用 ' + yen(personTotal) + '（' + escapeHtml(cars[payerIdx].name) + 'さん立替え）' : '') + '</p>';
+          (stayPooled ? '<br><b>宿泊代：' + yen(stayRate) + ' × ' + nPeople + '名 ＝ ' + yen(stayTotal) + '（' + escapeHtml(stayPayer) + 'さんが払った）</b>' : '') +
+          (personPooled ? '<br><b>' + pName + '：' + yen(personRate) + ' × ' + nPeople + '名 ＝ ' + yen(personTotal) + '（' + escapeHtml(payerName) + 'さんが払った）</b>' : '') + '</p>';
 
   /* 車ごとの費用 */
   function legs_(g, r) { return (g === r) ? ("往復 " + yen(g + r)) : ("行き " + yen(g) + "＋帰り " + yen(r)); }
@@ -2809,14 +2894,14 @@ function calc(noScroll) {
       : '支払い <span class="receive" style="color:#c33">' + yen(-net) + '</span>';
     html += '<div class="result-car">' +
       '<div class="name">' + escapeHtml(p.name) + 'さん（' + escapeHtml(p.roles.join('・')) + '）：' + netLabel + '</div>' +
-      '<div class="detail">立替え ' + yen(p.recv) +
-      (p.paidExtra ? '　＋ 人費用立替 ' + yen(p.paidExtra) : '') +
+      '<div class="detail">' + (p.recv ? '車の立替え ' + yen(p.recv) : '') +
+      (p.extras.length ? (p.recv ? '　＋ ' : '') + p.extras.map(function (x) { return (x.t === "宿泊代" ? x.t : pName) + "の立替え " + yen(x.v); }).join('　＋ ') : '') +
       '　－ 本人負担 ' + yen(share) +
       (p.bonus > 0 ? '　＋ 余り ' + yen(p.bonus) : '') + '</div></div>';
   });
   if (passengers > 0) {
     html += '<div class="result-car"><div class="name">同乗者 ' + passengers + '名：一人 ' + yen(displayTotal) + '</div>' +
-      (personPooled && personRate > 0 ? '<div class="detail">車費用 ' + yen(share) + '（人費用 ' + yen(personRate) + ' は立替者へ含む）</div>' : '') +
+      (selfPay > 0 ? '<div class="detail">精算で ' + yen(share) + '　＋ 自分で ' + yen(selfPay) + '</div>' : '') +
       '</div>';
   }
   if (surplus > 0) {
@@ -2837,8 +2922,8 @@ function calc(noScroll) {
     html += '<div class="warn">検算：受け取り ' + yen(totalReceive) + ' と支払い ' + yen(totalPay) +
             ' が一致しません。入力を確認してください。</div>';
   }
-  if (!personPooled && personRate > 0) {
-    html += '<p class="note">※ 人の費用（一人 ' + yen(personRate) + '）は各自が現地で支払うため、上の精算には含みません。</p>';
+  if (selfPay > 0) {
+    html += '<p class="note">※ 自分で払う ' + yen(selfPay) + '（' + escapeHtml(selfParts.join('、')) + '）は、上の精算には入れていません。</p>';
   }
 
   body.innerHTML = html;
@@ -2853,12 +2938,13 @@ function calc(noScroll) {
   if (meetPlace || meetTime) t += "集合：" + (meetTime ? meetTime + " " : "") + meetPlace + "\n";
   t += "参加 " + nPeople + "名 / 車 " + cars.length + "台\n";
   t += "一人あたり：" + jpn(displayTotal) + "円";
-  if (!personPooled && personRate > 0) t += "（車費用" + jpn(share) + "円＋人費用" + jpn(personRate) + "円は各自現地払い）";
+  if (selfPay > 0) t += "\n　・精算で払う " + jpn(share) + "円\n　・自分で払う " + jpn(selfPay) + "円（" + selfPartsT.join("、") + "）";
   t += "\n――――――――――\n";
   people.forEach(function (p) {
     var net = p.recv + p.paidExtra - share + p.bonus;
     t += "■" + p.name + "さん（" + p.roles.join("・") + "）\n";
-    t += "　立替え " + jpn(p.recv) + "円" + (p.paidExtra ? "＋人費用立替" + jpn(p.paidExtra) + "円" : "") + "\n";
+    t += "　立替え " + (p.recv ? "車 " + jpn(p.recv) + "円" : "") +
+         (p.extras.length ? (p.recv ? "＋" : "") + p.extras.map(function (x) { return (x.t === "宿泊代" ? x.t : pName) + " " + jpn(x.v) + "円"; }).join("＋") : "") + "\n";
     t += net >= 0
       ? "　→ 受け取り " + jpn(net) + "円\n"
       : "　→ 支払い " + jpn(-net) + "円\n";
@@ -3035,6 +3121,10 @@ function formDetailText(f) {
   if (f.pFerryOn && f.ferryPerson) {
     t += "\n人のフェリー：" + jpn(Number(f.ferryPerson)) + "円／人\n";
   }
+  if (f.stayOn && f.stayPerson) {
+    t += "宿泊代　　：" + jpn(Number(f.stayPerson)) + "円／人（" +
+         (f.stayPayer && f.stayPayer !== "-1" ? f.stayPayer + "さんが払った" : "各自が宿で") + "）\n";
+  }
   if (f.pEntOn && f.entPerson) {
     t += "人の入場料　：" + jpn(Number(f.entPerson)) + "円／人\n";
   }
@@ -3162,6 +3252,9 @@ function getFormData() {
     ferryPersonRet: document.getElementById("ferryPersonRet").value,
     entPerson: document.getElementById("entPerson").value,
     payer: document.getElementById("personPayer").value,
+    stayOn: document.getElementById("chkPStay").checked,
+    stayPerson: document.getElementById("stayPerson").value,
+    stayPayer: document.getElementById("stayPayer").value,
     pFerryOn: document.getElementById("chkPFerry").checked,
     pEntOn: document.getElementById("chkPEnt").checked,
     /* 履歴に残して、あとから条件を確かめられるようにする */
@@ -3258,7 +3351,20 @@ function applyForm(f) {
     hasCars = true;
   }
   refreshPayerDropdown();
-  if (f.payer != null) document.getElementById("personPayer").value = f.payer;
+  /* ★2026-10-01（㊴）立て替えた人は名前で持つ。前の記録（車の番号）は、その車の持ち主の名前へ */
+  var pv = (f.payer != null) ? String(f.payer) : "-1";
+  if (/^\d+$/.test(pv)) {
+    var cc = (f.cars || [])[parseInt(pv, 10)];
+    pv = cc ? (String(cc.name || "").trim() || ("車" + (parseInt(pv, 10) + 1) + "のドライバー")) : "-1";
+  }
+  var ps = document.getElementById("personPayer");
+  ps.dataset.want = pv;
+  document.getElementById("chkPStay").checked = !!f.stayOn;
+  document.getElementById("stayPerson").value = f.stayPerson || "";
+  var ss = document.getElementById("stayPayer");
+  ss.dataset.want = f.stayPayer || "-1";
+  refreshPayerDropdown();
+  syncStayUi_();
   return hasCars;
 }
 function loadForm() {
@@ -3438,6 +3544,8 @@ function clearForm() {
   document.getElementById("entPerson").value = "";
   document.getElementById("chkPFerry").checked = false;
   document.getElementById("chkPEnt").checked = false;
+  document.getElementById("chkPStay").checked = false;
+  document.getElementById("stayPerson").value = "";
   togglePerson();
   setToday();
   document.getElementById("retDate").value = document.getElementById("hikeDate").value;
