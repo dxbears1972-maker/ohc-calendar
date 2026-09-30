@@ -578,7 +578,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-01b";
+var APP_VER = "2026-10-01c";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1545,6 +1545,7 @@ function saveEtc() {
   var routes = getEtcRoutes();
   lsSet(LS_ETC, routes);
   refreshAllDropdowns();
+  try { fillRetFromMap_(); } catch (eR) {}
   /* みんなで使えるよう、サーバーにも保存する（連続入力は1秒待ってまとめて送る） */
   if (etcSaveTimer) clearTimeout(etcSaveTimer);
   etcSaveTimer = setTimeout(function () {
@@ -1694,6 +1695,16 @@ function addCar(data) {
         '帰りの運転手や道が違うときは、チェックを外してください。</p>' +
       '<div class="opt-blk blk-ret">' +
         '<label>帰りの運転手</label>' + carNameFieldHtml("car-rname") +
+        /* ★2026-10-01（㊴）帰りの道を地図で調べる（立ち寄り1か所まで） */
+        '<div style="margin:12px 0 4px;padding:10px 11px;background:#fff;border:2px dashed #b9d2ba;border-radius:8px;">' +
+          '<div style="font-weight:bold;margin-bottom:4px;">📍 帰りの道を地図で調べる</div>' +
+          '<p class="hint ret-map-route" style="margin:0 0 6px;"></p>' +
+          '<label>帰りに立ち寄る所（なければ空欄）</label>' +
+          '<input type="text" class="car-rvia" placeholder="例：道の駅うきは">' +
+          '<button type="button" class="btn btn-sub" style="margin-top:8px;" onclick="lookupRet_(this)">' +
+            '📍 帰りの道を調べる</button>' +
+          '<div class="ret-map-msg" style="margin-top:6px;font-size:15px;"></div>' +
+        '</div>' +
         '<label>帰りの走行距離（km）</label>' +
         '<input type="number" class="car-rkm" placeholder="例：45" min="0" step="0.1">' +
         '<div class="ret-etc">' +
@@ -1735,6 +1746,8 @@ function addCar(data) {
       setIf(div, ".car-retc", data.retc);
       if (data.retcUse) div.querySelector(".car-retcuse").value = data.retcUse;
       setIf(div, ".car-rferry", data.rferry);
+      setIf(div, ".car-rvia", data.rvia);
+      if (data.rlabel) div.dataset.rlabel = data.rlabel;
       if (data.rcash) div.querySelector(".car-rcash").value = data.rcash;
       var selRR = div.querySelector(".car-rroute");
       selRR.dataset.routeName = data.rrouteName || "";
@@ -1829,6 +1842,160 @@ function updateRetUi_(c) {
   var other = !same && rd !== "" && rd !== "__other" && rd !== owner;
   c.querySelector(".ret-cash").style.display = other ? "block" : "none";
   c.querySelector(".park-by").style.display = other ? "block" : "none";
+  var rt = c.querySelector(".ret-map-route");
+  if (rt) {
+    var d0 = document.getElementById("destPlace").value.trim() || "（行き先が空です）";
+    var m0 = document.getElementById("meetPlace").value.trim() || "（集合場所が空です）";
+    rt.textContent = "「" + d0 + "」から、立ち寄る所を通って、「" + m0 + "」までを調べます。";
+  }
+}
+
+/* ==================================================================
+   ★2026-10-01（㊴）帰りの道を地図で調べる
+   　行き先 →（立ち寄る所）→ 集合場所 を、区間ごとにサーバーへ聞きます。
+   　（サーバーの「距離を調べる」をそのまま使うので、GASは変えていません）
+   　・距離は区間の合計を「帰りの走行距離」へ
+   　・高速に乗る区間があれば、乗り口・降り口から料金表の区間を探して、帰りの高速料金へ
+   ================================================================== */
+function lookupRet_(btn) {
+  var c = btn.closest(".car-card");
+  var dest = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var meet = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var via  = c.querySelector(".car-rvia").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var msg  = c.querySelector(".ret-map-msg");
+  if (!dest || !meet) {
+    msg.innerHTML = "<b>上の「行き先」と「集合場所」を先に入れてください。</b>";
+    return;
+  }
+  var segs = via ? [[dest, via], [via, meet]] : [[dest, meet]];
+  var got = [];
+  btn.disabled = true;
+  msg.textContent = "地図で調べています…";
+  (function next(i) {
+    if (i >= segs.length) {
+      btn.disabled = false;
+      c._retSegs = got;
+      renderRet_(c, true);
+      return;
+    }
+    apiPost({ action: "getDistance", from: segs[i][0], to: segs[i][1], pref: routePrefNow_() }, function (err, data) {
+      if (err || !data) { btn.disabled = false; msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+      if (data.error) { btn.disabled = false; msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+      var list = data.list || [];
+      if (!list.length) { btn.disabled = false; msg.innerHTML = "<b>「" + escapeHtml(segs[i][0]) + "」から「" + escapeHtml(segs[i][1]) + "」への道が見つかりませんでした。名前を変えてお試しください。</b>"; return; }
+      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0 });
+      next(i + 1);
+    });
+  })(0);
+}
+/* 区間の候補を切り替えたとき */
+function pickRetSeg_(el, si, ri) {
+  var c = el.closest(".car-card");
+  if (!c._retSegs || !c._retSegs[si]) return;
+  c._retSegs[si].idx = ri;
+  renderRet_(c, true);
+}
+/* 調べた結果を出し、距離と高速料金を帰りの欄へ入れます */
+function renderRet_(c, fill) {
+  var segs = c._retSegs || [];
+  var msg = c.querySelector(".ret-map-msg");
+  var total = 0, h = "", hw = [];
+  segs.forEach(function (sg, si) {
+    var r = sg.list[sg.idx] || sg.list[0];
+    total += Number(r.km) || 0;
+    if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name) {
+      hw.push({ a: r.tollIn.name, b: r.tollOut.name });
+    }
+    h += '<div style="margin:8px 0 2px;"><b>' + (segs.length > 1 ? (si === 0 ? "①" : "②") : "") +
+         escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    sg.list.forEach(function (x, xi) {
+      var on = (xi === sg.idx);
+      h += '<button type="button" onclick="pickRetSeg_(this,' + si + ',' + xi + ')" ' +
+        'style="display:block;width:100%;text-align:left;margin:3px 0;padding:8px 10px;border-radius:9px;' +
+        'border:2px solid ' + (on ? 'var(--club)' : '#cfd8cd') + ';background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;">' +
+        (on ? '✅ ' : '') + '<b>' + x.km + 'km</b>・' + x.mins + '分' +
+        (x.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
+        (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
+        '</button>';
+    });
+  });
+  total = Math.round(total * 10) / 10;
+  var notes = [], btns = [];
+  if (fill) {
+    c.querySelector(".car-rkm").value = String(total);
+    notes.push("帰りの走行距離に <b>" + total + "km</b> を入れました");
+    var chk = c.querySelector(".chk-etc");
+    var sr = c.querySelector(".car-rroute"), fr = c.querySelector(".car-retc");
+    if (!hw.length) {
+      if (sr) sr.value = "";
+      if (fr) fr.value = "";
+      notes.push("この道は高速に乗らないので、<b>帰りの高速料金は0円</b>にしました");
+    } else {
+      if (chk && !chk.checked) {
+        chk.checked = true; toggleOpt(chk, "blk-etc");
+        notes.push("帰りに高速を使うので「高速道路」にチェックを入れました（行きに乗らないときは、行きの高速料金は空欄のままで大丈夫です）");
+      }
+      var sum = 0, miss = [], idxs = [];
+      hw.forEach(function (p) {
+        var ix = findRouteByIcPair_(p.a, p.b);
+        var nm = icShort_(p.a) + "⇔" + icShort_(p.b);
+        if (ix < 0) { miss.push(nm); return; }
+        var fee = routeFeeFor_(getEtcRoutes()[ix], c.querySelector(".car-retcuse").value, true);
+        if (fee == null) { miss.push(nm); return; }
+        idxs.push(ix); sum += fee;
+      });
+      if (!miss.length) {
+        if (idxs.length === 1) { sr.value = String(idxs[0]); rememberRouteName_(sr); }
+        else { sr.value = ""; rememberRouteName_(sr); }
+        fr.value = String(sum);
+        notes.push("帰りの高速料金に <b>" + yen(sum) + "</b> を入れました（" +
+                   escapeHtml(hw.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("＋")) + "）");
+      } else {
+        notes.push("区間 <b>" + escapeHtml(miss.join("・")) + "</b> の料金が、まだ料金表にありません。" +
+                   "下の「帰りの高速料金」に手で入れるか、料金表に足してください");
+        miss.forEach(function (nm) {
+          btns.push('<button type="button" class="btn btn-sub" style="margin-top:4px;" ' +
+            'onclick="addRetIcRoute_(this,\'' + escapeHtml(nm).replace(/'/g, "") + '\')">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>');
+        });
+      }
+    }
+    var lab = segs.map(function (sg) {
+      var r = sg.list[sg.idx] || sg.list[0];
+      return sg.to + "まで " + r.km + "km" + (routeSubLabel_(r) ? "（" + routeSubLabel_(r) + "）" : "");
+    }).join("、");
+    c.dataset.rlabel = lab;
+    updateRetUi_(c);
+    saveForm();
+  }
+  msg.innerHTML = h + (notes.length ? '<div style="margin-top:8px;padding:8px 10px;background:#f2f7f2;border-radius:8px;">' +
+    notes.map(function (x) { return "・" + x; }).join("<br>") + btns.join("") + '</div>' : "");
+}
+/* 料金表に金額が入ったら、帰りの道（地図で調べた分）の高速料金を入れ直す */
+function fillRetFromMap_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    if (!c._retSegs || c.querySelector(".chk-retsame").checked) return;
+    var fr = c.querySelector(".car-retc");
+    if (fr && fr.value === "") renderRet_(c, true);
+  });
+}
+/* 料金表に、帰りの区間を足す（金額は料金表で入れていただく） */
+function addRetIcRoute_(btn, nm) {
+  addEtcRow(nm, "", "", document.getElementById("destPlace").value.trim());
+  saveEtc();
+  var box = document.getElementById("etcRows");
+  if (box) {
+    var d = box.closest("details");
+    if (d) d.open = true;
+    var rows = box.querySelectorAll(".etc-row");
+    var last = rows[rows.length - 1];
+    if (last) {
+      last.scrollIntoView({ behavior: "smooth", block: "center" });
+      var f = last.querySelector(".etc-fee");
+      if (f) setTimeout(function () { f.focus(); }, 400);
+    }
+  }
+  btn.disabled = true;
+  btn.textContent = "料金表に「" + nm + "」を足しました。金額を入れてください";
 }
 /* 帰りの高速ルートを選んだとき。帰る日（平日／休日）に合う金額を入れます */
 function retRouteSelected(el) {
@@ -3100,6 +3267,7 @@ function formDetailText(f) {
            (c.useFerry && c.ferry ? "・フェリー " + jpn(Number(c.ferry)) + "円" : "") + "\n";
       if (c.same) t += "　帰り：行きと同じ\n";
       else t += "　帰り：運転 " + (c.rname || c.name || "") + "さん・" + (c.rkm || "") + "km" +
+           (c.rvia ? "・立ち寄り " + c.rvia : "") +
            (c.useEtc && c.retc ? "・高速 " + jpn(Number(c.retc)) + "円（" + (c.retcUse === "normal" ? "手払い" : "ETC") + "）" : "") +
            (c.useFerry && c.rferry ? "・フェリー " + jpn(Number(c.rferry)) + "円" : "") + "\n";
       if (c.usePark && c.park) t += "　駐車料金：" + jpn(Number(c.park)) + "円\n";
@@ -3203,6 +3371,8 @@ function getFormData() {
       rroute: c.querySelector(".car-rroute").value,
       rrouteName: c.querySelector(".car-rroute").dataset.routeName || "",
       rferry: c.querySelector(".car-rferry").value,
+      rvia: c.querySelector(".car-rvia").value,
+      rlabel: c.dataset.rlabel || "",
       rcash: c.querySelector(".car-rcash").value,
       parkBy: c.querySelector(".car-parkby").value,
       ent: c.querySelector(".car-ent").value,
