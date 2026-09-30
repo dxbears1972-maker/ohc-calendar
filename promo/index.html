@@ -38,12 +38,13 @@ img{max-width:100%;height:auto;display:block}
 .hero h1{font-size:32px;line-height:1.5;margin:14px 0 6px;font-weight:700}
 .hero h1 .big{display:block;font-size:44px;margin-top:6px}
 .hero p{font-size:19px;color:#d7e8de;margin-top:16px}
-.heroprice{display:inline-block;margin-top:22px;background:#fff;color:var(--green);border-radius:14px;padding:12px 22px 14px;max-width:560px}
-.heroprice .lbl{display:block;font-size:16px;color:var(--gray)}
-.heroprice .num{display:block;font-size:24px;font-weight:700;line-height:1.3}
-.heroprice .num b{font-size:44px;color:var(--orange);margin:0 2px}
-.heroprice .sm{display:block;font-size:15px;color:var(--gray);margin-top:4px;line-height:1.6}
-.hero p,.heroprice .sm{word-break:auto-phrase;text-wrap:balance}
+.herofact{display:block;margin:26px auto 0;background:#fff;color:var(--ink);border-radius:14px;padding:16px 20px 18px;max-width:600px;text-align:left}
+.herofact .lbl{display:block;font-size:20px;font-weight:700;color:var(--green);line-height:1.45;text-align:center}
+.herofact .src{display:block;font-size:15px;color:var(--gray);margin-top:6px;line-height:1.6;text-align:center}
+.herofact .fact{display:block;font-size:18px;margin-top:10px;line-height:1.7}
+.herofact .fact b{color:var(--orange)}
+.herofact a{display:block;margin-top:10px;font-size:17px;font-weight:700;color:var(--green);text-align:center}
+.hero p,.herofact .lbl,.herofact .src{word-break:auto-phrase;text-wrap:balance}
 .prob.top{border-left-color:var(--green)}
 @media(min-width:700px){.prob.top{grid-column:1/-1}}
 .badges{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px}
@@ -258,21 +259,24 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <div class="hero">
   <div class="wrap">
     <div class="club">山の会・ハイキングクラブ向け</div>
-    <h1>会員は、押すだけ。人数も、車も、
-      <span class="big">すぐ決まる。</span>
+    <h1>山の会の運営が、
+      <span class="big">これひとつで回り出す。</span>
     </h1>
-    <p>何人で、誰が行くのか。車は何台要って、誰が出すのか。<br>
-       出欠が集まるそばから、予定の画面に出ます。<br>
-       マイカー代の精算、会員名簿、係の割当まで、山の会の運営をひとつに。</p>
-    <div class="heroprice">
-      <span class="lbl">2年目からは</span>
-      <span class="num">おひとり 年<b>500</b>円</span>
-      <span class="sm">20名様まで年10,000円（税込）。導入初期設定費 30,000円（初年度1年分の年額を含みます）</span>
-    </div>
+    <p>出欠のとりまとめ、会員名簿、山行ごとの係の割当、<br>
+       マイカー代の精算、計画書の置き場所。<br>
+       山の会の運営そのものを、ひとつにまとめる道具です。<br>
+       会員の皆さまは、見て押すだけです。</p>
     <div class="badges">
       <span class="badge">アプリストア不要</span>
       <span class="badge">会員はパスワードなし</span>
       <span class="badge">まずは3ヶ月無料</span>
+      <span class="badge">リーズナブルな価格設定</span>
+    </div>
+    <div class="herofact">
+      <span class="lbl">全国連盟の報告書に、成功事例として載りました</span>
+      <span class="src">日本勤労者山岳連盟（労山）組織部<br>「会員拡大・定着に関するアンケート調査報告書 2026」<br>事例13　大牟田ハイキングクラブ（福岡県）</span>
+      <span class="fact">会員<b>16名</b>・平均年齢<b>71歳</b>。全員がご自分の端末で登録を済ませ、途中で断念された方は<b>ゼロ</b>でした。報告書には、システムの開発・運用支援として DXベアーズの名前も載っています。</span>
+      <a href="https://hcwaf.jwaf.club/zenkoku_soshiki_t.html" target="_blank" rel="noopener">報告書を見る（労山 組織部のページ）</a>
     </div>
   </div>
 </div>
