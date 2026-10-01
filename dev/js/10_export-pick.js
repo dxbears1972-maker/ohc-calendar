@@ -277,7 +277,7 @@ function loadPickerFolder(folderId){
       $('pickerList').innerHTML = '<p class="note">読み込みに失敗しました。もう一度「参照」を押してください。' +
         (data && data.error ? '<br>詳細：' + esc(data.error) : '') +
         (data && !data.error && !data.folderId ? '<br>詳細：GASが古いバージョンのままの可能性があります（新バージョンでデプロイしてください）' : '') +
-        '</p>';
+        '</p>' + needNameBtn_(data);
       return;
     }
     lsSet(LSK.pickDir, data.folderId);
@@ -313,7 +313,7 @@ function pickFile(fileId){
     if (err || !data || !data.url){
       /* ★2026-09-28　断られた理由（名乗っていない・フォルダの外）を、そのまま出します */
       $('pickerList').innerHTML = '<p class="note">取得に失敗しました。もう一度お試しください。' +
-        (data && data.error ? '<br>詳細：' + esc(data.error) : '') + '</p>';
+        (data && data.error ? '<br>詳細：' + esc(data.error) : '') + '</p>' + needNameBtn_(data);
       return;
     }
     $(pickTarget === 'report' ? 'addReport' : 'addPlan').value = data.url;

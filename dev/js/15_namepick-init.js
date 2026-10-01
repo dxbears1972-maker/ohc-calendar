@@ -337,6 +337,11 @@ function submitSetCode(btn){
 /* 「ちがう方の名前になっている場合はこちら」から呼ばれる */
 function changeName(){
   if (!confirm('お名前を選び直しますか？\n\nちがう方の名前で開いてしまったときに使います。\nふだんは変える必要はありません。')) return;
+  resetName_();
+}
+
+/* ★2026-10-01b　名前を空にして、名前を選ぶ画面へ（changeName と［お名前を選び直す］ボタンの共通） */
+function resetName_(){
   myName = '';
   lsSet(LSK.name, '');
   lsSet(LSK.mid, '');

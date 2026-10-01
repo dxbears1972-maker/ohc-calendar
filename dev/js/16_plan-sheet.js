@@ -592,7 +592,7 @@ function courseRead(){
       courseApi_({ action: 'readCourse', id: COURSE_EV, images: list }, function(err, data){
         COURSE_BUSY = false;
         if (err || !data){ renderCourse_('<b>返事が届きませんでした。</b>電波の良い所で、もう一度「写真を読み取る」を押してください（読み取りは何度押しても大丈夫です）。'); return; }
-        if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>'); return; }
+        if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>' + needNameBtn_(data)); return; }
         var r = data.read || {};
         var ev = eventOf_(COURSE_EV) || {};
         var pts = [];
@@ -638,7 +638,7 @@ function courseReadUrl(){
   courseApi_({ action: 'readCourseUrl', id: COURSE_EV, url: t }, function(err, data){
     COURSE_BUSY = false;
     if (err || !data){ renderCourse_('<b>返事が届きませんでした。</b>電波の良い所で、もう一度「YAMAP から取り込む」を押してください（何度押しても大丈夫です）。'); return; }
-    if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>'); return; }
+    if (data.error){ renderCourse_('<b>' + esc(data.error) + '</b>' + needNameBtn_(data)); return; }
     var r = data.read || {};
     var pts = [];
     for (var i = 0; i < (r.pts || []).length; i++){

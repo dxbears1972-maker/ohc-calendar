@@ -12,6 +12,20 @@ function setStatus(msg, isErr){
   s.className = isErr ? 'err' : '';
 }
 
+/* ★★2026-10-01b　名簿に端末が無いと断られたとき（サーバーの返事に needName）、その場に［お名前を選び直す］ボタンを出す。
+   　10/1 実機（開発版「体験08」）：画面に名前が出ていても、名簿の「登録端末」が空だと断られ、どうすればよいか分からなかった。
+   　★押すと名前の選び直しへ（確かめの問いは出さない＝ボタンの言葉どおり）。選び直すとその場で端末が登録される（claimName）。 */
+function needNameBtn_(data){
+  if (!data || !data.needName) return '';
+  return '<div style="margin-top:8px"><button type="button" class="guidebtn" onclick="pickNameAgain()">お名前を選び直す</button></div>';
+}
+function pickNameAgain(){
+  try { closeGuide(); } catch(e1){}
+  try { closePicker(); } catch(e2){}
+  try { closePlanSheet(); } catch(e3){}
+  resetName_();
+}
+
 /* ---------- 通信 ---------- */
 /* ★★2026-09-29q　「❓ 使い方」を押したことを操作ログに残す（OHC本番 2026-09-29c と同じ。只隈さん「調べようと
    　頑張ったのか、食わず嫌いなのかがわかる」）。★画面には何も出さない・返事も待たない。
@@ -71,7 +85,7 @@ function openGuide(){
   GUIDE.box.style.display = 'flex';
   if (!getName()){
     guideMsg_('お名前を選んでから、もう一度「❓ 使い方」を押してください。<br>' +
-      '（使い方の説明書は、カレンダーでお名前を選んだ方だけが見られます）', false);
+      '（使い方の説明書は、カレンダーでお名前を選んだ方だけが見られます）' + needNameBtn_({ needName: 1 }), false);
     GUIDE.frame.style.display = 'none';
     $('guideTitle').innerHTML = '使い方';
     $('guideBack').style.visibility = 'hidden';
@@ -122,7 +136,7 @@ function guideShow_(doc, key, y, noPush){
       return;
     }
     if (data.error){
-      guideMsg_(esc(data.error), false);
+      guideMsg_(esc(data.error) + needNameBtn_(data), false);
       if (GUIDE.stack.length) GUIDE.stack.pop();
       return;
     }
@@ -714,7 +728,7 @@ function post(body, doneMsg, after, onFail){
       return;
     }
     if (data && data.error){
-      setStatus(data.error, true);
+      setStatus(data.error + needNameBtn_(data), true);
       if (onFail) { try { onFail(); } catch(eF2){} }
       return;
     }
