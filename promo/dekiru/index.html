@@ -97,6 +97,12 @@ section:nth-of-type(even) .pricebox{background:var(--cream)}
 .pricebox .setupfee span.d b{font-size:inherit;color:var(--ink)}
 .pricebox .setupfee .once{display:block;margin-top:4px;font-size:17px;color:var(--gray)}
 .pricebox .setupfee span.d{display:block;margin-top:8px;color:var(--gray);font-size:17px;line-height:1.7}
+.opth{text-align:center;margin-top:40px;font-size:24px;color:var(--green)}
+.optbox{margin-top:16px;background:#fff;border:3px solid var(--green);border-radius:16px;padding-top:22px}
+.optbox small,.campaign small{font-size:15px;color:var(--gray)}
+.campaign{margin-top:28px;background:#fff8ef;border:3px solid var(--orange);border-radius:16px;overflow:hidden}
+.campaign .cphead{background:var(--orange);color:#fff;padding:14px;font-size:24px;font-weight:700;text-align:center}
+.campaign .cplead{font-size:18px;padding:18px 24px 6px;max-width:520px;margin:0 auto}
 .pricelist{list-style:none;text-align:left;padding:0 24px 26px;max-width:520px;margin:0 auto}
 .pricelist li{padding-left:30px;position:relative;margin-bottom:12px;font-size:18px}
 .pricelist li::before{content:"";position:absolute;left:0;top:11px;
@@ -272,8 +278,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
           </div>
           <ul style="margin-top:18px">
             <li>運転者の負担分は自動で差し引かれます</li>
-            <li>途中から乗った人の金額も調整できます</li>
-            <li>単価はクラブごとに設定できます</li>
+            <li>帰りだけ運転を替わるときなど、行きと帰りを分けて精算できます</li>
+            <li>ガソリン代の単価（1kmあたり）は、設定で変えられます</li>
             <li>画面を見せながら精算できるので、説明が要りません</li>
           </ul>
         </div>
@@ -297,10 +303,11 @@ section:nth-of-type(even) .card{background:var(--cream)}
             <li><b>年間予定は、お手持ちのExcelを貼り付けるだけ。</b>
                 数十件をまとめて登録できます。係・担当の列もそのまま読み取ります。
                 1件ずつ入力し直す必要はありません</li>
-            <li><b>計画書・報告書・地図を、その山行に紐づけて置けます。</b><br>
+            <li><b>計画表・報告書・山行のLINEグループのリンクを、その山行に紐づけて置けます。</b>精算で作った道順の地図も、その山行から開けます。<br>
                 あとから来た会話に押し流されて見つからなくなる、ということがありません</li>
-            <li><b>記録は幹事さんの手元（スプレッドシート）に残ります。</b>
-                こちらの都合でお預かりして終わり、にはなりません</li>
+            <li><b>記録はクラブごとに分けて残ります。</b>
+                管理者の方は、名簿・操作の記録・お知らせの記録を「管理者の画面」でいつでも見られます。
+                ご利用をやめるときは、名簿・年間予定・出欠の記録をExcelなどの形でお渡しします</li>
           </ul>
         </div>
       </div>
@@ -311,8 +318,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
           <ul>
             <li><b>会員の皆さまは、予定を見て「参加」「不参加」を押すだけです</b></li>
             <li>年間・月間の山行予定を、会員全員が同じ画面で見られます</li>
-            <li>幹事が予定を書き換えると、全員の画面がその場で変わります</li>
-            <li>集合時間・集合場所・持ち物をまとめて表示します</li>
+            <li>幹事が予定を書き換えると、会員が次に開いたときには新しい予定が出ます</li>
+            <li>集合時間・集合場所・係・メモをまとめて表示します</li>
             <li>会員側の操作は「リンクを開く」か「QRコードを読み取る」だけ。<br>
                 読み取ると、名簿からご自分のお名前を押していただくだけで登録が終わります</li>
             <li>スマホのホーム画面にアイコンとして置けます</li>
