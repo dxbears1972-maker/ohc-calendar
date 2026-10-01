@@ -121,7 +121,7 @@ function adminLoad_(cb){
       var msg = null;
       if (err || !data || data.error){
         msg = (data && data.error) ? data.error :
-              '読み込めませんでした。電波の良いところで、もう一度押してください。';
+              '返事が届きませんでした。もう一度押してください。';
       } else if (!admViewOk_(data)){
         /* ★★2026-09-29r　管理者の画面の返事ではなく、カレンダー全体の返事が届くことがある
            　（デプロイの直後に実測。名前・役割・端末がすべて空の一覧になっていた＝只隈さんのご指摘）。
@@ -562,7 +562,7 @@ function statsLoad_(fy, cb){
     function(err, data){
       if (err || !data || data.error || !data.stats){
         cb((data && data.error) ? data.error :
-           '読み込めませんでした。電波の良いところで、もう一度押してください。');
+           '返事が届きませんでした。もう一度押してください。');
         return;
       }
       ADMIN_STATS[key] = data.stats;

@@ -131,8 +131,9 @@ function guideShow_(doc, key, y, noPush){
   api('POST', { action: 'guide', doc: doc, deviceId: deviceId() }, function(err, data){
     GUIDE.busy = false;
     if (data && data.docs) GUIDE.docs = data.docs;
-    if (err || !data){
-      guideMsg_('通信できませんでした。電波のよい所で、もう一度お試しください。', { doc: doc, key: key || '' });
+    /* ★★2026-10-01c　Wi‑Fi でも出るので「電波」のせいにしない。★取説の返事でないもの（html が無い）も同じ扱い */
+    if (err || !data || (!data.error && typeof data.html !== 'string')){
+      guideMsg_('返事が届きませんでした。下の「もう一度読み込む」を押してください。', { doc: doc, key: key || '' });
       return;
     }
     if (data.error){
@@ -264,6 +265,8 @@ function guideLook_(){
   } catch(e){}
 }
 
+var READ_ONLY_POST_ = { guide: 1, adminView: 1, adminStats: 1, needCode: 1 };
+
 function api(method, body, cb, tryNo, fresh){
   if (API_URL.indexOf('http') !== 0){
     setStatus('設定が終わっていません（GASのURLが未設定です）', true);
@@ -309,7 +312,11 @@ function api(method, body, cb, tryNo, fresh){
        　間を 2秒・4秒・6秒 と空けて取り直します。
        　★その間も、端末の控え（前回の内容）は表示されたままです。
        　★書き換え（POST）は、これまでどおり1回だけです（下の説明のとおり）。 */
-    if (tryNo < 4 && method === 'GET'){
+    /* ★★2026-10-01c　読むだけの POST（取説・管理者の画面・集計・確認番号の有無）も、GET と同じく取り直します。
+    　10/1 夜（OHC 本番）：サーバーは数秒で「完了」しているのに、取説が3回続けて「通信できませんでした」になった
+    　（返事がアプリに届く手前で消える。9/28 の調査と同じ形）。★これらは何も書かないので、取り直しても二重になりません。
+    　★書き込みは今までどおり1回だけです。 */
+    if (tryNo < 4 && (method === 'GET' || (body && READ_ONLY_POST_[body.action]))){
       setTimeout(function(){ api(method, body, cb, tryNo + 1, fresh); }, 2000 * tryNo);
       return;
     }
