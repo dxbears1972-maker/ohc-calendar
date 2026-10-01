@@ -202,6 +202,12 @@ p,li,.a,.card span,.stepnote,.nar,.say,td{text-wrap:pretty}
 .totop.show{opacity:1;visibility:visible}
 .totop .ic{width:24px;height:24px}
 footer{padding-bottom:90px}
+/* 紹介キャンペーンの帯（2026-10-02。料金ページには出さない） */
+.cbw{padding:0 12px}
+.cbanner{display:flex;align-items:center;gap:10px;max-width:820px;margin:0 auto 10px;padding:8px 12px;background:var(--orange);border-radius:12px;text-decoration:none;color:#fff}
+.cbanner b{display:block;font-size:clamp(16px,4.4vw,19px);line-height:1.4}
+.cbanner span{display:block;font-size:clamp(14px,3.9vw,16px);line-height:1.45}
+.cbanner::after{content:"›";margin-left:auto;font-size:30px;color:#fff;line-height:1}
 /* 漫画のバナー（決定P8。漫画のページには出さない） */
 .mbw{padding:10px 12px 0}
 .mbanner{display:flex;align-items:center;gap:12px;max-width:820px;margin:0 auto 10px;padding:7px 10px 7px 7px;
@@ -256,6 +262,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
   </ul></nav>
 </div></header>
 <div class="mbw"><a class="mbanner" href="../manga/"><img src="../manga/01b.jpg" width="88" height="50" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span></div></a></div>
+<div class="cbw"><a class="cbanner" href="../ryokin/#campaign"><div><b>ご紹介キャンペーン</b><span>ご紹介でご契約されると、お二人に5,000円のオプションを1つずつ</span></div></a></div>
 
 <section>
   <div class="wrap">
