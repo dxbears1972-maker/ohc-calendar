@@ -590,7 +590,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-01e";
+var APP_VER = "2026-10-04a";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1053,7 +1053,9 @@ function saveRouteMap() {
   var icNow = icNamesNow_();
   apiPost({ action: "saveRouteMap", from: from, to: to, title: title,
             icIn: icNow.a, icOut: icNow.b, routeName: icNow.routeName,
-            pref: routePrefNow_(), routeIdx: lastRouteIdx },
+            pref: routePrefNow_(), routeIdx: lastRouteIdx,
+            viaIn:  (lastRouteList[lastRouteIdx] && lastRouteList[lastRouteIdx].ai) ? lastRouteList[lastRouteIdx].viaIn  : "",
+            viaOut: (lastRouteList[lastRouteIdx] && lastRouteList[lastRouteIdx].ai) ? lastRouteList[lastRouteIdx].viaOut : "" },
           function (err, data) {
     mapSaveBusy_ = false;
     if (err || !data) { msg.innerHTML = "<b>保存できませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
@@ -1117,6 +1119,84 @@ var lastAutoKm = "";
 /* 候補の道の一覧と、いま選んでいる番号（2026-08-03h） */
 var lastRouteList = [], lastRouteIdx = -1;
 var lastRouteFrom = "", lastRouteTo = "", lastRouteFor = "";
+
+/* ==================================================================
+   ★2026-10-04　AI（Gemini）が見つけた道を、後から候補に足す（只隈さんの案）
+   ------------------------------------------------------------------
+   ・ふつうの候補（Google）は今までどおりすぐ出す。AIの候補はそのあと裏で聞いて足す。
+   ・AIが出すのは「乗るIC・降りるIC」の組だけ。距離と時間は Google の地図で測ったもの。
+   ・一覧の各候補に「⏱ いちばん早い／📏 いちばん短い／💴 いちばん安い／🙂 走りやすい」の印。
+   ================================================================== */
+var aiState = "", aiSeq = 0, aiEasy = null, aiAdded = 0;
+function aiMore_(from, to) {
+  var my = ++aiSeq;
+  aiState = "busy"; aiEasy = null; aiAdded = 0;
+  renderRouteArea_();
+  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_(), ai: "1" },
+          function (err, data) {
+    if (my !== aiSeq) return;                 /* 調べ直したあとに届いた古い返事は捨てる */
+    if (err || !data || data.error || data.aiFail) { aiState = "fail"; renderRouteArea_(); return; }
+    if (data.aiOff) { aiState = ""; renderRouteArea_(); return; }
+    var ex = data.extra || [];
+    for (var i = 0; i < ex.length; i++) lastRouteList.push(ex[i]);
+    aiEasy = data.easy || null;
+    aiAdded = ex.length;
+    aiState = ex.length ? "added" : "none";
+    renderRouteArea_();
+  });
+}
+
+/* 候補ごとの印（⏱📏💴🙂🤖） */
+function routeBadges_() {
+  var L = lastRouteList, out = [], i;
+  for (i = 0; i < L.length; i++) out.push([]);
+  if (!L.length) return out;
+  var iT = 0, iK = 0, iC = -1, cMin = -1, allCost = true;
+  var rate = parseFloat((document.getElementById("gasRate") || {}).value) || 50;
+  var routes = getEtcRoutes();
+  for (i = 0; i < L.length; i++) {
+    var r = L[i];
+    if (r.mins < L[iT].mins) iT = i;
+    if (r.km < L[iK].km) iK = i;
+    var fee = 0;
+    var a = r.tollIn && r.tollIn.name, b = r.tollOut && r.tollOut.name;
+    if (a && b) {
+      var k = findRouteByIcPair_(a, b);
+      var rt = (k >= 0) ? routes[k] : null;
+      fee = rt ? (rt.etc != null ? rt.etc : rt.normal) : null;
+      if (fee == null) { allCost = false; continue; }
+    } else if (a || b) { allCost = false; continue; }
+    var cost = Math.round(r.km * rate) + fee;
+    if (cMin < 0 || cost < cMin) { cMin = cost; iC = i; }
+  }
+  if (L.length > 1) {
+    out[iT].push("⏱ いちばん早い");
+    out[iK].push("📏 いちばん短い");
+    if (allCost && iC >= 0) out[iC].push("💴 いちばん安い（ガソリン＋高速 約" + cMin.toLocaleString() + "円）");
+  }
+  if (aiEasy && aiEasy["in"]) {
+    for (i = 0; i < L.length; i++) {
+      if (icShort_(L[i].tollIn && L[i].tollIn.name) === icShort_(aiEasy["in"]) &&
+          icShort_(L[i].tollOut && L[i].tollOut.name) === icShort_(aiEasy.out)) {
+        out[i].push("🙂 走りやすい（AIの見立て" + (aiEasy.why ? "：" + aiEasy.why : "") + "）");
+        break;
+      }
+    }
+  }
+  for (i = 0; i < L.length; i++) {
+    if (L[i].ai) out[i].push("🤖 AIが見つけた道" + (L[i].why ? "（" + L[i].why + "）" : ""));
+  }
+  return out;
+}
+
+function aiStateHtml_() {
+  var t = "";
+  if (aiState === "busy")  t = "🤖 AIが、ほかの乗り口（インター）も探しています…（そのまま入力を続けてかまいません）";
+  if (aiState === "added") t = "🤖 AIが見つけた道を " + aiAdded + "本 足しました（距離と時間は Google の地図で測ったものです）";
+  if (aiState === "none")  t = "🤖 AIも、ほかに良い乗り口は見つけませんでした";
+  if (aiState === "fail")  t = "🤖 AIの候補は出せませんでした（上の候補はそのまま使えます）";
+  return t ? '<div style="margin:6px 0 2px;color:#5a6b5c;font-size:14px;">' + escapeHtml(t) + '</div>' : "";
+}
 
 /* ------------------------------------------------------------------
    ルートの確定（2026-08-17）
@@ -1206,6 +1286,7 @@ function lookupDistance() {
       return;
     }
     showRoute_(data.pick || 0);
+    aiMore_(from, to);   /* ★2026-10-04　AIの候補は後から足す（待たせない） */
   });
 }
 
@@ -1297,6 +1378,7 @@ function routeListHtml_(detail) {
 
   h += '<div style="margin:8px 0 4px;color:#5a6b5c;">' +
        '<b>走る道を選んでください</b>（押すと切り替わります）</div>';
+  var bdg = routeBadges_();
   for (var i = 0; i < lastRouteList.length; i++) {
     var r = lastRouteList[i], on = (i === lastRouteIdx);
     h += '<button type="button" onclick="showRoute_(' + i + ')" ' +
@@ -1309,6 +1391,8 @@ function routeListHtml_(detail) {
       'margin-right:6px;">候補' + (i + 1) + '</span>' +
       (on ? '✅ ' : '') + '<b style="color:' + (on ? '#1f3a20' : '#7a857a') + ';">' + r.km + 'km</b>・' + r.mins + '分' +
       routeCandTag_(r) +
+      (bdg[i] && bdg[i].length ? '<br><span style="color:#1f5a2a;font-size:13px;margin-left:2.6em;">' +
+                                 escapeHtml(bdg[i].join('　')) + '</span>' : '') +
       '</button>';
     /* ★選んだ道のすぐ下に、その道の明細を出します（2026-08-03j）。
        　一覧の下にまとめて出すと、どれの話か分かりにくいためです。 */
@@ -1318,6 +1402,7 @@ function routeListHtml_(detail) {
            detail + '</div>';
     }
   }
+  h += aiStateHtml_();
   return h;
 }
 
