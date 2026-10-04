@@ -222,18 +222,10 @@
         <input type="time" id="meetTime">
       </div>
     </div>
-    <!-- ★高速料金の休日割引（2026-08-17i）。
-         土日なら自動でチェックが入ります。祝日のときだけ手で入れてください。 -->
+    <!-- ★高速料金の休日割引。★2026-10-05a（段4の直し e）チェックをなくし、日付から決まりで判断します
+         （只隈さん「土日、祝日も判断できるので、チェックボックスいらないのでは？」）。 -->
     <div style="margin-top:12px;background:#f2f7f2;border-radius:8px;padding:9px 11px;">
-      <label style="display:flex;align-items:center;gap:8px;margin:0;font-weight:bold;">
-        <input type="checkbox" id="holiRate" onchange="holiChanged()" style="width:20px;height:20px;">
-        <span id="holiLabel">休日料金（土日・祝日）</span>
-      </label>
-      <label id="holiRetWrap" style="display:none;align-items:center;gap:8px;margin:8px 0 0;font-weight:bold;">
-        <input type="checkbox" id="holiRateRet" onchange="holiChanged()" style="width:20px;height:20px;">
-        <span>帰りの日（<span id="holiRetDay"></span>）も休日料金</span>
-      </label>
-      <p class="note" id="holiNote" style="margin:4px 0 0;"></p>
+      <p class="note" id="holiNote" style="margin:0;"></p>
     </div>
 
     <label style="text-align:center; margin-top:16px;">参加人数（運転手も含む）</label>
@@ -248,6 +240,9 @@
     <label style="margin-top:16px;">行き先（登山口・駐車場）</label>
     <input type="text" id="destPlace" placeholder="例：英彦山 別所駐車場"
            oninput="saveForm()" onchange="autoPickRoute()">
+    <!-- ★2026-10-05a（段4の直し c）行きにも立ち寄り（帰りと同じく1か所まで） -->
+    <label style="margin-top:10px;">行きに立ち寄る所（なければ空欄）</label>
+    <input type="text" id="fwdVia" placeholder="例：道の駅たちばな" oninput="saveForm()">
     <p class="note" style="margin-top:8px;">調べると<b>道の候補が一覧で出ます。</b>
       実際に走る道を押してください。距離・高速のインター・料金・地図が、
       その道に合わせて入れ替わります。</p>
@@ -587,7 +582,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-04b";
+var APP_VER = "2026-10-05a";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1124,24 +1119,11 @@ var lastRouteFrom = "", lastRouteTo = "", lastRouteFor = "";
    ・AIが出すのは「乗るIC・降りるIC」の組だけ。距離と時間は Google の地図で測ったもの。
    ・一覧の各候補に「⏱ いちばん早い／📏 いちばん短い／💴 いちばん安い／🙂 走りやすい」の印。
    ================================================================== */
+/* ★★2026-10-05a（段4の直し b）地図の候補と AI の候補を、一度に出す（只隈さん「一回表示してから AI案を待つ必要もない」）。
+   　2つを同時に聞き、AI は最長 AI_WAIT_MS（8秒）まで待つ。間に合わなければ地図の候補だけ出す
+   　（サーバーは AI の答えを覚えるので、次に同じ組を調べるときは待たずに出る）。 */
 var aiState = "", aiSeq = 0, aiEasy = null, aiAdded = 0;
-function aiMore_(from, to) {
-  var my = ++aiSeq;
-  aiState = "busy"; aiEasy = null; aiAdded = 0;
-  renderRouteArea_();
-  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_(), ai: "1" },
-          function (err, data) {
-    if (my !== aiSeq) return;                 /* 調べ直したあとに届いた古い返事は捨てる */
-    if (err || !data || data.error || data.aiFail) { aiState = "fail"; renderRouteArea_(); return; }
-    if (data.aiOff) { aiState = ""; renderRouteArea_(); return; }
-    var ex = data.extra || [];
-    for (var i = 0; i < ex.length; i++) lastRouteList.push(ex[i]);
-    aiEasy = data.easy || null;
-    aiAdded = ex.length;
-    aiState = ex.length ? "added" : "none";
-    renderRouteArea_();
-  });
-}
+var AI_WAIT_MS = 8000;
 
 /* 候補ごとの印（⏱📏💴🙂🤖） */
 function routeBadges_() {
@@ -1188,8 +1170,8 @@ function routeBadges_() {
 
 function aiStateHtml_() {
   var t = "";
-  if (aiState === "busy")  t = "🤖 AIが、ほかの乗り口（インター）も探しています…（そのまま入力を続けてかまいません）";
   if (aiState === "added") t = "🤖 AIが見つけた道を " + aiAdded + "本 足しました（距離と時間は Google の地図で測ったものです）";
+  if (aiState === "late")  t = "🤖 AIの候補は時間がかかったので、今回は出していません（もう一度「地図で走行距離を調べる」を押すと出ます）";
   if (aiState === "none")  t = "🤖 AIも、ほかに良い乗り口は見つけませんでした";
   if (aiState === "fail")  t = "🤖 AIの候補は出せませんでした（上の候補はそのまま使えます）";
   return t ? '<div style="margin:6px 0 2px;color:#5a6b5c;font-size:14px;">' + escapeHtml(t) + '</div>' : "";
@@ -1247,44 +1229,228 @@ function prefChanged() {
 function lookupDistance() {
   var from = document.getElementById("meetPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
   var to   = document.getElementById("destPlace").value.replace(/^[\s　]+|[\s　]+$/g, "");
+  var via  = fwdViaVal_();
   var msg  = document.getElementById("distMsg");
   var btn  = document.getElementById("distBtn");
   if (!from || !to) {
     msg.innerHTML = "<b>集合場所と行き先の両方を入れてください。</b>";
     return;
   }
+  /* ★2026-10-05a（段4の直し c）行きに立ち寄る所があれば、区間ごとに調べる */
+  if (via) { lookupFwdVia_(from, via, to); return; }
+  fwdSegs = null;
   btn.disabled = true;
-  msg.innerHTML = "地図で調べています…";
-  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_() },
-          function (err, data) {
+  msg.innerHTML = "地図で調べています…（AIが、ほかの乗り口もいっしょに探しています。長くて8秒ほど）";
+  var my = ++aiSeq, base = null, ai = null, aiDone = false, shown = false, t0 = new Date().getTime();
+  aiState = ""; aiEasy = null; aiAdded = 0;
+  function show_() {
+    if (shown || my !== aiSeq || !base) return;
+    if (!aiDone && new Date().getTime() - t0 < AI_WAIT_MS) return;
+    shown = true;
+    clearTimeout(tm);
     btn.disabled = false;
-    if (err || !data) { msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
-    if (data.error)   { msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
-
     /* ------------------------------------------------------------------
-       取ってくるのは**片道**の距離です。
-       入れた車だけ、プルダウンも「片道」にします
-       （計算のときに自動で2倍されて、往復になります）。
-       すでに距離が入っている車には、いっさい触りません。
+       取ってくるのは**片道**の距離です（計算のときに自動で2倍＝往復）。
+       ★2026-08-03h　候補の道を一覧で出し、**実際に走る道を選んでもらいます。**
        ------------------------------------------------------------------ */
-    /* ------------------------------------------------------------------
-       ★2026-08-03h
-       　候補の道を一覧で出し、**実際に走る道を選んでもらいます。**
-       　「短いが遅い道」と「少し長いが速い道」のどちらが良いかは、
-       　その日の事情で変わるので、機械が決めるものではありません。
-       ------------------------------------------------------------------ */
-    lastRouteList = data.list || [];
-    lastRouteFrom = data.from || "";
-    lastRouteTo   = data.to || "";
+    lastRouteList = (base.list || []).slice();
+    lastRouteFrom = base.from || "";
+    lastRouteTo   = base.to || "";
     lastRouteFor  = to;
     routeLocked   = false; /* 新しく調べ直したので、確定は解く */
     if (!lastRouteList.length) {
       msg.innerHTML = "<b>道順が見つかりませんでした。</b>";
       return;
     }
-    showRoute_(data.pick || 0);
-    aiMore_(from, to);   /* ★2026-10-04　AIの候補は後から足す（待たせない） */
+    if (!aiDone) aiState = "late";
+    else if (ai && ai.aiOff) aiState = "";
+    else if (!ai || ai.error || ai.aiFail) aiState = "fail";
+    else {
+      var ex = ai.extra || [];
+      for (var i = 0; i < ex.length; i++) lastRouteList.push(ex[i]);
+      aiEasy = ai.easy || null;
+      aiAdded = ex.length;
+      aiState = ex.length ? "added" : "none";
+    }
+    showRoute_(base.pick || 0);
+  }
+  var tm = setTimeout(show_, AI_WAIT_MS);
+  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_() },
+          function (err, data) {
+    if (my !== aiSeq) return;                 /* 調べ直したあとに届いた古い返事は捨てる */
+    if (err || !data || data.error) {
+      shown = true; clearTimeout(tm); btn.disabled = false;
+      msg.innerHTML = (err || !data) ? "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"
+                                     : "<b>" + escapeHtml(data.error) + "</b>";
+      return;
+    }
+    base = data;
+    show_();
   });
+  apiPost({ action: "getDistance", from: from, to: to, pref: routePrefNow_(), ai: "1" },
+          function (err, data) {
+    if (my !== aiSeq) return;
+    aiDone = true;
+    ai = err ? null : data;
+    show_();
+  });
+}
+
+/* ==================================================================
+   ★2026-10-05a（段4の直し c）行きに立ち寄る所があるとき（只隈さん「行くときも通りたい場所が
+   　あるかもしれないので、同様にいれて」）。帰りの道（lookupRet_）と同じ形：
+   　集合場所 →（立ち寄る所）→ 行き先 を区間ごとにサーバーへ聞き、区間ごとに道を選ぶ。
+   　・距離は区間の合計を各車の走行距離（片道）へ（手で直した数字には触らない）
+   　・高速に乗る区間があれば、料金表から区間ごとの料金を足して各車の高速料金へ
+   　・AIの候補と地図のPDFは、立ち寄りがないときだけ（ここでは出さない）
+   ================================================================== */
+var fwdSegs = null, fwdMissNow = false;
+function fwdViaVal_() {
+  var el = document.getElementById("fwdVia");
+  return el ? el.value.replace(/^[\s　]+|[\s　]+$/g, "") : "";
+}
+function lookupFwdVia_(from, via, to) {
+  var msg = document.getElementById("distMsg");
+  var btn = document.getElementById("distBtn");
+  var segs = [[from, via], [via, to]], got = [];
+  ++aiSeq;                                   /* 立ち寄りなしで調べていた分の返事は捨てる */
+  aiState = ""; aiEasy = null; aiAdded = 0;
+  lastRouteList = []; lastRouteIdx = -1; routeLocked = false;
+  detachMapSaveArea_();
+  btn.disabled = true;
+  msg.textContent = "地図で調べています…（立ち寄る所を通って、区間ごとに調べます）";
+  (function next(i) {
+    if (i >= segs.length) {
+      btn.disabled = false;
+      fwdSegs = got;
+      lastRouteFor = to;
+      renderFwd_(true);
+      return;
+    }
+    apiPost({ action: "getDistance", from: segs[i][0], to: segs[i][1], pref: routePrefNow_() }, function (err, data) {
+      if (err || !data) { btn.disabled = false; msg.innerHTML = "<b>調べられませんでした。電波の良い所でもう一度お試しください。</b>"; return; }
+      if (data.error) { btn.disabled = false; msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
+      var list = data.list || [];
+      if (!list.length) { btn.disabled = false; msg.innerHTML = "<b>「" + escapeHtml(segs[i][0]) + "」から「" + escapeHtml(segs[i][1]) + "」への道が見つかりませんでした。名前を変えてお試しください。</b>"; return; }
+      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0 });
+      next(i + 1);
+    });
+  })(0);
+}
+function pickFwdSeg_(si, ri) {
+  if (!fwdSegs || !fwdSegs[si]) return;
+  fwdSegs[si].idx = ri;
+  renderFwd_(true);
+}
+/* 高速に乗る区間（乗るIC・降りるIC）の一覧 */
+function fwdHw_() {
+  var hw = [];
+  (fwdSegs || []).forEach(function (sg) {
+    var r = sg.list[sg.idx] || sg.list[0];
+    if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name) hw.push({ a: r.tollIn.name, b: r.tollOut.name });
+  });
+  return hw;
+}
+/* 各車の高速料金を、区間ごとの料金の合計で入れる。返り：{ n:入れた台数, miss:[料金表に無い区間], sum } */
+function fwdFillFees_() {
+  var hw = fwdHw_(), routes = getEtcRoutes(), miss = [], idxs = [], n = 0;
+  hw.forEach(function (p) {
+    var ix = findRouteByIcPair_(p.a, p.b);
+    if (ix < 0) miss.push(icShort_(p.a) + "⇔" + icShort_(p.b)); else idxs.push(ix);
+  });
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc"), sel = c.querySelector(".car-route");
+    if (!fee) return;
+    /* 手で入れた金額には触りません */
+    if (fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+    if (!hw.length) {
+      if (chk && chk.checked) { chk.checked = false; toggleOpt(chk, "blk-etc"); }
+      fee.value = ""; fee.removeAttribute("data-auto");
+      if (sel) { sel.value = ""; rememberRouteName_(sel); }
+      return;
+    }
+    if (miss.length) return;
+    var sum = 0, ok = true;
+    idxs.forEach(function (ix) {
+      var f = routeFeeFor_(routes[ix], c.querySelector(".car-etcuse").value, false, c);
+      if (f == null) ok = false; else sum += f;
+    });
+    if (!ok) return;
+    if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    if (sel) { sel.value = (idxs.length === 1) ? String(idxs[0]) : ""; rememberRouteName_(sel); }
+    var tp = c.querySelector(".car-etctype");
+    if (tp) tp.value = "one";
+    fee.value = String(sum);
+    fee.setAttribute("data-auto", String(sum));
+    n++;
+  });
+  return { n: n, miss: miss, hw: hw };
+}
+function renderFwd_(fill) {
+  var segs = fwdSegs || [];
+  var msg = document.getElementById("distMsg");
+  var total = 0, mins = 0, h = "";
+  segs.forEach(function (sg, si) {
+    var r = sg.list[sg.idx] || sg.list[0];
+    total += Number(r.km) || 0;
+    mins += Number(r.mins) || 0;
+    h += '<div style="margin:8px 0 2px;"><b>' + (si === 0 ? "①" : "②") +
+         escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    sg.list.forEach(function (x, xi) {
+      var on = (xi === sg.idx);
+      h += '<button type="button" onclick="pickFwdSeg_(' + si + ',' + xi + ')" ' +
+        'style="display:block;width:100%;text-align:left;margin:3px 0;padding:8px 10px;border-radius:9px;' +
+        'border:2px solid ' + (on ? 'var(--club)' : '#cfd8cd') + ';background:' + (on ? '#eaf2ea' : '#fff') + ';font-size:15px;">' +
+        (on ? '✅ ' : '') + '<b>' + x.km + 'km</b>・' + x.mins + '分' +
+        (x.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
+        (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
+        '</button>';
+    });
+  });
+  total = Math.round(total * 10) / 10;
+  var notes = [], btns = [];
+  if (fill) {
+    var kmN = 0;
+    document.querySelectorAll("#cars .car-card").forEach(function (c) {
+      var km = c.querySelector(".car-km");
+      if (!km) return;
+      if (km.value !== "" && !(lastAutoKm !== "" && km.value === lastAutoKm)) return;
+      km.value = String(total);
+      var tp = c.querySelector(".car-kmtype");
+      if (tp) tp.value = "one";
+      kmN++;
+    });
+    lastAutoKm = String(total);
+    /* 高速の区間が1つだけなら、いつもの「乗ったIC・降りたIC」としても覚える（料金の照合に使う） */
+    var hw1 = fwdHw_();
+    lastTollIn  = (hw1.length === 1) ? hw1[0].a : "";
+    lastTollOut = (hw1.length === 1) ? hw1[0].b : "";
+    lastTollFor = lastRouteFor;
+    notes.push("立ち寄りを含めて片道 <b>" + total + "km</b>（車で約" + mins + "分）");
+    notes.push(kmN ? "<b>" + kmN + "台</b> の走行距離に「片道」として入れました（往復ぶんは自動で計算）"
+                   : "各車の距離は、手で直した数字をそのままにしています");
+    var r0 = fwdFillFees_();
+    fwdMissNow = r0.miss.length > 0;
+    if (!r0.hw.length) {
+      notes.push("この道は高速に乗らないので、<b>高速料金はかかりません</b>");
+    } else if (r0.miss.length) {
+      notes.push("区間 <b>" + escapeHtml(r0.miss.join("・")) + "</b> の料金が、まだ料金表にありません。" +
+                 "料金表に足すと、次から自動で入ります");
+      r0.miss.forEach(function (nm) {
+        btns.push('<button type="button" class="btn btn-sub" style="margin-top:4px;" ' +
+          'onclick="addRetIcRoute_(this,\'' + escapeHtml(nm).replace(/'/g, "") + '\')">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>');
+      });
+    } else {
+      notes.push("高速：<b>" + escapeHtml(r0.hw.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("＋")) +
+                 "</b>。" + (r0.n ? "<b>" + r0.n + "台</b> 分の高速料金を料金表から入れました"
+                                 : "各車の高速料金は、すでに入っているのでそのままにしています"));
+    }
+    notes.push('<span style="color:#5a6b5c;">立ち寄りがあるときは、AIの候補と地図のPDFは出しません（距離と料金は入ります）</span>');
+    saveForm();
+  }
+  msg.innerHTML = h + (notes.length ? '<div style="margin-top:8px;padding:8px 10px;background:#f2f7f2;border-radius:8px;">' +
+    notes.map(function (x) { return "・" + x; }).join("<br>") + btns.join("") + '</div>' : "") +
+    '<div style="margin-top:6px;"><b>実際に走った距離と違うときは、手で直してください。</b></div>';
 }
 
 /* ------------------------------------------------------------------
@@ -1510,18 +1676,85 @@ function getEtcRoutes() {
   return routes;
 }
 
-/* ------------------------------------------------------------------
-   その山行日が「休日料金」の日かどうか。（2026-08-17i）
+/* ==================================================================
+   その日が「ETCの休日割引」の日かどうか。★2026-10-05a（段4の直し e）
+   ------------------------------------------------------------------
+   ・休日割引は、土日・祝日（地方部・ETC・普通車と軽）。
+   ・ただし NEXCO の「適用除外日」は割引なし：
+   　①3連休以上の連休の日は、すべて（2025年度から）
+   　②GW・お盆・シルバーウイーク・年末年始の期間（年ごとに NEXCO が決める → 下の表に年1回書き足す）
+   ・祝日は、祝日法の決まりで計算する（振替休日・国民の休日を含む。ネットに聞かない）。
+   ★AIに任せない（もっともらしく間違えるため。10/5 の高速料金の答えがそうだった）。
+   ★除外期間の出どころ：JAF Mate 2026-04-19 の記事（★NEXCO 本体のページでは未確認）。
+   ================================================================== */
+var HW_OFF_PERIODS = [
+  ["2026-04-25", "2026-05-06", "ゴールデンウィーク"],
+  ["2026-08-08", "2026-08-16", "お盆"],
+  ["2026-09-19", "2026-09-23", "シルバーウイーク"],
+  ["2026-12-26", "2027-01-11", "年末年始"]
+];
+var HW_OFF_UNTIL = "2027-03-31";   /* 上の表で分かっている最後の日（年度の終わり） */
 
-   ETCの休日割引があるため、同じ区間でも平日と土日祝で金額が違います。
-   土日はカレンダーから自動で分かりますが、**祝日は自動では分かりません。**
-   そこで「休日料金（土日・祝日）」のチェックを画面に出し、
-   土日なら自動でチェックを付け、祝日のときは手で付けていただきます。
-   ------------------------------------------------------------------ */
-function isHolidayRate_() {
-  var el = document.getElementById("holiRate");
-  return !!(el && el.checked);
+function ymd_(y, m, d) { return y + "-" + (m < 10 ? "0" : "") + m + "-" + (d < 10 ? "0" : "") + d; }
+function dateOf_(s) { var p = String(s).split("-"); return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)); }
+function addDay_(s, n) { var t = dateOf_(s); t.setDate(t.getDate() + n); return ymd_(t.getFullYear(), t.getMonth() + 1, t.getDate()); }
+/* その月の第n月曜日 */
+function nthMon_(y, m, n) { var w = new Date(y, m - 1, 1).getDay(); return 1 + ((8 - w) % 7) + (n - 1) * 7; }
+/* 祝日法の祝日（振替休日・国民の休日を除く元の祝日）。2020年以降の決まり */
+var jpHoliCache_ = {};
+function jpHolidaysBase_(y) {
+  var h = {};
+  function a(m, d, nm) { h[ymd_(y, m, d)] = nm; }
+  a(1, 1, "元日"); a(1, nthMon_(y, 1, 2), "成人の日"); a(2, 11, "建国記念の日"); a(2, 23, "天皇誕生日");
+  a(3, Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)), "春分の日");
+  a(4, 29, "昭和の日"); a(5, 3, "憲法記念日"); a(5, 4, "みどりの日"); a(5, 5, "こどもの日");
+  a(7, nthMon_(y, 7, 3), "海の日"); a(8, 11, "山の日"); a(9, nthMon_(y, 9, 3), "敬老の日");
+  a(9, Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4)), "秋分の日");
+  a(10, nthMon_(y, 10, 2), "スポーツの日"); a(11, 3, "文化の日"); a(11, 23, "勤労感謝の日");
+  return h;
 }
+/* 振替休日・国民の休日まで入れた、その年の祝日 */
+function jpHolidays_(y) {
+  if (jpHoliCache_[y]) return jpHoliCache_[y];
+  var h = jpHolidaysBase_(y), k, out = {};
+  for (k in h) out[k] = h[k];
+  /* 振替休日：祝日が日曜なら、その後の最初の祝日でない日 */
+  for (k in h) {
+    if (dateOf_(k).getDay() !== 0) continue;
+    var n = addDay_(k, 1);
+    while (out[n]) n = addDay_(n, 1);
+    out[n] = "振替休日";
+  }
+  /* 国民の休日：前の日と次の日が祝日にはさまれた平日 */
+  for (k in h) {
+    var mid = addDay_(k, 1), nx = addDay_(k, 2);
+    if (!out[mid] && h[nx] && dateOf_(mid).getDay() !== 0) out[mid] = "国民の休日";
+  }
+  jpHoliCache_[y] = out;
+  return out;
+}
+function jpHolidayName_(s) { return s ? (jpHolidays_(dateOf_(s).getFullYear())[s] || "") : ""; }
+/* 休みの日（土日・祝日） */
+function isRestDay_(s) { var w = dateOf_(s).getDay(); return w === 0 || w === 6 || !!jpHolidayName_(s); }
+/* その日の休日割引の判断：{ on: 割引あり, why: 画面に出す理由 } */
+function hwHoliInfo_(s) {
+  if (!s) return { on: false, why: "" };
+  if (!isRestDay_(s)) return { on: false, why: "平日" };
+  var hn = jpHolidayName_(s);
+  var kind = hn ? hn : (dateOf_(s).getDay() === 6 ? "土曜" : "日曜");
+  for (var i = 0; i < HW_OFF_PERIODS.length; i++) {
+    if (s >= HW_OFF_PERIODS[i][0] && s <= HW_OFF_PERIODS[i][1]) {
+      return { on: false, why: kind + "ですが、" + HW_OFF_PERIODS[i][2] + "の期間のため休日割引なし" };
+    }
+  }
+  /* 連休の長さ（前後に続く休みの日を数える） */
+  var len = 1, p = addDay_(s, -1), q = addDay_(s, 1);
+  while (isRestDay_(p)) { len++; p = addDay_(p, -1); }
+  while (isRestDay_(q)) { len++; q = addDay_(q, 1); }
+  if (len >= 3) return { on: false, why: kind + "ですが、" + len + "連休のため休日割引なし" };
+  return { on: true, why: kind, unsure: (s > HW_OFF_UNTIL) };
+}
+function isHolidayRate_() { return hwHoliInfo_(document.getElementById("hikeDate").value).on; }
 /* ★2026-10-01（㊴）帰る日。空なら山行日（＝日帰り） */
 function retDateVal_() {
   var d = document.getElementById("hikeDate").value;
@@ -1535,76 +1768,62 @@ function isOvernight_() {
 /* 帰りの日の休日料金。日帰りなら行きと同じ */
 function isHolidayRateRet_() {
   if (!isOvernight_()) return isHolidayRate_();
-  var el = document.getElementById("holiRateRet");
-  return !!(el && el.checked);
-}
-function isWeekend_(d) {
-  if (!d) return false;
-  var p = d.split("-");
-  var w = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
-  return (w === 0 || w === 6);
+  return hwHoliInfo_(retDateVal_()).on;
 }
 function mdOf_(d) {
   if (!d) return "";
   var p = d.split("-");
   return parseInt(p[1], 10) + "/" + parseInt(p[2], 10) + "（" + youbiOf(d) + "）";
 }
-/* 帰る日の欄と「帰りの日も休日料金」の見せ方を整えます */
+/* 帰る日の欄の見せ方を整えます */
 function syncRetUi_() {
-  var w = document.getElementById("holiRetWrap");
-  var on = isOvernight_();
-  if (w) w.style.display = on ? "flex" : "none";
-  var dd = document.getElementById("holiRetDay");
-  if (dd) dd.textContent = mdOf_(retDateVal_());
-  var lb = document.getElementById("holiLabel");
-  if (lb) lb.textContent = on ? ("行きの日（" + mdOf_(document.getElementById("hikeDate").value) + "）は休日料金")
-                              : "休日料金（土日・祝日）";
   var ry = document.getElementById("retYoubiDisp");
   if (ry) { var y = youbiOf(retDateVal_()); ry.textContent = y ? y + "曜日" : ""; }
   syncStayUi_();
 }
-/* 山行日が土日なら、休日料金のチェックを自動で付けます。
-   手で変えたあとは、日付を変えたときだけ付け直します。 */
+/* 日付が変わったとき：休日割引の判断を出し直します（★2026-10-05a チェックはなくした） */
 function syncHolidayByDate_() {
-  var el = document.getElementById("holiRate");
-  var d = document.getElementById("hikeDate").value;
-  if (!el || !d) return;
-  var p = d.split("-");
-  var w = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
-  el.checked = (w === 0 || w === 6);
-  var er = document.getElementById("holiRateRet");
-  if (er) er.checked = isWeekend_(retDateVal_());
   syncRetUi_();
   holiNote_();
 }
+/* 「10/11（日）は3連休のため休日割引なし＝平日料金で計算します」の1行（行きと帰りで別々） */
 function holiNote_() {
   var n = document.getElementById("holiNote");
   if (!n) return;
-  if (isOvernight_()) {
-    n.textContent = "行き：" + (isHolidayRate_() ? "休日料金" : "平日料金") +
-                    "／帰り：" + (isHolidayRateRet_() ? "休日料金" : "平日料金") +
-                    " で計算します。祝日のときはチェックを入れてください。";
-    return;
+  function line(label, d) {
+    if (!d) return "";
+    var x = hwHoliInfo_(d);
+    var t = label + mdOf_(d) + "は" + x.why + "＝<b>" + (x.on ? "休日料金（ETCの休日割引）" : "平日料金") + "</b>で計算します";
+    if (x.on && x.unsure) t += '<br><span style="color:#8a5a00;">（' + HW_OFF_UNTIL.substring(0, 4) +
+      "年4月より後の割引なしの期間（GW・お盆など）は、まだ表に入っていません。NEXCO の発表で確かめてください）</span>";
+    return t;
   }
-  n.textContent = isHolidayRate_()
-    ? "休日料金（ETCの休日割引）で計算します。"
-    : "平日料金で計算します。祝日のときはチェックを入れてください。";
-}
-/* チェックを手で変えたとき */
-function holiChanged() {
-  holiNote_();
-  refreshAllDropdowns();
-  syncFeesFromTable_();
-  saveForm();
+  var d1 = document.getElementById("hikeDate").value;
+  if (!d1) { n.textContent = ""; return; }
+  n.innerHTML = "高速の料金：" + (isOvernight_()
+    ? line("行きの日 ", d1) + "<br>" + line("帰りの日 ", retDateVal_())
+    : line("", d1)) +
+    '<br><span style="color:#5a6b5c;">（休日割引は土日・祝日のETC。3連休以上の連休・GW・お盆・年末年始などは割引なし）</span>';
 }
 /* ==================================================================
    ★★2026-10-04b（㊹）高速料金をAIで出して覚える
    　・HW_ON … サーバーのスイッチ（オフなら、ここから下は何もしない＝今までと同じ）
    　・HW_TABLE … 高速料金表（共通）の中身 { "南関⇔杷木": {etc, normal, etcHoli, src, checked} }
-   　・車種（軽）… 料金表の金額（普通車）の 0.8 倍を10円単位に（★目安）
+   　・車種（軽）… ★2026-10-05a　NEXCO の料金の作り（150円＋距離の分、税10%）で、距離の分だけ 0.8 倍
+   　　＝普通車の 0.8 倍＋33円 を10円単位に。休日はそれを ×0.7。
+   　　（みやま柳川⇔熊本：普通車 1,400円 → 軽 1,150円・休日 810円。只隈さんが Gemini・Copilot
+   　　　＝NAVITIME で見た金額と合う。前の「0.8倍」だと 1,120円になっていた）
    ================================================================== */
 var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "";
-function hwKeiFee_(n) { return (n == null) ? null : Math.round(n * HW_KEI / 10) * 10; }
+function hwKeiFee_(n) { return (n == null) ? null : Math.round((n * HW_KEI + 33) / 10) * 10; }
+/* 軽の車の金額：平日（または現金）の普通車の金額から作り、休日の ETC なら ×0.7 */
+function hwKeiOf_(r, use, ret) {
+  var base = (use === "etc") ? r.etc : r.normal;
+  if (base == null) return hwKeiFee_(routeFeeFor0_(r, use, ret));
+  var k = hwKeiFee_(base);
+  if (use === "etc" && (ret ? isHolidayRateRet_() : isHolidayRate_())) k = Math.round(k * 0.7 / 10) * 10;
+  return k;
+}
 function isKeiCar_(card) {
   if (!HW_ON || !card) return false;
   var t = card.querySelector(".car-type");
@@ -1664,8 +1883,8 @@ function carTypeChanged(el) {
 /* いまの日付・ETCの有無に合う、料金表の金額を返します。
    ★2026-10-04b（㊹）card を渡すと、軽の車は 0.8 倍（10円単位）にします */
 function routeFeeFor_(r, use, ret, card) {
-  var v = routeFeeFor0_(r, use, ret);
-  return isKeiCar_(card) ? hwKeiFee_(v) : v;
+  if (r && isKeiCar_(card)) return hwKeiOf_(r, use, ret);
+  return routeFeeFor0_(r, use, ret);
 }
 function routeFeeFor0_(r, use, ret) {
   if (!r) return null;
@@ -1685,7 +1904,10 @@ function isTableFee_(r, v) {
   if (isNaN(n)) return false;
   if ((r.etc === n) || (r.normal === n) || (r.etcHoli === n)) return true;
   /* ★2026-10-04b（㊹）軽の金額（0.8倍）も、料金表から入れた金額とみなす */
-  return HW_ON && ((hwKeiFee_(r.etc) === n) || (hwKeiFee_(r.normal) === n) || (hwKeiFee_(r.etcHoli) === n));
+  if (!HW_ON) return false;
+  var k1 = hwKeiFee_(r.etc), k2 = hwKeiFee_(r.normal);
+  return (k1 === n) || (k2 === n) || (k1 != null && Math.round(k1 * 0.7 / 10) * 10 === n) ||
+         (hwKeiFee_(r.etcHoli) === n) || (Math.round((r.etc || 0) * HW_KEI / 10) * 10 === n);   /* 最後は前の0.8倍で入った金額 */
 }
 /* ------------------------------------------------------------------
    プルダウンに並ぶのは「名前と金額が入っている行」だけです。
@@ -1711,6 +1933,8 @@ function saveEtc() {
   lsSet(LS_ETC, routes);
   refreshAllDropdowns();
   try { fillRetFromMap_(); } catch (eR) {}
+  /* ★2026-10-05a（c）行きに立ち寄りがあり、料金表に無い区間があった → 金額が入ったら入れ直す */
+  try { if (fwdSegs && fwdMissNow && fwdViaVal_()) renderFwd_(true); } catch (eF) {}
   /* みんなで使えるよう、サーバーにも保存する（連続入力は1秒待ってまとめて送る） */
   if (etcSaveTimer) clearTimeout(etcSaveTimer);
   etcSaveTimer = setTimeout(function () {
@@ -2401,6 +2625,9 @@ function routeIdxByIc_() {
 }
 
 function syncFeesFromTable_() {
+  /* ★2026-10-05a（c）行きに立ち寄りがあり、高速の区間が2つ以上のときは、区間ごとの合計で入れ直すだけ */
+  var fwdMulti = !!(fwdSegs && fwdViaVal_() && fwdHw_().length > 1);
+  if (fwdMulti) fwdFillFees_();
   var routes = getEtcRoutes();
   var changed = [], suggest = [], missing = [], noHwLeft = [];
   var destNow = document.getElementById("destPlace").value;
@@ -2422,6 +2649,7 @@ function syncFeesFromTable_() {
      　　2つ以上あるときは決められないので、何も言わない。 */
   var icIdx = routeIdxByIc_();
   document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
+    if (fwdMulti) return;   /* 行きの料金は fwdFillFees_ が入れた（区間ごとの合計） */
     var sel = c.querySelector(".car-route");
     var fee = c.querySelector(".car-etc");
     if (!sel || !fee) return;
@@ -2546,7 +2774,7 @@ function syncFeesFromTable_() {
     if (wr != null && String(fr.value) !== String(wr)) { fr.value = wr; retChanged = true; }
   });
   renderFeeSyncMsg_(changed, suggest, missing, noHwLeft);
-  if (changed.length || retChanged) saveForm();
+  if (changed.length || retChanged || fwdMulti) saveForm();
 }
 
 /* 「高速料金を外す」を押したとき（2026-08-17v）。
@@ -2874,11 +3102,10 @@ function applyIcRoute_(data) {
       : "各車の高速料金は、すでに入っているのでそのままにしています"];
   /* ★2026-10-04b（㊹）AI の答えのまま（まだ確かめていない）区間・軽の車 */
   var hu = hwUnchecked_(routes[idx]);
-  if (hu) liF.push("🤖 この区間の料金は <b>AIが調べた金額</b>です（普通車・ETC平日 " + hu.etc + "円" +
-                   (hu.src !== "AI" ? "・検索なしの見込み" : "") + "）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
+  if (hu) liF.push("🤖 この区間の料金は、<b>AIと地図で調べた距離から NEXCO の料金の決まりで計算した金額</b>です（普通車・ETC平日 " + hu.etc + "円" + "）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
   var keiN = 0;
   cars.forEach(function (c) { if (isKeiCar_(c)) keiN++; });
-  if (keiN) liF.push("軽の車（" + keiN + "台）は、普通車の約8割の金額（目安）を入れています");
+  if (keiN) liF.push("軽の車（" + keiN + "台）は、軽の料金（普通車の約8割＋α・目安）を入れています");
   box.innerHTML = ul_(liF);
   saveForm();
 }
@@ -2915,7 +3142,9 @@ function hwFill_(data, nm) {
     if (err || !d || d.error || !d.fee) {
       hwBusy_ = "";
       if (hwKey_(lastTollIn, lastTollOut) !== key) return;
-      hwFallback_(nm, (d && d.off) ? "" : "AIで料金を調べられませんでした。");
+      hwFallback_(nm, (d && d.off) ? "" :
+        (d && d.aiFail) ? "AIでは確かな金額が分かりませんでした（AIの距離が地図と合わなかったため、推測の金額は入れません）。"
+                        : "AIで料金を調べられませんでした。");
       return;
     }
     done_(d.fee);
@@ -3635,13 +3864,13 @@ function getFormData() {
     hikeName: document.getElementById("hikeName").value,
     place: document.getElementById("meetPlace").value,
     dest: document.getElementById("destPlace").value,
+    fwdVia: fwdViaVal_(),
     mapUrl: routeMapUrl,
     /* 道の選びかたと、アプリが入れた距離も覚えます。
        開き直したときに選び直さなくてよいようにです。（2026-08-03） */
     pref: routePrefNow_(),
     autoKm: lastAutoKm,
-    /* ★休日料金（土日祝）かどうかも覚えます。
-       祝日は日付から自動で分からないので、残しておかないと開くたびに消えます。 */
+    /* ★休日料金かどうか（★2026-10-05a から日付で決まる。履歴で確かめられるよう残すだけ） */
     holiRate: isHolidayRate_(),
     /* ★実際に走った道の「乗ったIC・降りたIC」も覚えます（2026-08-17n）。
        開き直したときに、選ばれている区間が正しいかを確かめる手がかりになります。 */
@@ -3683,20 +3912,12 @@ function applyForm(f) {
   document.getElementById("retDate").value = f.retDate || f.date || "";
   var hdEl = document.getElementById("hikeDate");
   hdEl.dataset.prev = hdEl.value;
-  /* ★休日料金（土日祝）の設定を戻します。（2026-08-17i）
-     保存されていない古い精算は、山行日の曜日から決め直します。 */
-  if (f.holiRate != null) {
-    document.getElementById("holiRate").checked = !!f.holiRate;
-    document.getElementById("holiRateRet").checked =
-      (f.holiRateRet != null) ? !!f.holiRateRet : isWeekend_(retDateVal_());
-    syncRetUi_();
-    holiNote_();
-  } else {
-    syncHolidayByDate_();
-  }
+  /* ★休日料金は日付から決まる（★2026-10-05a。保存した holiRate は使わない） */
+  syncHolidayByDate_();
   document.getElementById("hikeName").value = f.hikeName || "";
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
+  document.getElementById("fwdVia").value = f.fwdVia || "";
   if (f.pref) {
     var pfEl = document.getElementById("routePref");
     if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
@@ -3971,6 +4192,8 @@ function clearForm() {
   try { localStorage.removeItem(LS_FORM + "_result"); } catch (e) {}
   document.getElementById("hikeName").value = "";
   document.getElementById("meetPlace").value = "";
+  document.getElementById("fwdVia").value = "";
+  fwdSegs = null;
   document.getElementById("meetTime").value = "";
   document.getElementById("ferryPerson").value = "";
   document.getElementById("pFerryRetSame").checked = true;
@@ -4224,8 +4447,6 @@ function draftHasInput_() {
     if (dEl) dEl.dataset.prev = dEl.value;
     rEl.addEventListener("change", function () {
       if (dEl && (!rEl.value || rEl.value < dEl.value)) rEl.value = dEl.value;
-      var er = document.getElementById("holiRateRet");
-      if (er) er.checked = isWeekend_(retDateVal_());
       syncRetUi_();
       holiNote_();
       refreshAllDropdowns();
