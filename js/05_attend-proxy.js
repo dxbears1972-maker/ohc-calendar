@@ -190,7 +190,7 @@ function proxySet(evId, name, st){
     var a = state.attendance[j];
     if (a.eventId === evId && a.name === name){
       a.status = st; found = true;
-      if (st !== 'yes') a.car = '';   /* ★2026-09-28h */
+      if (st !== 'yes') { a.car = ''; a.carType = ''; }   /* ★2026-09-28h */
     }
   }
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });

@@ -526,6 +526,9 @@ var CLUB_CFG_LSK = "carpool_club_" + CLUB_ID;
 
 function applyClub_(c) {
   if (!c) return;
+  /* ★★2026-10-04b（㊹）高速料金をAIで出して覚える。サーバーのスイッチ（有料オプション表の列「高速料金AI」）がオンのときだけ */
+  HW_ON = !!c.optHwAi;
+  try { hwShowUi_(); } catch (eHw) {}
   try {
     var nm  = c.clubName || "";
     var col = c.themeColor || "";
@@ -590,7 +593,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-04a";
+var APP_VER = "2026-10-04b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1600,8 +1603,77 @@ function holiChanged() {
   syncFeesFromTable_();
   saveForm();
 }
-/* いまの日付・ETCの有無に合う、料金表の金額を返します */
-function routeFeeFor_(r, use, ret) {
+/* ==================================================================
+   ★★2026-10-04b（㊹）高速料金をAIで出して覚える
+   　・HW_ON … サーバーのスイッチ（オフなら、ここから下は何もしない＝今までと同じ）
+   　・HW_TABLE … 高速料金表（共通）の中身 { "南関⇔杷木": {etc, normal, etcHoli, src, checked} }
+   　・車種（軽）… 料金表の金額（普通車）の 0.8 倍を10円単位に（★目安）
+   ================================================================== */
+var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "";
+function hwKeiFee_(n) { return (n == null) ? null : Math.round(n * HW_KEI / 10) * 10; }
+function isKeiCar_(card) {
+  if (!HW_ON || !card) return false;
+  var t = card.querySelector(".car-type");
+  return !!(t && t.value === "kei");
+}
+function hwShowUi_() {
+  document.querySelectorAll("#cars .car-type-wrap").forEach(function (w) {
+    w.style.display = HW_ON ? "block" : "none";
+  });
+}
+/* 区間の名前（順番は見ない）。GAS の hwKey_ と同じ */
+function hwKey_(a, b) {
+  a = icShort_(a); b = icShort_(b);
+  if (!a || !b || a === b) return "";
+  return a < b ? a + "⇔" + b : b + "⇔" + a;
+}
+function hwKeyOfName_(nm) {
+  var p = String(nm || "").split(/[⇔↔〜～~\-–—]/);
+  return p.length === 2 ? hwKey_(p[0], p[1]) : "";
+}
+/* その料金表の行が、AIの答えのまま（まだ誰も確かめていない）か */
+function hwUnchecked_(r) {
+  if (!HW_ON || !HW_TABLE || !r) return null;
+  var h = HW_TABLE[hwKeyOfName_(r.name)];
+  if (!h || h.checked || h.src.indexOf("AI") !== 0) return null;
+  return (h.etc === r.etc) ? h : null;
+}
+/* 車種を変えたとき：料金表から入れた金額なら、車種に合わせて入れ直す */
+function carTypeChanged(el) {
+  var c = el.closest(".car-card");
+  var t = c.querySelector(".car-type").value;
+  var st = c.querySelector(".car-seats");
+  if (st && c.dataset.seats) {
+    st.textContent = "🚗 " + (t === "kei" ? "軽・" : "") + c.dataset.seats + "人乗り（運転する方を含む・カレンダーで答えた数）";
+  }
+  var routes = getEtcRoutes();
+  var sg = c.querySelector(".car-route"), fee = c.querySelector(".car-etc");
+  if (sg && sg.value !== "" && routes[parseInt(sg.value, 10)]) {
+    var r = routes[parseInt(sg.value, 10)];
+    if (fee.value === "" || isTableFee_(r, fee.value)) {
+      var w = routeFeeFor_(r, c.querySelector(".car-etcuse").value, false, c);
+      if (w != null) { fee.value = w; fee.setAttribute("data-auto", String(w)); }
+    }
+  }
+  var sr = c.querySelector(".car-rroute"), fr = c.querySelector(".car-retc");
+  if (sr && sr.value !== "" && routes[parseInt(sr.value, 10)] && !c.querySelector(".chk-retsame").checked) {
+    var rr = routes[parseInt(sr.value, 10)];
+    if (fr.value === "" || isTableFee_(rr, fr.value)) {
+      var wr = routeFeeFor_(rr, c.querySelector(".car-retcuse").value, true, c);
+      if (wr != null) fr.value = wr;
+    }
+  }
+  saveForm();
+  try { syncFeesFromTable_(); } catch (eS) {}
+}
+
+/* いまの日付・ETCの有無に合う、料金表の金額を返します。
+   ★2026-10-04b（㊹）card を渡すと、軽の車は 0.8 倍（10円単位）にします */
+function routeFeeFor_(r, use, ret, card) {
+  var v = routeFeeFor0_(r, use, ret);
+  return isKeiCar_(card) ? hwKeiFee_(v) : v;
+}
+function routeFeeFor0_(r, use, ret) {
   if (!r) return null;
   if (use !== "etc") return (r.normal == null ? null : r.normal);
   if (ret ? isHolidayRateRet_() : isHolidayRate_()) {
@@ -1617,7 +1689,9 @@ function isTableFee_(r, v) {
   if (v === "" || v == null) return false;
   var n = parseInt(v, 10);
   if (isNaN(n)) return false;
-  return (r.etc === n) || (r.normal === n) || (r.etcHoli === n);
+  if ((r.etc === n) || (r.normal === n) || (r.etcHoli === n)) return true;
+  /* ★2026-10-04b（㊹）軽の金額（0.8倍）も、料金表から入れた金額とみなす */
+  return HW_ON && ((hwKeiFee_(r.etc) === n) || (hwKeiFee_(r.normal) === n) || (hwKeiFee_(r.etcHoli) === n));
 }
 /* ------------------------------------------------------------------
    プルダウンに並ぶのは「名前と金額が入っている行」だけです。
@@ -1715,6 +1789,7 @@ function fetchRoutes() {
     } catch (eV) {}
     /* ★2026-09-07（工事B B-3）クラブの見た目と呼び名を当て、端末に控える */
     if (data.club) { applyClub_(data.club); saveClubCfg_(data.club); }
+    HW_TABLE = data.hw || null;   /* ★2026-10-04b（㊹）スイッチがオフなら null */
     if (!data.routes) return;
     var local = getEtcRoutes();
     /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
@@ -1745,6 +1820,13 @@ function addCar(data) {
     '<button type="button" class="btn-small" onclick="removeCar(this)">削除</button></div>' +
     '<label>車の持ち主（行きの運転手）</label>' + carNameFieldHtml("car-name") +
     '<p class="note car-seats" style="display:none;margin:4px 0 0;"></p>' +
+    /* ★2026-10-04b（㊹）車種。軽は高速料金が普通車の0.8倍（目安） */
+    '<div class="car-type-wrap" style="display:' + (HW_ON ? 'block' : 'none') + ';">' +
+      '<label>車種</label>' +
+      '<select class="car-type" onchange="carTypeChanged(this)">' +
+      '<option value="">普通車</option><option value="kei">軽自動車</option></select>' +
+      '<p class="note" style="margin:4px 0 0;">軽の高速料金は、普通車の約8割（目安）で入れます。</p>' +
+    '</div>' +
     /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
     '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
       'background:#fff3e0;border:2px solid #e8a000;border-radius:8px;' +
@@ -1831,9 +1913,10 @@ function addCar(data) {
     if (data.seats) {
       div.dataset.seats = String(data.seats);
       var stEl = div.querySelector(".car-seats");
-      stEl.textContent = "🚗 " + data.seats + "人乗り（運転する方を含む・カレンダーで答えた数）";
+      stEl.textContent = "🚗 " + (data.carType === "kei" ? "軽・" : "") + data.seats + "人乗り（運転する方を含む・カレンダーで答えた数）";
       stEl.style.display = "block";
     }
+    if (data.carType === "kei") div.querySelector(".car-type").value = "kei";
     setIf(div, ".car-km", data.km);
     setIf(div, ".car-etc", data.etc);
     /* ★ETCの有無を戻します。（2026-08-17h）
@@ -1924,7 +2007,7 @@ function toggleRet(chk) {
       var fee = c.querySelector(".car-etc").value;
       if (sg.value !== "") {
         var r = getEtcRoutes()[parseInt(sg.value, 10)];
-        if (r && isTableFee_(r, fee)) { var w = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true); if (w != null) fee = String(w); }
+        if (r && isTableFee_(r, fee)) { var w = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true, c); if (w != null) fee = String(w); }
       }
       c.querySelector(".car-retc").value = fee;
       c.querySelector(".car-rferry").value = c.querySelector(".car-ferry").value;
@@ -2044,7 +2127,7 @@ function renderRet_(c, fill) {
         var ix = findRouteByIcPair_(p.a, p.b);
         var nm = icShort_(p.a) + "⇔" + icShort_(p.b);
         if (ix < 0) { miss.push(nm); return; }
-        var fee = routeFeeFor_(getEtcRoutes()[ix], c.querySelector(".car-retcuse").value, true);
+        var fee = routeFeeFor_(getEtcRoutes()[ix], c.querySelector(".car-retcuse").value, true, c);
         if (fee == null) { miss.push(nm); return; }
         idxs.push(ix); sum += fee;
       });
@@ -2108,7 +2191,7 @@ function retRouteSelected(el) {
   rememberRouteName_(sel);
   if (sel.value !== "") {
     var r = getEtcRoutes()[parseInt(sel.value, 10)];
-    var fee = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true);
+    var fee = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true, c);
     c.querySelector(".car-retc").value = (fee == null) ? "" : fee;
   }
   updateRetUi_(c);
@@ -2392,7 +2475,7 @@ function syncFeesFromTable_() {
        　（誤って別の区間を選んでしまったときに気づけるように） */
     if (chosen && icIdx >= 0 && icIdx !== parseInt(sel.value, 10)) {
       var rc = routes[icIdx];
-      var wantC = routeFeeFor_(rc, use);
+      var wantC = routeFeeFor_(rc, use, false, c);
       if (rc && wantC != null) {
         suggest.push({ no: i + 1, idx: i, routeIdx: icIdx, name: rc.name, use: label,
                        now: fee.value, want: wantC, needRoute: false,
@@ -2423,7 +2506,7 @@ function syncFeesFromTable_() {
     if (ri < 0 || !routes[ri]) return;
     if (!chosen && fee.value === "") return;   /* 金額も空なら、何も言わない */
     var r = routes[ri];
-    var want = routeFeeFor_(r, use);                   /* 山行日に合う金額 */
+    var want = routeFeeFor_(r, use, false, c);         /* 山行日に合う金額（★軽は0.8倍） */
     if (want == null) return;                          /* 料金表に未登録なら触らない */
     if (String(fee.value) === String(want)) return;    /* すでに合っている */
     /* 区間が選ばれていない車は、必ず「ボタンで確認」にします */
@@ -2465,7 +2548,7 @@ function syncFeesFromTable_() {
     var rr = routes[parseInt(sr.value, 10)];
     if (!rr) return;
     if (fr.value !== "" && !isTableFee_(rr, fr.value)) return;
-    var wr = routeFeeFor_(rr, c.querySelector(".car-retcuse").value, true);
+    var wr = routeFeeFor_(rr, c.querySelector(".car-retcuse").value, true, c);
     if (wr != null && String(fr.value) !== String(wr)) { fr.value = wr; retChanged = true; }
   });
   renderFeeSyncMsg_(changed, suggest, missing, noHwLeft);
@@ -2765,6 +2848,7 @@ function applyIcRoute_(data) {
   if (!nm) { box.innerHTML = ""; return; }
   var idx = findRouteByIcPair_(lastTollIn, lastTollOut);
 
+  if (idx < 0 && HW_ON) { hwFill_(data, nm); return; }   /* ★2026-10-04b（㊹）AI に調べさせる */
   if (idx < 0) {
     box.innerHTML =
       '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
@@ -2789,12 +2873,70 @@ function applyIcRoute_(data) {
     if (fee) fee.setAttribute("data-auto", fee.value);
     n++;
   });
-  box.innerHTML = ul_([
+  var liF = [
     "区間：<b>" + escapeHtml(nm) + "</b>",
     n ? "料金表の <b>" + escapeHtml(routes[idx].name) + "</b> から、<b>" + n +
         "台</b> 分の高速料金を入れました"
-      : "各車の高速料金は、すでに入っているのでそのままにしています"]);
+      : "各車の高速料金は、すでに入っているのでそのままにしています"];
+  /* ★2026-10-04b（㊹）AI の答えのまま（まだ確かめていない）区間・軽の車 */
+  var hu = hwUnchecked_(routes[idx]);
+  if (hu) liF.push("🤖 この区間の料金は <b>AIが調べた金額</b>です（普通車・ETC平日 " + hu.etc + "円" +
+                   (hu.src !== "AI" ? "・検索なしの見込み" : "") + "）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
+  var keiN = 0;
+  cars.forEach(function (c) { if (isKeiCar_(c)) keiN++; });
+  if (keiN) liF.push("軽の車（" + keiN + "台）は、普通車の約8割の金額（目安）を入れています");
+  box.innerHTML = ul_(liF);
   saveForm();
+}
+
+/* ------------------------------------------------------------------
+   ★★2026-10-04b（㊹）料金表に無い区間を、AI（GAS の hwFee）に調べさせて料金表に足す。
+   　①共通の表（HW_TABLE）にあれば、それを使う（待たない） ②無ければ hwFee（初めての区間は数秒）
+   　★足したら、いつもの「料金表から入れる」をもう一度通す（applyIcRoute_）。
+   　★答えられなかったら、今までどおり「＋料金表に足す」を出す。
+   ------------------------------------------------------------------ */
+function hwFill_(data, nm) {
+  var box = document.getElementById("icLink");
+  var key = hwKey_(lastTollIn, lastTollOut);
+  function done_(f) {
+    hwBusy_ = "";
+    if (!f || f.etc == null) { hwFallback_(nm, "AIでも料金が分かりませんでした。"); return; }
+    if (HW_TABLE) HW_TABLE[key] = f; else HW_TABLE = (function () { var o = {}; o[key] = f; return o; })();
+    /* 走った道の区間がいまも同じときだけ足す（待つ間に候補を切り替えたとき） */
+    if (hwKey_(lastTollIn, lastTollOut) !== key) return;
+    if (findRouteByIcPair_(lastTollIn, lastTollOut) < 0) {
+      addEtcRow(nm, f.etc, f.normal, document.getElementById("destPlace").value.trim(), f.etcHoli);
+      saveEtc();
+    }
+    if (findRouteByIcPair_(lastTollIn, lastTollOut) < 0) { hwFallback_(nm, ""); return; }
+    applyIcRoute_(data);
+    try { syncFeesFromTable_(); } catch (eS) {}
+  }
+  if (HW_TABLE && HW_TABLE[key] && HW_TABLE[key].etc != null) { done_(HW_TABLE[key]); return; }
+  if (hwBusy_ === key) return;
+  hwBusy_ = key;
+  if (box) box.innerHTML = '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
+    '<div style="margin-top:4px;">🤖 AIが高速料金を調べています…（数秒かかります）</div>';
+  apiPost({ action: "hwFee", "in": lastTollIn, out: lastTollOut }, function (err, d) {
+    if (err || !d || d.error || !d.fee) {
+      hwBusy_ = "";
+      if (hwKey_(lastTollIn, lastTollOut) !== key) return;
+      hwFallback_(nm, (d && d.off) ? "" : "AIで料金を調べられませんでした。");
+      return;
+    }
+    done_(d.fee);
+  });
+}
+/* AI で分からなかったときは、今までどおり */
+function hwFallback_(nm, why) {
+  var box = document.getElementById("icLink");
+  if (!box) return;
+  box.innerHTML =
+    '<div>' + (why ? escapeHtml(why) + '<br>' : '') + 'この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
+    '<button type="button" class="btn btn-sub" style="margin-top:6px;" ' +
+    'onclick="addIcRoute_()">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>' +
+    '<div style="color:#5a6b5c;font-size:14px;margin-top:4px;">' +
+    '金額を1回入れれば、<b>次から自動で入ります。</b></div>';
 }
 
 /* 高速料金を手で入れたときに、「覚える」ボタンを出すか決める */
@@ -2885,7 +3027,7 @@ function routeSelected(el) {
   if (!r) return;
   var use = card.querySelector(".car-etcuse").value;
   /* ★山行日（平日／土日祝）に合う金額を選びます（2026-08-17i） */
-  var fee = routeFeeFor_(r, use);
+  var fee = routeFeeFor_(r, use, false, card);
   if (fee == null) {
     alert("このルートの" +
       (use === "etc" ? ("ETC料金（" + (isHolidayRate_() ? "土日祝" : "平日") + "）") : "通常料金") +
@@ -3006,7 +3148,7 @@ function calc(noScroll) {
       if (useEtc && overnight && sg && sg.value !== "") {
         var rg = routesNow[parseInt(sg.value, 10)];
         if (rg && isTableFee_(rg, etcGo)) {
-          var wg = routeFeeFor_(rg, etcUseRet, true);
+          var wg = routeFeeFor_(rg, etcUseRet, true, c);
           if (wg != null) etcRet = wg;
         }
       }
@@ -3480,6 +3622,7 @@ function getFormData() {
       rcash: c.querySelector(".car-rcash").value,
       parkBy: c.querySelector(".car-parkby").value,
       seats: c.dataset.seats || "",
+      carType: c.querySelector(".car-type").value,
       ent: c.querySelector(".car-ent").value,
       useEtc: c.querySelector(".chk-etc").checked,
       useFerry: c.querySelector(".chk-ferry").checked,
@@ -3694,7 +3837,7 @@ function calCachedCars(eventId) {
       var x = att[a];
       if (!x || x.eventId !== eventId || x.status !== "yes" || !x.name) continue;
       var n = parseInt(x.car, 10);
-      if (n >= 2 && n <= 10) out.push({ name: x.name, seats: n });
+      if (n >= 2 && n <= 10) out.push({ name: x.name, seats: n, carType: (x.carType === "kei" ? "kei" : "") });
     }
     out.sort(function (p, q) {
       var ip = mem.indexOf(p.name), iq = mem.indexOf(q.name);
@@ -3959,10 +4102,10 @@ function draftHasInput_() {
     /* ★2026-10-01（㊴）カレンダーで「車を出す（乗れる人数）」と答えた方の車を、最初から並べます */
     var calCars = EVENT_ID ? calCachedCars(EVENT_ID) : [];
     if (calCars.length) {
-      calCars.forEach(function (cc) { addCar({ name: cc.name, seats: cc.seats, same: true }); });
+      calCars.forEach(function (cc) { addCar({ name: cc.name, seats: cc.seats, carType: cc.carType, same: true }); });
       var lmC = document.getElementById("loadMsg");
       lmC.innerHTML = "カレンダーで「車を出す」と答えた方の車を並べました（" +
-        calCars.map(function (cc) { return escapeHtml(cc.name) + "さん " + cc.seats + "人乗り"; }).join("、") +
+        calCars.map(function (cc) { return escapeHtml(cc.name) + "さん " + (cc.carType === "kei" ? "軽・" : "") + cc.seats + "人乗り"; }).join("、") +
         "）。<br>走行距離などを入れて「計算する」を押してください。";
       lmC.style.display = "block";
     } else {

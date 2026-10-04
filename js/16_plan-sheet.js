@@ -39,7 +39,7 @@ function carsOf_(evId){
     var a = state.attendance[i];
     if (a.eventId !== evId || a.status !== 'yes') continue;
     var n = parseInt(a.car, 10);
-    if (n >= 2 && n <= CAR_SEATS_MAX) r.push({ name: a.name, seats: n });
+    if (n >= 2 && n <= CAR_SEATS_MAX) r.push({ name: a.name, seats: n, kei: (CLUB.optHwAi && a.carType === 'kei') });
   }
   r.sort(function(x, y){ return byMember_(x.name, y.name); });
   return r;
@@ -48,14 +48,27 @@ function carsOf_(evId){
 /* 参加と答えた方の「車を出せますか」の選び箱 */
 function carPickHtml_(evId, name){
   var cur = carOf_(evId, name);
+  /* ★★2026-10-04a（㊹）スイッチ（optHwAi）がオンのときは、軽／普通車を選ぶ（軽は4人乗りで固定） */
+  var hw = !!CLUB.optHwAi, kei = hw && cur && carTypeOf_(evId, name) === 'kei';
   var h = '<div class="carpick">🚗 車を出せますか？ ' +
           '<select onchange="setCar(\'' + evId + '\', this.value)">' +
           '<option value="0"' + (cur ? '' : ' selected') + '>出さない</option>';
+  if (hw) h += '<option value="k4"' + (kei ? ' selected' : '') + '>軽自動車（4人乗り）</option>';
   for (var n = 2; n <= CAR_SEATS_MAX; n++){
-    h += '<option value="' + n + '"' + (cur === n ? ' selected' : '') + '>出せる（' + n + '人乗り）</option>';
+    h += '<option value="' + n + '"' + (cur === n && !kei ? ' selected' : '') + '>' +
+         (hw ? '普通車（' + n + '人乗り）' : '出せる（' + n + '人乗り）') + '</option>';
   }
   h += '</select><div class="carhint">人数は、運転する方を含めた乗れる人数です</div></div>';
   return h;
+}
+
+/* ★2026-10-04a（㊹）その方の車種（'kei'＝軽／''＝普通車） */
+function carTypeOf_(evId, name){
+  for (var i = 0; i < state.attendance.length; i++){
+    var a = state.attendance[i];
+    if (a.eventId === evId && a.name === name) return String(a.carType || '');
+  }
+  return '';
 }
 
 /* 出欠の一覧の下に出す「車」の行 */
@@ -69,7 +82,7 @@ function carLineHtml_(evId, yesCount, forStaff){
   var seats = 0, parts = [];
   for (var i = 0; i < cars.length; i++){
     seats += cars[i].seats;
-    parts.push(esc(cars[i].name) + '(' + cars[i].seats + ')');
+    parts.push(esc(cars[i].name) + '(' + (cars[i].kei ? '軽' : '') + cars[i].seats + ')');
   }
   var h = '<br><b class="car">🚗 車 ' + cars.length + '台</b>：' + parts.join('･') +
           '<br><span class="carsum">席 ' + seats + ' ／ 参加 ' + yesCount + '人';
@@ -82,8 +95,11 @@ function carLineHtml_(evId, yesCount, forStaff){
 function setCar(evId, v){
   var name = getName();
   if (!name){ showNamePick(); return; }
-  var n = parseInt(v, 10);
+  /* ★2026-10-04a（㊹）'k4'＝軽（4人乗り） */
+  var ct = (String(v) === 'k4' && CLUB.optHwAi) ? 'kei' : '';
+  var n = ct ? 4 : parseInt(v, 10);
   if (!(n >= 2 && n <= CAR_SEATS_MAX)) n = 0;
+  if (!n) ct = '';
   var ev = eventOf_(evId);
   if (ev && ev.locked){
     alert('この予定の出欠は締め切られています');
@@ -92,12 +108,13 @@ function setCar(evId, v){
   }
   for (var j = 0; j < state.attendance.length; j++){
     var a = state.attendance[j];
-    if (a.eventId === evId && a.name === name){ a.car = n ? String(n) : ''; }
+    if (a.eventId === evId && a.name === name){ a.car = n ? String(n) : ''; a.carType = ct; }
   }
   render();
-  post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
-         status: 'yes', car: n ? String(n) : '', by: name },
-       n ? ('車を出せる（' + n + '人乗り）と送りました') : '車は「出さない」と送りました');
+  var body = { action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
+               status: 'yes', car: n ? String(n) : '', by: name };
+  if (CLUB.optHwAi) body.carType = ct;
+  post(body, n ? ('車を出せる（' + (ct ? '軽・' : '') + n + '人乗り）と送りました') : '車は「出さない」と送りました');
 }
 
 /* ------------------------------------------------------------------

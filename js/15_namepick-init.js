@@ -173,6 +173,7 @@ function pickName(name, code, retry){
         myName = name;
         lsSet(LSK.name, name);
         lsSet(LSK.claimed, name);
+        try { devWarn_(false); } catch(eW){}   /* ★2026-10-05a　登録できたので案内を消す */
         if (idOf(name)) lsSet(LSK.mid, idOf(name));
         namePickRow = '';
         $('nameCard').style.display = 'none';
@@ -343,6 +344,7 @@ function changeName(){
 /* ★2026-10-01b　名前を空にして、名前を選ぶ画面へ（changeName と［お名前を選び直す］ボタンの共通） */
 function resetName_(){
   myName = '';
+  try { devWarn_(false); } catch(eW3){}   /* ★2026-10-05a　名前を選ぶ画面に移るので消す */
   lsSet(LSK.name, '');
   lsSet(LSK.mid, '');
   lsSet(LSK.codeTip, '');
@@ -468,6 +470,7 @@ function init(){
         function(err, data){
           if (!err && data && data.ok){
             lsSet(LSK.claimed, myName);
+            try { devWarn_(false); } catch(eW2){}   /* ★2026-10-05a */
             /* ★★2026-09-21（工事G-2 (b)）　管理者で確認番号がまだ無い方には、
                　4けたのお誘いを必ず出します（「あとで」で閉じた印も外します）。 */
             if (data.mustSetCode){

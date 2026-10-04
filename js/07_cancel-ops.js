@@ -146,7 +146,7 @@ function answer(evId, st){
     var a = state.attendance[j];
     if (a.eventId === evId && a.name === name){
       a.status = st; found = true;
-      if (st !== 'yes') a.car = '';   /* ★2026-09-28h　参加でなくなったら車も出さない（サーバーも消します） */
+      if (st !== 'yes') { a.car = ''; a.carType = ''; }   /* ★2026-09-28h　参加でなくなったら車も出さない（サーバーも消します） */
     }
   }
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });

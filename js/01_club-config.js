@@ -153,7 +153,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-10-01c';
+var APP_VER = '2026-10-05a';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -204,7 +204,8 @@ var CLUB_CFG_KEYS = ['appTitle','homeTitle','shareTag','themeColor',
                      'staffRoles','staffLeads',
                      'hasFolder',
                      'planOrg',
-                     'optCourse','optPlan'];   /* ★2026-09-29e 有料オプション（只隈さんの表で○のときだけ true） */   /* ★2026-09-28h（山行の段取り 段1）計画書の団体名 */   /* ★2026-09-28 */   /* ★2026-09-21 */
+                     'optCourse','optPlan',
+                     'optHwAi'];   /* ★2026-10-04a（㊹）高速料金をAIで（車種：軽／普通車を選べる） */   /* ★2026-09-29e 有料オプション（只隈さんの表で○のときだけ true） */   /* ★2026-09-28h（山行の段取り 段1）計画書の団体名 */   /* ★2026-09-28 */   /* ★2026-09-21 */
 
 function setClubCfg_(c, save){
   if (!c) return;
