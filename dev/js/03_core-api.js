@@ -19,7 +19,26 @@ function needNameBtn_(data){
   if (!data || !data.needName) return '';
   return '<div style="margin-top:8px"><button type="button" class="guidebtn" onclick="pickNameAgain()">お名前を選び直す</button></div>';
 }
+/* ★★2026-10-05a　この端末が名簿に登録されていないことを、★開いたときに★大きく知らせる。
+   　10/4、杉野さんのパソコンは名前だけ覚えていて、名簿の「登録端末」には入っていなかった
+   　（昔の専用URLで開いた端末。裏の自動の名乗りは確認番号が要るので通らず、黙って止まっていた）。
+   　→ 予定を登録しようとして初めて断られ、断りの文は画面のいちばん上に小さく出るだけだった。
+   　★サーバーは読み込みのたびに「この端末は誰のものか（me）」を返す。名前を覚えているのに me が空なら出す。 */
+function devWarn_(show){
+  var w = $('devWarn');
+  if (!w) return;
+  if (!show || !myName){ w.style.display = 'none'; w.innerHTML = ''; return; }
+  var dn = '';
+  try { dn = deviceName(); } catch(eD){}
+  w.innerHTML = 'この' + esc(dn || '端末') + 'は、まだ「' + esc(myName) + '」さんの端末として登録されていません。<br>' +
+    'このままでは、予定の登録や出欠の回答ができません。<br>' +
+    '下のボタンを押して、お名前を選んでください。<br>' +
+    '（4けたの確認番号を決めている方は、その番号も入れます）' +
+    needNameBtn_({ needName: 1 });
+  w.style.display = 'block';
+}
 function pickNameAgain(){
+  devWarn_(false);
   try { closeGuide(); } catch(e1){}
   try { closePicker(); } catch(e2){}
   try { closePlanSheet(); } catch(e3){}
@@ -346,6 +365,8 @@ function api(method, body, cb, tryNo, fresh){
     }
     xhr.open('GET', url, true);
   } else {
+    /* ★★2026-10-05a　機種（パソコン／iPhone／Android）を添える。サーバーは操作ログの「端末」の欄に書きます */
+    try { if (body && !body.devName) body.devName = deviceName(); } catch(eDN){}
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
   }
@@ -513,6 +534,10 @@ function applyData(data){
        名簿の登録端末を見て答えているので、これがいちばん確かです。
        端末の中の覚えが消えていても、ここで元に戻ります。
        ------------------------------------------------------------------ */
+    /* ★★2026-10-05a　名前を覚えているのに、サーバーが「この端末は名簿に無い（me が空）」と言ったら、大きく知らせる */
+    if (Object.prototype.hasOwnProperty.call(data, 'me') && data.members){
+      devWarn_(!data.me && !!myName);
+    }
     if (data.me && data.me.name && MEMBERS.indexOf(data.me.name) >= 0){
       if (data.me.id) lsSet(LSK.mid, String(data.me.id));
       if (myName !== data.me.name){
@@ -736,6 +761,12 @@ function post(body, doneMsg, after, onFail){
     }
     if (data && data.error){
       setStatus(data.error + needNameBtn_(data), true);
+      /* ★★2026-10-05a　登録されていない端末で断られたら、上の大きな案内も出して、画面をいちばん上へ。
+         　（フォームが下のほうにあると、上の断りの文が見えなかった。10/4 杉野さんのパソコン） */
+      if (data.needName){
+        devWarn_(true);
+        try { window.scrollTo(0, 0); } catch(eS){}
+      }
       if (onFail) { try { onFail(); } catch(eF2){} }
       return;
     }

@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-10-04a">
+<link rel="stylesheet" href="css/app.css?v=2026-10-05a">
 </head>
 <body>
 
@@ -218,6 +218,8 @@
 </header>
 
 <div id="status">読み込み中…</div>
+<!-- ★★2026-10-05a　この端末が名簿に登録されていないときの案内（03_core-api.js の devWarn_） -->
+<div id="devWarn" style="display:none;margin:6px 8px;padding:10px 12px;border:2px solid #b00020;border-radius:8px;background:#fff4f4;color:#b00020;font-size:16px;line-height:1.6"></div>
 
 <main>
   <!-- ホーム画面に置くご案内（端末に合わせて中身が変わります） -->
@@ -631,22 +633,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-10-04a"></script>
-<script src="js/02_kind-target.js?v=2026-10-04a"></script>
-<script src="js/03_core-api.js?v=2026-10-04a"></script>
-<script src="js/04_render.js?v=2026-10-04a"></script>
-<script src="js/05_attend-proxy.js?v=2026-10-04a"></script>
-<script src="js/06_notice-line.js?v=2026-10-04a"></script>
-<script src="js/07_cancel-ops.js?v=2026-10-04a"></script>
-<script src="js/08_event-form.js?v=2026-10-04a"></script>
-<script src="js/09_bulk-add.js?v=2026-10-04a"></script>
-<script src="js/10_export-pick.js?v=2026-10-04a"></script>
-<script src="js/11_code-name.js?v=2026-10-04a"></script>
-<script src="js/12_admin-view.js?v=2026-10-04a"></script>
-<script src="js/13_admin-edit.js?v=2026-10-04a"></script>
-<script src="js/14_install-card.js?v=2026-10-04a"></script>
+<script src="js/01_club-config.js?v=2026-10-05a"></script>
+<script src="js/02_kind-target.js?v=2026-10-05a"></script>
+<script src="js/03_core-api.js?v=2026-10-05a"></script>
+<script src="js/04_render.js?v=2026-10-05a"></script>
+<script src="js/05_attend-proxy.js?v=2026-10-05a"></script>
+<script src="js/06_notice-line.js?v=2026-10-05a"></script>
+<script src="js/07_cancel-ops.js?v=2026-10-05a"></script>
+<script src="js/08_event-form.js?v=2026-10-05a"></script>
+<script src="js/09_bulk-add.js?v=2026-10-05a"></script>
+<script src="js/10_export-pick.js?v=2026-10-05a"></script>
+<script src="js/11_code-name.js?v=2026-10-05a"></script>
+<script src="js/12_admin-view.js?v=2026-10-05a"></script>
+<script src="js/13_admin-edit.js?v=2026-10-05a"></script>
+<script src="js/14_install-card.js?v=2026-10-05a"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-10-04a"></script>
-<script src="js/15_namepick-init.js?v=2026-10-04a"></script>
+<script src="js/16_plan-sheet.js?v=2026-10-05a"></script>
+<script src="js/15_namepick-init.js?v=2026-10-05a"></script>
 </body>
 </html>
