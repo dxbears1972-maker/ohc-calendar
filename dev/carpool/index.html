@@ -4050,7 +4050,8 @@ function copyResult() {
    　・入れた方の名前は、サーバーが名乗った端末から入れる（〔入れた方〕を置き換える）
    　・★スイッチ（有料オプション表の列「計画と実績」）がオフなら、何も変わらない
    ================================================================== */
-var PA_ON = false, PA_STAGE = "plan", PA_PLAN = null, PA_CANDS = [], PA_ICS = [];
+/* ★2026-10-05k　端末の控えのクラブ設定（loadClubCfg_）はこの行より先に動くので、そこで入った値を消さない */
+var PA_ON = !!PA_ON, PA_STAGE = PA_STAGE || "plan", PA_PLAN = PA_PLAN || null, PA_CANDS = PA_CANDS || [], PA_ICS = PA_ICS || [];
 var PA_WHO = "〔入れた方〕";
 
 /* 予定から開いていて、スイッチがオンのときだけ */
