@@ -198,6 +198,7 @@
 <main>
 
   <div id="loadMsg" class="check-ok" style="display:none; margin-top:14px;"></div>
+  <div id="paBar" style="display:none; margin-top:14px; border:2px solid #7aa7e0; border-radius:8px; padding:10px 12px;"></div>
   <div id="linkedMsg" style="display:none; margin-top:14px; background:#fff3e0; border:2px solid #e8a000;
        border-radius:8px; padding:10px 12px; color:#6b4500;"></div>
 
@@ -530,6 +531,9 @@ function applyClub_(c) {
   /* ★★2026-10-04b（㊹）高速料金をAIで出して覚える。サーバーのスイッチ（有料オプション表の列「高速料金AI」）がオンのときだけ */
   HW_ON = !!c.optHwAi;
   try { hwShowUi_(); } catch (eHw) {}
+  /* ★★2026-10-05i　計画と実績（有料オプション表の列「計画と実績」） */
+  PA_ON = !!c.optPa;
+  try { paRender_(); } catch (ePa) {}
   try {
     var nm  = c.clubName || "";
     var col = c.themeColor || "";
@@ -594,7 +598,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05h";
+var APP_VER = "2026-10-05i";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2255,9 +2259,12 @@ function addCar(data) {
       selR.dataset.routeIdx  = (data.route != null) ? String(data.route) : "";
     }
   }
+  if (data) paCarRestore_(div, data.pa);   /* ★2026-10-05i */
+  else if (PA_STAGE === "actual") div.dataset.pa = "chg";
   document.getElementById("cars").appendChild(div);
   refreshAllDropdowns();
   renumberCars();
+  try { paCarRender_(div); } catch (ePa) {}
 }
 /* ------------------------------------------------------------------
    ★2026-10-01（㊴）前の形の記録（走行距離・高速・フェリーに［往復／片道］）を、
@@ -2472,6 +2479,8 @@ function fillRetFromMap_() {
    　（data-auto は開き直すと消えるので、料金表の金額と同じなら、アプリが入れた金額とみなす。
    　　10/5 只隈さん「大牟田→草千里で調べたあと渡瀬→英彦山にしても、料金もインター名も変わらない」） */
 function feeIsAuto_(c) {
+  /* ★2026-10-05i　計画の段階は、手で入れた金額は無い前提（道を選び直したら確認なしで入れ替える） */
+  if (paPlanFree_()) return true;
   var fee = c.querySelector(".car-etc");
   if (!fee || fee.value === "" || fee.value === fee.getAttribute("data-auto")) return true;
   if (HW_BAD_VALS[String(fee.value)]) return true;   /* 前にAI（検索なし）で入った金額のまま */
@@ -3718,6 +3727,7 @@ function calc(noScroll) {
     html += '<p class="note">※ 自分で払う ' + yen(selfPay) + '（' + escapeHtml(selfParts.join('、')) + '）は、上の精算には入れていません。</p>';
   }
 
+  try { html = paResultHead_(displayTotal) + html; } catch (ePa) {}   /* ★2026-10-05i */
   body.innerHTML = html;
   resultDiv.style.display = "block";
   if (!noScroll) resultDiv.scrollIntoView({ behavior: "smooth" });
@@ -3830,8 +3840,10 @@ function saveHistory() {
     apiPost({
       action: "setSettle",
       id: EVENT_ID,
-      text: lastResultText,
-      form: JSON.stringify(getFormData())
+      /* ★2026-10-05i　計画は【計画】、実績は【実績】と1人あたりの差。入れた方の名前はサーバーが入れる */
+      text: paText_(lastResultText),
+      form: JSON.stringify(getFormData()),
+      paWho: paActive_() ? "1" : ""
     }, function (err, data) {
       /* ★2026-09-28　サーバーが断ったとき（名乗っていない端末など）は、記録できていません。
          　これまでは「記録しました」と出てカレンダーへ戻っていました。 */
@@ -3976,6 +3988,406 @@ function copyResult() {
 }
 
 /* ---------- 入力の記憶 ---------- */
+/* ==================================================================
+   ★★2026-10-05i　精算の「計画」と「実績」（段4''・只隈さん決定 10/5）
+   　・計画＝出発前の見込み。道を選び直したら、料金・区間は確認なしで入れ替える
+   　・実績＝計画を元に「実績に直す」。車ごとに［計画どおり］［変わった］。
+   　　変わった車だけ、走った道を選ぶ（計画の候補を1回押す／乗ったIC・降りたICを一覧から）。
+   　　メーターの距離・ETC明細の金額は入れたいときだけ（★キーボードでIC名を打たせない）
+   　・カレンダーの￥：計画は【計画】、実績は【実績】と1人あたりの差（計画 → 実績）
+   　・入れた方の名前は、サーバーが名乗った端末から入れる（〔入れた方〕を置き換える）
+   　・★スイッチ（有料オプション表の列「計画と実績」）がオフなら、何も変わらない
+   ================================================================== */
+var PA_ON = false, PA_STAGE = "plan", PA_PLAN = null, PA_CANDS = [], PA_ICS = [];
+var PA_WHO = "〔入れた方〕";
+
+/* 予定から開いていて、スイッチがオンのときだけ */
+function paActive_() { return !!(PA_ON && EVENT_ID); }
+/* 計画の段階は、料金表と違う金額も「アプリが入れたもの」とみなして入れ替える */
+function paPlanFree_() { return paActive_() && PA_STAGE === "plan"; }
+
+function paCandOf_(x) {
+  var i = (x.tollIn && x.tollIn.name) || "", o = (x.tollOut && x.tollOut.name) || "";
+  return { "in": i, out: o, km: x.km, mins: x.mins, noHw: !!x.noHw || !(i && o),
+           hwKm: (x.seg && x.seg[1]) ? x.seg[1].km : "", label: (i && o) ? (i + "〜" + o) : (x.summary || "") };
+}
+/* 計画のときに出た道の候補（実績で「実際はこの道だった」を1回押すため） */
+function paCands_() {
+  var dest = document.getElementById("destPlace").value.trim();
+  if (PA_STAGE === "plan" && lastRouteList.length && lastRouteFor === dest && !fwdViaVal_()) {
+    PA_CANDS = lastRouteList.map(paCandOf_);
+  }
+  return PA_CANDS;
+}
+function paFormPart_() {
+  if (!PA_ON && !PA_PLAN && PA_STAGE === "plan") return undefined;
+  return { stage: PA_STAGE, plan: PA_PLAN, cands: paCands_() };
+}
+function paLoad_(pa) {
+  PA_STAGE = (pa && pa.stage === "actual" && pa.plan) ? "actual" : "plan";
+  PA_PLAN = (pa && pa.plan) || null;
+  PA_CANDS = (pa && pa.cands) || (PA_PLAN && PA_PLAN.cands) || [];
+}
+function paNowMd_() {
+  var d = new Date();
+  return (d.getMonth() + 1) + "/" + d.getDate() + " " + d.getHours() + ":" + ("0" + d.getMinutes()).slice(-2);
+}
+function paSign_(n) { return (n > 0 ? "＋" : (n < 0 ? "−" : "±")) + jpn(Math.abs(n)) + "円"; }
+
+/* ---------- 上の帯と、記録のボタンの文 ---------- */
+function paRender_() {
+  var bar = document.getElementById("paBar");
+  var shb = document.getElementById("saveHistBtn");
+  if (!bar) return;
+  if (!paActive_()) {
+    bar.style.display = "none";
+    document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
+    return;
+  }
+  var h = "";
+  if (PA_STAGE === "plan") {
+    h = '<div style="font-weight:bold;font-size:17px;">📝 いまは【計画】です（出発前の見込み）</div>' +
+        '<div style="margin-top:4px;">記録すると、カレンダーの￥に「計画」として出ます。道を選び直すと、高速の料金と区間はそのまま入れ替わります。</div>' +
+        '<button type="button" class="btn btn-sub" style="margin-top:8px;" onclick="paToActual_()">✅ 山行が終わったら：実績に直す</button>';
+    bar.style.background = "#eef5ff"; bar.style.borderColor = "#7aa7e0";
+  } else {
+    var p = PA_PLAN || {};
+    h = '<div style="font-weight:bold;font-size:17px;">✅ いまは【実績】です（実際にかかった金額で精算）</div>' +
+        '<div style="margin-top:4px;">計画（' + escapeHtml(p.at || "") + '）：1人 <b>' + (p.share != null ? jpn(p.share) + "円" : "—") + '</b></div>' +
+        '<div style="margin-top:4px;">下の車ごとに［計画どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら「計算する」→「実績としてカレンダーに記録する」。</div>' +
+        '<button type="button" class="btn-small" style="margin-top:8px;" onclick="paBackToPlan_()">計画に戻す</button>';
+    bar.style.background = "#eefaf0"; bar.style.borderColor = "#5aa86a";
+  }
+  bar.innerHTML = h;
+  bar.style.display = "block";
+  if (shb && EVENT_ID) shb.textContent = (PA_STAGE === "plan") ? "📅 計画としてカレンダーに記録する" : "📅 実績としてカレンダーに記録する";
+  document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
+}
+
+/* 結果のいちばん上に1行（calc から） */
+function paResultHead_(share) {
+  if (!paActive_()) return "";
+  if (PA_STAGE === "plan") {
+    return '<div style="background:#eef5ff;border-radius:8px;padding:8px 10px;margin-bottom:8px;">📝 これは<b>計画（見込み）</b>です。山行のあと「実績に直す」で、実際の金額にします。</div>';
+  }
+  var p = PA_PLAN || {};
+  if (p.share == null) return "";
+  return '<div style="background:#eefaf0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">✅ <b>実績</b>　1人あたり：計画 ' +
+         jpn(p.share) + '円 → 実績 <b>' + jpn(share) + '円</b>（' + paSign_(share - p.share) + '）</div>';
+}
+
+/* カレンダーに記録する文（saveHistory から） */
+function paText_(t) {
+  if (!paActive_() || !t) return t;
+  if (PA_STAGE === "plan") return "【計画】出発前の見込みです（山行のあと、実績に直して精算します）\n" + t;
+  var p = PA_PLAN || {}, cur = lastResultData ? lastResultData.share : null;
+  var s = "【実績】" + PA_WHO + "が " + paNowMd_() + " に入れました\n";
+  if (p.share != null && cur != null) s += "1人あたりの差：計画 " + jpn(p.share) + "円 → 実績 " + jpn(cur) + "円（" + paSign_(cur - p.share) + "）\n";
+  var ch = [];
+  document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
+    if (c.dataset.pa !== "chg") return;
+    var nm = c.querySelector(".car-name").value.trim();
+    var parts = [];
+    if (c.dataset.paFwd) parts.push("行き " + c.dataset.paFwd);
+    if (c.dataset.paRet) parts.push("帰り " + c.dataset.paRet);
+    ch.push("車" + (i + 1) + (nm ? "（" + nm + "さん）" : "") + (parts.length ? "：" + parts.join("／") : "：距離・料金を直した"));
+  });
+  s += ch.length ? "計画と変わった車：\n　" + ch.join("\n　") + "\n" : "車はすべて計画どおり\n";
+  return s + "――――――――――\n" + t;
+}
+
+/* ---------- 計画 → 実績 ---------- */
+function paToActual_() {
+  if (!lastResultData) { try { calc(true); } catch (e) {} }
+  if (!lastResultData) { alert("先に「計算する」を押して、計画の金額を出してください。"); return; }
+  if (!confirm("計画を残したまま、実績に直します。\n\n車ごとに［計画どおり］か［変わった］を選び、変わった車だけ走った道を選んでください。\n（いつでも「計画に戻す」で戻せます）")) return;
+  var f = getFormData(); delete f.pa;
+  PA_PLAN = { form: f, share: lastResultData.share, total: lastResultData.total, n: nPeople,
+              at: paNowMd_(), cands: paCands_() };
+  PA_STAGE = "actual";
+  document.querySelectorAll("#cars .car-card").forEach(function (c) { c.dataset.pa = "same"; });
+  paRender_();
+  saveForm();
+  try { calc(true); } catch (e2) {}
+  var cs = document.getElementById("cars");
+  if (cs) cs.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function paBackToPlan_() {
+  if (!PA_PLAN || !PA_PLAN.form) return;
+  if (!confirm("実績で入れた内容を消して、計画に戻します。よろしいですか？")) return;
+  var f = JSON.parse(JSON.stringify(PA_PLAN.form));
+  f.pa = { stage: "plan", plan: null, cands: PA_PLAN.cands || [] };
+  document.getElementById("cars").innerHTML = "";
+  carCount = 0;
+  if (!applyForm(f)) { addCar(); refreshPayerDropdown(); }
+  saveForm();
+  try { calc(true); } catch (e) {}
+  paRender_();
+}
+
+/* ---------- 車ごと ---------- */
+function paPlanCar_(c) {
+  if (!PA_PLAN || !PA_PLAN.form) return null;
+  var cards = Array.prototype.slice.call(document.querySelectorAll("#cars .car-card"));
+  var i = cards.indexOf(c);
+  return (PA_PLAN.form.cars || [])[i] || null;
+}
+function paCarRender_(c) {
+  var box = c.querySelector(".pa-box");
+  if (!(paActive_() && PA_STAGE === "actual")) { if (box) box.remove(); return; }
+  if (!box) {
+    box = document.createElement("div");
+    box.className = "pa-box";
+    box.style.cssText = "margin:8px 0 10px;padding:10px 11px;background:#f6fbf6;border:2px solid #5aa86a;border-radius:8px;";
+    var head = c.querySelector(".car-head");
+    head.parentNode.insertBefore(box, head.nextSibling);
+  }
+  var pc = paPlanCar_(c);
+  if (!pc && c.dataset.pa !== "chg") c.dataset.pa = "chg";
+  var st = c.dataset.pa || "same";
+  function b(lbl, on, fn) {
+    return '<button type="button" class="btn-small" style="margin:0 6px 6px 0;padding:8px 12px;font-size:16px;' +
+           (on ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="' + fn + '">' + lbl + '</button>';
+  }
+  var h = '<div style="font-weight:bold;margin-bottom:6px;">この車は計画と比べて</div>' +
+          (pc ? b("計画どおり", st === "same", "paCarSame_(this)") : '<div class="note" style="margin-bottom:6px;">計画に無かった車です。</div>') +
+          b("変わった", st === "chg", "paCarChg_(this)");
+  if (st === "chg") {
+    h += paLegHtml_(c, "fwd") + paLegHtml_(c, "ret") +
+      '<div style="margin-top:10px;"><label>メーターで測った往復の距離（km・入れたいときだけ）</label>' +
+      '<input type="number" class="pa-meter" min="0" step="0.1" placeholder="例：168" value="' + escapeHtml(c.dataset.paMeter || "") + '" onchange="paMeter_(this)">' +
+      '<p class="note" style="margin:4px 0 0;">入れると、行きと帰りの走行距離に半分ずつ入れます。</p></div>' +
+      '<div style="margin-top:10px;"><label>ETCの明細の金額（円・入れたいときだけ）</label>' +
+      '<div style="display:flex;gap:8px;"><input type="number" class="pa-bill-fwd" min="0" placeholder="行き" value="' + escapeHtml(c.dataset.paBillFwd || "") + '" onchange="paBill_(this,\'fwd\')">' +
+      '<input type="number" class="pa-bill-ret" min="0" placeholder="帰り" value="' + escapeHtml(c.dataset.paBillRet || "") + '" onchange="paBill_(this,\'ret\')"></div>' +
+      '<p class="note" style="margin:4px 0 0;">入れた金額をそのまま使います（料金表の金額で上書きしません）。</p></div>';
+  } else {
+    h += '<div class="note">計画のときの距離・高速料金のまま精算します。</div>';
+  }
+  box.innerHTML = h;
+}
+function paLegHtml_(c, dir) {
+  var isRet = (dir === "ret");
+  var cur = isRet ? (c.dataset.paRet || "") : (c.dataset.paFwd || "");
+  var h = '<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #b9d2ba;">' +
+          '<div style="font-weight:bold;">' + (isRet ? "帰り：実際に走った道" : "行き：実際に走った道") + '</div>';
+  if (isRet) {
+    var same = c.querySelector(".chk-retsame").checked;
+    h += '<button type="button" class="btn-small" style="margin:6px 6px 6px 0;padding:8px 12px;font-size:16px;' +
+         (same ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="paRetSame_(this)">行きと同じ道</button>';
+  }
+  var cs = PA_CANDS || [];
+  cs.forEach(function (x, i) {
+    var lbl = x.noHw ? ("高速なし" + (x.label ? "（" + x.label + "）" : ""))
+                     : (isRet ? (x.out + "〜" + x.in) : (x.in + "〜" + x.out));
+    var on = cur && cur === lbl;
+    h += '<button type="button" class="btn-small" style="display:block;width:100%;text-align:left;margin:6px 0;padding:9px 11px;font-size:16px;' +
+         (on ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="paPickCand_(this,\'' + dir + '\',' + i + ')">' +
+         (on ? "✔ " : "") + "候補" + (i + 1) + "　" + escapeHtml(lbl) + (x.km ? "（片道 " + x.km + "km）" : "") + '</button>';
+  });
+  if (!cs.length) h += '<p class="note" style="margin:4px 0;">計画のときの道の候補が残っていません。下の一覧から選んでください。</p>';
+  h += '<button type="button" class="btn-small" style="margin:4px 6px 4px 0;padding:8px 12px;font-size:16px;' +
+       (cur === "高速なし" ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="paNoHw_(this,\'' + dir + '\')">高速に乗らなかった</button>';
+  h += '<details style="margin-top:6px;"><summary style="font-size:16px;">候補に無いとき：乗ったIC・降りたICを選ぶ</summary>' + paIcPickHtml_(dir) + '</details>';
+  h += '<div class="pa-msg-' + dir + '" style="margin-top:6px;font-size:15px;color:#1f5a2a;"></div>';
+  return h + '</div>';
+}
+/* インターの一覧（近い順）。乗ったIC＝計画の乗るICの近く、降りたIC＝計画の降りるICの近く */
+function paIcSorted_(refName) {
+  var list = (PA_ICS || []).slice(), ref = null;
+  for (var i = 0; i < list.length; i++) if (icShort_(list[i].name) === icShort_(refName)) ref = list[i];
+  if (ref) {
+    list.forEach(function (x) { var a = x.lat - ref.lat, b = (x.lng - ref.lng) * 0.82; x._d = a * a + b * b; });
+    list.sort(function (p, q) { return p._d - q._d; });
+  }
+  return list;
+}
+function paPlanIc_(which) {
+  var x = (PA_CANDS || []).filter(function (y) { return !y.noHw; })[0];
+  if (x) return which === "in" ? x["in"] : x.out;
+  var pr = (PA_PLAN && PA_PLAN.form && PA_PLAN.form.route && PA_PLAN.form.route.legs) || [];
+  for (var i = 0; i < pr.length; i++) if (pr[i]["in"]) return which === "in" ? pr[i]["in"] : pr[i].out;
+  return "";
+}
+function paIcPickHtml_(dir) {
+  if (!PA_ICS || !PA_ICS.length) return '<p class="note">インターの一覧を読み込めませんでした。電波の良い所で開き直してください。</p>';
+  var isRet = (dir === "ret");
+  var refIn = paPlanIc_(isRet ? "out" : "in"), refOut = paPlanIc_(isRet ? "in" : "out");
+  function opts(ref) {
+    return '<option value="">選んでください</option>' + paIcSorted_(ref).map(function (x) {
+      return '<option value="' + escapeHtml(x.name) + '">' + escapeHtml(x.name) + '</option>';
+    }).join("");
+  }
+  return '<label>乗ったIC（近い順）</label><select class="pa-ic-in-' + dir + '">' + opts(refIn) + '</select>' +
+         '<label>降りたIC（近い順）</label><select class="pa-ic-out-' + dir + '">' + opts(refOut) + '</select>' +
+         '<button type="button" class="btn btn-sub" style="margin-top:8px;" onclick="paPickIc_(this,\'' + dir + '\')">この区間にする</button>';
+}
+
+function paCarSame_(btn) {
+  var c = btn.closest(".car-card"), pc = paPlanCar_(c);
+  if (!pc) return;
+  if (c.dataset.pa === "chg" && !confirm("この車を計画のときの距離・料金に戻します。よろしいですか？")) return;
+  var d = JSON.parse(JSON.stringify(pc));
+  d.pa = { s: "same" };
+  addCar(d);
+  var cards = document.querySelectorAll("#cars .car-card");
+  var nc = cards[cards.length - 1];
+  c.parentNode.insertBefore(nc, c);
+  c.remove();
+  renumberCars();
+  refreshAllDropdowns();
+  refreshPayerDropdown();
+  nc.dataset.pa = "same";   /* 足した直後は列の最後にいて「計画に無い車」に見えたため、ここで決め直す */
+  ["paFwd", "paRet", "paMeter", "paBillFwd", "paBillRet"].forEach(function (k) { delete nc.dataset[k]; });
+  paCarRender_(nc);
+  saveForm();
+}
+function paCarChg_(btn) {
+  var c = btn.closest(".car-card");
+  c.dataset.pa = "chg";
+  paCarRender_(c);
+  saveForm();
+}
+function paMsg_(c, dir, html) { var m = c.querySelector(".pa-msg-" + dir); if (m) m.innerHTML = html; }
+function paRetSame_(btn) {
+  var c = btn.closest(".car-card"), ch = c.querySelector(".chk-retsame");
+  ch.checked = true; updateRetUi_(c);
+  delete c.dataset.paRet;
+  paCarRender_(c);
+  saveForm();
+}
+function paPickCand_(btn, dir, i) {
+  var c = btn.closest(".car-card"), x = (PA_CANDS || [])[i];
+  if (!x) return;
+  if (x.noHw) { paNoHw_(btn, dir, x.km, "高速なし" + (x.label ? "（" + x.label + "）" : "")); return; }
+  var isRet = (dir === "ret");
+  paApply_(c, dir, isRet ? x.out : x["in"], isRet ? x["in"] : x.out, x.km, x.hwKm,
+           isRet ? (x.out + "〜" + x["in"]) : (x["in"] + "〜" + x.out));
+}
+function paPickIc_(btn, dir) {
+  var c = btn.closest(".car-card");
+  var a = c.querySelector(".pa-ic-in-" + dir).value, b = c.querySelector(".pa-ic-out-" + dir).value;
+  if (!a || !b) { paMsg_(c, dir, "<b>乗ったIC と 降りたIC を両方選んでください。</b>"); return; }
+  if (a === b) { paMsg_(c, dir, "<b>乗ったIC と 降りたIC が同じです。</b>"); return; }
+  paApply_(c, dir, a, b, null, "", a + "〜" + b);
+}
+function paRetOpen_(c) {
+  var ch = c.querySelector(".chk-retsame");
+  if (ch.checked) { ch.checked = false; toggleRet(ch); }
+}
+function paNoHw_(btn, dir, km, lbl) {
+  var c = btn.closest(".car-card"), isRet = (dir === "ret");
+  if (isRet) {
+    paRetOpen_(c);
+    var sr = c.querySelector(".car-rroute"); sr.value = ""; rememberRouteName_(sr);
+    c.querySelector(".car-retc").value = c.dataset.paBillRet || "";
+    if (km != null && km !== "" && !c.dataset.paMeter) c.querySelector(".car-rkm").value = String(km);
+    c.dataset.paRet = lbl || "高速なし";
+  } else {
+    var chk = c.querySelector(".chk-etc");
+    if (chk.checked) { chk.checked = false; toggleOpt(chk, "blk-etc"); }
+    var sg = c.querySelector(".car-route"); sg.value = ""; rememberRouteName_(sg);
+    var fee = c.querySelector(".car-etc"); fee.value = ""; fee.removeAttribute("data-auto");
+    if (km != null && km !== "" && !c.dataset.paMeter) c.querySelector(".car-km").value = String(km);
+    c.dataset.paFwd = lbl || "高速なし";
+  }
+  saveForm();
+  paCarRender_(c);
+  paMsg_(c, dir, "高速料金なしにしました。「計算する」を押すと実績の金額が出ます。");
+}
+/* 走った区間を1台に入れる。料金は料金表 → 無ければ（高速料金AIがオンなら）地図の距離×決まり → 無ければ明細の金額を */
+function paApply_(c, dir, a, b, km, hwKm, lbl) {
+  var isRet = (dir === "ret");
+  if (isRet) { paRetOpen_(c); c.dataset.paRet = lbl; } else { c.dataset.paFwd = lbl; }
+  if (km != null && km !== "" && !c.dataset.paMeter) c.querySelector(isRet ? ".car-rkm" : ".car-km").value = String(km);
+  paCarRender_(c);
+  var nm = icShort_(a) + "⇔" + icShort_(b);
+  function set_(idx) {
+    if (isRet) {
+      var sr = c.querySelector(".car-rroute"); sr.value = String(idx); retRouteSelected(sr);
+      if (c.dataset.paBillRet) c.querySelector(".car-retc").value = c.dataset.paBillRet;
+    } else {
+      var chk = c.querySelector(".chk-etc");
+      if (!chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+      var sg = c.querySelector(".car-route"); sg.value = String(idx); routeSelected(sg);
+      var fee = c.querySelector(".car-etc");
+      if (c.dataset.paBillFwd) { fee.value = c.dataset.paBillFwd; fee.removeAttribute("data-auto"); }
+      else fee.setAttribute("data-auto", fee.value);
+    }
+    saveForm();
+    try { feeWhyAll_(); } catch (eW) {}
+    paMsg_(c, dir, "区間 <b>" + escapeHtml(nm) + "</b> の料金を料金表から入れました" +
+           ((isRet ? c.dataset.paBillRet : c.dataset.paBillFwd) ? "（明細の金額を使っています）" : "") +
+           "。「計算する」を押すと実績の金額が出ます。");
+  }
+  function none_(why) {
+    if (isRet) { var sr = c.querySelector(".car-rroute"); sr.value = ""; rememberRouteName_(sr);
+                 c.querySelector(".car-retc").value = c.dataset.paBillRet || ""; }
+    else { var sg = c.querySelector(".car-route"); sg.value = ""; rememberRouteName_(sg);
+           var fee = c.querySelector(".car-etc"); fee.value = c.dataset.paBillFwd || ""; fee.removeAttribute("data-auto"); }
+    saveForm();
+    paMsg_(c, dir, "<b>" + escapeHtml(why) + "</b>区間 " + escapeHtml(nm) +
+           " の料金は、下の「ETCの明細の金額」に入れてください。");
+  }
+  var idx = findRouteByIcPair_(a, b);
+  if (idx >= 0) { set_(idx); return; }
+  if (!HW_ON) { none_("この区間は、まだ料金表にありません。"); return; }
+  paMsg_(c, dir, "🤖 区間 <b>" + escapeHtml(nm) + "</b> の料金を調べています…（数秒かかります）");
+  apiPost({ action: "hwFee", "in": a, out: b, hwKm: hwKm || "" }, function (err, d) {
+    if (err || !d || d.error || !d.fee || d.fee.etc == null) { none_("料金が分かりませんでした。"); return; }
+    if (findRouteByIcPair_(a, b) < 0) {
+      addEtcRow(nm, d.fee.etc, d.fee.normal, document.getElementById("destPlace").value.trim(), d.fee.etcHoli);
+      saveEtc();
+      refreshAllDropdowns();
+    }
+    var j = findRouteByIcPair_(a, b);
+    if (j < 0) { none_("料金が分かりませんでした。"); return; }
+    set_(j);
+  });
+}
+function paMeter_(el) {
+  var c = el.closest(".car-card"), v = parseFloat(el.value);
+  if (!(v > 0)) { delete c.dataset.paMeter; saveForm(); return; }
+  c.dataset.paMeter = String(v);
+  var half = Math.round(v / 2 * 10) / 10;
+  c.querySelector(".car-km").value = String(half);
+  if (!c.querySelector(".chk-retsame").checked) c.querySelector(".car-rkm").value = String(Math.round((v - half) * 10) / 10);
+  saveForm();
+  paMsg_(c, "fwd", "メーターの距離 " + v + "km を、行きと帰りに半分ずつ入れました。");
+}
+function paBill_(el, dir) {
+  var c = el.closest(".car-card"), v = el.value.trim();
+  if (dir === "fwd") {
+    if (v === "") { delete c.dataset.paBillFwd; saveForm(); return; }
+    c.dataset.paBillFwd = v;
+    var chk = c.querySelector(".chk-etc");
+    if (!chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
+    var fee = c.querySelector(".car-etc"); fee.value = v; fee.removeAttribute("data-auto");
+  } else {
+    if (v === "") { delete c.dataset.paBillRet; saveForm(); return; }
+    c.dataset.paBillRet = v;
+    if (c.querySelector(".chk-retsame").checked && v !== c.querySelector(".car-etc").value) paRetOpen_(c);
+    if (!c.querySelector(".chk-retsame").checked) c.querySelector(".car-retc").value = v;
+  }
+  saveForm();
+  try { feeWhyAll_(); } catch (eW) {}
+}
+/* 車の記録に入れる・戻す */
+function paCarData_(c) {
+  if (!c.dataset.pa) return undefined;
+  return { s: c.dataset.pa, f: c.dataset.paFwd || "", r: c.dataset.paRet || "",
+           m: c.dataset.paMeter || "", bf: c.dataset.paBillFwd || "", br: c.dataset.paBillRet || "" };
+}
+function paCarRestore_(div, p) {
+  if (!p) return;
+  if (p.s) div.dataset.pa = p.s;
+  if (p.f) div.dataset.paFwd = p.f;
+  if (p.r) div.dataset.paRet = p.r;
+  if (p.m) div.dataset.paMeter = p.m;
+  if (p.bf) div.dataset.paBillFwd = p.bf;
+  if (p.br) div.dataset.paBillRet = p.br;
+}
+
 function getFormData() {
   var cars = [];
   document.querySelectorAll("#cars .car-card").forEach(function (c) {
@@ -4012,7 +4424,9 @@ function getFormData() {
       /* 高速ルートは「番号」と「名前」の両方を残します。
          名前があれば、料金表の並びが変わっても元に戻せます。 */
       route: c.querySelector(".car-route").value,
-      routeName: c.querySelector(".car-route").dataset.routeName || ""
+      routeName: c.querySelector(".car-route").dataset.routeName || "",
+      /* ★2026-10-05i　実績で［計画どおり／変わった］と、選んだ道・メーター・明細 */
+      pa: paCarData_(c)
     });
   });
   return {
@@ -4024,6 +4438,8 @@ function getFormData() {
     dest: document.getElementById("destPlace").value,
     fwdVia: fwdViaVal_(),
     route: routeInfo_(),
+    /* ★2026-10-05i　計画と実績（段階・計画の控え・計画のときの道の候補） */
+    pa: paFormPart_(),
     mapUrl: routeMapUrl,
     /* 道の選びかたと、アプリが入れた距離も覚えます。
        開き直したときに選び直さなくてよいようにです。（2026-08-03） */
@@ -4116,6 +4532,7 @@ function feeWhyAll_() {
 }
 function applyForm(f) {
   if (!f) return false;
+  paLoad_(f.pa);   /* ★2026-10-05i */
   if (f.date) document.getElementById("hikeDate").value = f.date;
   document.getElementById("retDate").value = f.retDate || f.date || "";
   var hdEl = document.getElementById("hikeDate");
@@ -4207,6 +4624,7 @@ function applyForm(f) {
   ss.dataset.want = f.stayPayer || "-1";
   refreshPayerDropdown();
   syncStayUi_();
+  try { paRender_(); } catch (ePa) {}
   return hasCars;
 }
 function loadForm() {
@@ -4327,6 +4745,8 @@ function showLinkedSettle_() {
 function fetchPrevSettle(skipForm) {
   apiPost({ action: "getSettle", id: EVENT_ID }, function (err, data) {
     if (err || !data) return;
+    /* ★2026-10-05i　インターの一覧（実績で「乗ったIC・降りたIC」を選ぶため。スイッチがオンのときだけ届く） */
+    if (data.ics) { PA_ICS = data.ics; try { paRender_(); } catch (ePa) {} }
     /* ★2026-09-30　返事が届く前に画面に出ていた人数。変わったら1行で知らせる */
     var shownN = nPeople;
     /* この山行に「参加」と答えている方を受け取る。
@@ -4603,6 +5023,7 @@ function draftHasInput_() {
     shb.style.background = "var(--club)";
     shb.style.color = "#fff";
     shb.style.border = "2px solid var(--club)";
+    try { paRender_(); } catch (ePa) {}   /* ★2026-10-05i 計画／実績で文を変える */
     try {
       var rb = document.getElementById("resultBody");
       var shm = document.getElementById("histSavedMsg");
