@@ -594,7 +594,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05g";
+var APP_VER = "2026-10-05h";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1887,7 +1887,7 @@ function holiNote_() {
    　　（みやま柳川⇔熊本：普通車 1,400円 → 軽 1,150円・休日 810円。只隈さんが Gemini・Copilot
    　　　＝NAVITIME で見た金額と合う。前の「0.8倍」だと 1,120円になっていた）
    ================================================================== */
-var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "", HW_BAD = null;
+var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "", HW_BAD = null, HW_BAD_VALS = {};
 function hwKeiFee_(n) { return (n == null) ? null : Math.round((n * HW_KEI + 33) / 10) * 10; }
 /* 軽の車の金額：平日（または現金）の普通車の金額から作り、休日の ETC なら ×0.7 */
 function hwKeiOf_(r, use, ret) {
@@ -2082,6 +2082,13 @@ function fetchRoutes() {
     if (data.club) { applyClub_(data.club); saveClubCfg_(data.club); }
     HW_TABLE = data.hw || null;   /* ★2026-10-04b（㊹）スイッチがオフなら null */
     HW_BAD = data.hwBad || null;  /* ★2026-10-05c 前に「AI（検索なし）」で入った金額 */
+    /* ★2026-10-05h　その金額（休日・軽の金額も）が車の欄に残っていたら、アプリが入れた金額とみなす */
+    HW_BAD_VALS = {};
+    if (HW_BAD) Object.keys(HW_BAD).forEach(function (k) {
+      var v = HW_BAD[k], kv = hwKeiFee_(v);
+      [v, Math.round(v * 0.7 / 10) * 10, kv, Math.round(kv * 0.7 / 10) * 10, Math.round(v * 0.8 / 10) * 10]
+        .forEach(function (x) { HW_BAD_VALS[String(x)] = 1; });
+    });
     if (!data.routes) return;
     setTimeout(hwFixBad_, 300);
     var local = getEtcRoutes();
@@ -2467,6 +2474,7 @@ function fillRetFromMap_() {
 function feeIsAuto_(c) {
   var fee = c.querySelector(".car-etc");
   if (!fee || fee.value === "" || fee.value === fee.getAttribute("data-auto")) return true;
+  if (HW_BAD_VALS[String(fee.value)]) return true;   /* 前にAI（検索なし）で入った金額のまま */
   var sel = c.querySelector(".car-route");
   var r = (sel && sel.value !== "") ? getEtcRoutes()[parseInt(sel.value, 10)] : null;
   return !!(r && isTableFee_(r, fee.value));
