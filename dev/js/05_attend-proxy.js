@@ -430,6 +430,17 @@ function toggleEvOps(evId){
   if (b) b.className = 'admpane' + (on ? ' on' : '');
 }
 
+/* ★★2026-10-06b　開いた「この予定の操作」を閉じるボタン（只隈さん：ボタンの隣と、中身のいちばん最後の2か所）。
+   　・隣の「✕ 閉じる」は、開いているときだけ出る（CSS の .admgrp.evops.on .evopsx）。
+   　・いちばん下から閉じると枠が縮んで画面が飛ぶので、見出しが画面の上に隠れたら、そこまで戻す。 */
+function closeEvOps(evId){
+  if (EV_OPS_OPEN[evId]) toggleEvOps(evId);
+  var g = $('evopsg-' + evId);
+  if (g && g.getBoundingClientRect && g.getBoundingClientRect().top < 0){
+    try { g.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (eSc) { g.scrollIntoView(true); }
+  }
+}
+
 function evOpsHtml_(ev, o){
   var id = ev.id, pend = o.att.pending.length;
   var act = function(onclick, label, note, red){
@@ -478,10 +489,14 @@ function evOpsHtml_(ev, o){
   var on = !!EV_OPS_OPEN[id];
   var box = function(h, body){ return body ? '<div class="admsec"><div class="admsec-h">' + h + '</div>' + body + '</div>' : ''; };
   return '<div class="admgrp evops' + (on ? ' on' : '') + '" id="evopsg-' + id + '">' +
-      '<button type="button" class="subbtn' + (on ? ' on' : '') + '" id="evopsh-' + id + '" onclick="toggleEvOps(\'' + id + '\')">' +
-        '⚙ この予定の操作</button>' +
+      '<div class="evopshead">' +
+        '<button type="button" class="subbtn' + (on ? ' on' : '') + '" id="evopsh-' + id + '" onclick="toggleEvOps(\'' + id + '\')">' +
+          '⚙ この予定の操作</button>' +
+        '<button type="button" class="evopsx" onclick="closeEvOps(\'' + id + '\')">✕ 閉じる</button>' +
+      '</div>' +
       '<div class="admpane' + (on ? ' on' : '') + '" id="evops-' + id + '">' +
         box('知らせる', sec1) + box('直す・締める', sec2) + box('山行の準備', sec3) +
+        '<button type="button" class="cancelbtn evopsx2" onclick="closeEvOps(\'' + id + '\')">✕ 閉じる</button>' +
       '</div>' +
     '</div>';
 }

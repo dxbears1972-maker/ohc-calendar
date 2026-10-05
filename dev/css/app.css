@@ -274,6 +274,13 @@
   .evop a { font-size: 15px; font-weight: bold; color: #2e6b34; }
   .evop a.red { color: #b00020; }
   .evopnote { display: block; font-size: 13px; color: #555; margin-top: 1px; }
+  /* ★★2026-10-06b　閉じるボタン（ボタンの隣・中身のいちばん下）。白＝やめる */
+  .evopshead { display: flex; gap: 8px; align-items: stretch; max-width: 380px; margin: 0 auto; }
+  .evopshead .subbtn { flex: 1; min-width: 0; margin-left: 0; margin-right: 0; }
+  .evopsx { display: none; flex: 0 0 auto; font-size: 16px; font-weight: bold; padding: 0 12px; margin-top: 14px;
+            background: #fff; color: #555; border: 2px solid #bbb; border-radius: 10px; white-space: nowrap; }
+  .admgrp.evops.on .evopsx { display: block; margin-top: 0; }
+  .evopsx2 { margin-top: 12px; font-weight: bold; }
   /* ★★2026-09-29m　下見を入れる（山行の操作の中） */
   .shitami { margin: 6px 0 4px; padding: 8px; background: #f4f8f4; border: 1px solid #c2d0c2; border-radius: 8px; }
   .shchk { display: block; font-size: 16px; padding: 5px 0; }
