@@ -594,7 +594,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05f";
+var APP_VER = "2026-10-05g";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1389,7 +1389,7 @@ function lookupFwdVia_(from, via, to) {
       if (data.error) { btn.disabled = false; msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
       var list = data.list || [];
       if (!list.length) { btn.disabled = false; msg.innerHTML = "<b>「" + escapeHtml(segs[i][0]) + "」から「" + escapeHtml(segs[i][1]) + "」への道が見つかりませんでした。名前を変えてお試しください。</b>"; return; }
-      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0 });
+      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0, fromAddr: data.from || "", toAddr: data.to || "" });
       next(i + 1);
     });
   })(0);
@@ -1453,6 +1453,10 @@ function renderFwd_(fill) {
     mins += Number(r.mins) || 0;
     h += '<div style="margin:8px 0 2px;"><b>' + (si === 0 ? "①" : "②") +
          escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    if (sg.fromAddr || sg.toAddr) {
+      h += '<div style="font-size:13px;color:#3d4a3e;">📍 地図は「' + escapeHtml(sg.from) + '」→ ' + escapeHtml(sg.fromAddr) +
+           '／「' + escapeHtml(sg.to) + '」→ ' + escapeHtml(sg.toAddr) + ' で調べました</div>';
+    }
     sg.list.forEach(function (x, xi) {
       var on = (xi === sg.idx);
       h += '<button type="button" onclick="pickFwdSeg_(' + si + ',' + xi + ')" ' +
@@ -1565,9 +1569,21 @@ function placeMapSaveArea_() {
 }
 
 /* 候補の一覧。押すと、その道に切り替わります（2026-08-17：候補1〜4の番号付き） */
+/* ★2026-10-05f　入れた言葉を、地図がどこと見たか（「大牟田」→ 大牟田市の○○）。只隈さん 10/5 */
+function placeSeenHtml_(word, addr, label) {
+  if (!addr) return '';
+  return '<div>' + label + '：「' + escapeHtml(word) + '」→ <b>' + escapeHtml(addr) + '</b></div>';
+}
 function routeListHtml_(detail) {
   var cur = lastRouteList[lastRouteIdx];
   var h = '';
+  var seen = placeSeenHtml_(document.getElementById("meetPlace").value.trim(), lastRouteFrom, "出発地") +
+             placeSeenHtml_(document.getElementById("destPlace").value.trim(), lastRouteTo, "到着地");
+  if (seen) {
+    h += '<div style="margin:0 0 8px;padding:7px 10px;background:#fff;border:1px dashed #b9d2ba;border-radius:8px;font-size:13px;color:#3d4a3e;">' +
+         '📍 地図はこの場所で調べました' + seen +
+         '<div style="color:#8a5a00;">違う場所なら、上の欄をもっと詳しく（例：大牟田市役所・草千里駐車場）入れて調べ直してください</div></div>';
+  }
 
   /* ★いま選んでいる道が、一目で分かるように上に出します
      （「選択しているルートがもっとよくわかるように」2026-08-17） */
