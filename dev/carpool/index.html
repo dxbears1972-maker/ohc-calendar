@@ -582,7 +582,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05a";
+var APP_VER = "2026-10-05b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1362,7 +1362,7 @@ function fwdFillFees_() {
     var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc"), sel = c.querySelector(".car-route");
     if (!fee) return;
     /* 手で入れた金額には触りません */
-    if (fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+    if (!feeIsAuto_(c)) return;
     if (!hw.length) {
       if (chk && chk.checked) { chk.checked = false; toggleOpt(chk, "blk-etc"); }
       fee.value = ""; fee.removeAttribute("data-auto");
@@ -1814,7 +1814,7 @@ function holiNote_() {
    　　（みやま柳川⇔熊本：普通車 1,400円 → 軽 1,150円・休日 810円。只隈さんが Gemini・Copilot
    　　　＝NAVITIME で見た金額と合う。前の「0.8倍」だと 1,120円になっていた）
    ================================================================== */
-var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "";
+var HW_ON = false, HW_TABLE = null, HW_KEI = 0.8, hwBusy_ = "", HW_BAD = null;
 function hwKeiFee_(n) { return (n == null) ? null : Math.round((n * HW_KEI + 33) / 10) * 10; }
 /* 軽の車の金額：平日（または現金）の普通車の金額から作り、休日の ETC なら ×0.7 */
 function hwKeiOf_(r, use, ret) {
@@ -2008,7 +2008,9 @@ function fetchRoutes() {
     /* ★2026-09-07（工事B B-3）クラブの見た目と呼び名を当て、端末に控える */
     if (data.club) { applyClub_(data.club); saveClubCfg_(data.club); }
     HW_TABLE = data.hw || null;   /* ★2026-10-04b（㊹）スイッチがオフなら null */
+    HW_BAD = data.hwBad || null;  /* ★2026-10-05c 前に「AI（検索なし）」で入った金額 */
     if (!data.routes) return;
+    setTimeout(hwFixBad_, 300);
     var local = getEtcRoutes();
     /* サーバーが空でこの端末に料金表がある場合は、この端末の内容を共有に登録する */
     if (!data.routes.length && local.length) {
@@ -2381,6 +2383,26 @@ function fillRetFromMap_() {
     if (!c._retSegs || c.querySelector(".chk-retsame").checked) return;
     var fr = c.querySelector(".car-retc");
     if (fr && fr.value === "") renderRet_(c, true);
+  });
+}
+/* ★2026-10-05c　その車の高速料金が「アプリが入れた金額」か（＝入れ替えてよいか）。
+   　空・アプリが入れた印（data-auto）と同じ・いま選んでいる区間の料金表の金額と同じ、のどれか。
+   　（data-auto は開き直すと消えるので、料金表の金額と同じなら、アプリが入れた金額とみなす。
+   　　10/5 只隈さん「大牟田→草千里で調べたあと渡瀬→英彦山にしても、料金もインター名も変わらない」） */
+function feeIsAuto_(c) {
+  var fee = c.querySelector(".car-etc");
+  if (!fee || fee.value === "" || fee.value === fee.getAttribute("data-auto")) return true;
+  var sel = c.querySelector(".car-route");
+  var r = (sel && sel.value !== "") ? getEtcRoutes()[parseInt(sel.value, 10)] : null;
+  return !!(r && isTableFee_(r, fee.value));
+}
+/* アプリが入れた行きの高速料金と区間を空にする（手で入れた金額は残す） */
+function clearAutoFees_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var fee = c.querySelector(".car-etc"), sel = c.querySelector(".car-route");
+    if (!fee || !feeIsAuto_(c)) return;
+    fee.value = ""; fee.removeAttribute("data-auto");
+    if (sel && sel.value !== "") { sel.value = ""; rememberRouteName_(sel); }
   });
 }
 /* 料金表に、帰りの区間を足す（金額は料金表で入れていただく） */
@@ -3047,7 +3069,7 @@ function applyIcRoute_(data) {
       var chk = c.querySelector(".chk-etc"), fee = c.querySelector(".car-etc");
       if (!chk || !chk.checked) return;
       /* 手で入れた金額には触りません。空か、アプリが入れた値のときだけ外します */
-      if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) { left++; return; }
+      if (fee && !feeIsAuto_(c)) { left++; return; }
       chk.checked = false; toggleOpt(chk, "blk-etc");
       if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
       var sel = c.querySelector(".car-route"); if (sel) sel.value = "";
@@ -3070,6 +3092,9 @@ function applyIcRoute_(data) {
   if (!nm) { box.innerHTML = ""; return; }
   var idx = findRouteByIcPair_(lastTollIn, lastTollOut);
 
+  /* ★2026-10-05c　走る区間が料金表に無いときは、前の区間の料金（アプリが入れた分）を外す。
+     　残しておくと、別の山行の料金とインター名がそのまま残る（10/5 只隈さん） */
+  if (idx < 0) clearAutoFees_();
   if (idx < 0 && HW_ON) { hwFill_(data, nm); return; }   /* ★2026-10-04b（㊹）AI に調べさせる */
   if (idx < 0) {
     box.innerHTML =
@@ -3085,7 +3110,7 @@ function applyIcRoute_(data) {
   cars.forEach(function (c) {
     var fee = c.querySelector(".car-etc");
     /* 手で入れた金額には触りません */
-    if (fee && fee.value !== "" && fee.value !== fee.getAttribute("data-auto")) return;
+    if (fee && !feeIsAuto_(c)) return;
     var chk = c.querySelector(".chk-etc");
     if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
     var sel = c.querySelector(".car-route");
@@ -3149,6 +3174,56 @@ function hwFill_(data, nm) {
     }
     done_(d.fee);
   });
+}
+/* ------------------------------------------------------------------
+   ★2026-10-05c　クラブの料金表に、前に「AI（検索なし）」で入った金額のままの行があれば、
+   　hwFee（距離×NEXCO の決まり・地図で検算）で計算し直して書き替える。
+   　計算できなければ、その行の金額を空にする（間違った金額を使い続けない。次に調べたとき、また聞く）。
+   　★会員が直した金額（違う金額）には触らない。
+   ------------------------------------------------------------------ */
+var hwFixing_ = false;
+function hwFixBad_() {
+  if (!HW_ON || !HW_BAD || hwFixing_) return;
+  var todo = [];
+  document.querySelectorAll("#etcRows .etc-row").forEach(function (tr) {
+    var key = hwKeyOfName_(tr.querySelector(".etc-name").value);
+    var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
+    if (key && HW_BAD[key] != null && etc === HW_BAD[key]) todo.push({ tr: tr, key: key });
+  });
+  if (!todo.length) return;
+  hwFixing_ = true;
+  var done = [], blank = [];
+  (function next(i) {
+    if (i >= todo.length) {
+      hwFixing_ = false;
+      saveEtc();
+      try { syncFeesFromTable_(); } catch (eS) {}
+      var box = document.getElementById("hwFixMsg");
+      if (!box) {
+        box = document.createElement("p");
+        box.id = "hwFixMsg"; box.className = "note";
+        box.style.cssText = "margin:6px 0;padding:8px 10px;background:#fff6e0;border-radius:8px;";
+        var rows = document.getElementById("etcRows");
+        if (rows && rows.parentNode) rows.parentNode.insertBefore(box, rows);
+      }
+      box.innerHTML = "🤖 前にAIが入れた料金を見直しました。" +
+        (done.length ? "<br>計算し直した区間：<b>" + escapeHtml(done.join("、")) + "</b>" : "") +
+        (blank.length ? "<br>計算できなかったので金額を消した区間：<b>" + escapeHtml(blank.join("、")) + "</b>（次に調べたときにまた計算します）" : "");
+      return;
+    }
+    var t = todo[i], p = t.key.split("⇔");
+    delete HW_BAD[t.key];
+    apiPost({ action: "hwFee", "in": p[0] + "IC", out: p[1] + "IC" }, function (err, d) {
+      var f = (!err && d && d.fee && d.fee.etc != null) ? d.fee : null;
+      t.tr.querySelector(".etc-fee").value = f ? f.etc : "";
+      t.tr.querySelector(".etc-normal").value = (f && f.normal != null) ? f.normal : "";
+      var h = t.tr.querySelector(".etc-holi");
+      if (h) h.value = (f && f.etcHoli != null) ? f.etcHoli : "";
+      if (f) { done.push(t.key + " " + f.etc + "円"); if (HW_TABLE) HW_TABLE[t.key] = f; }
+      else blank.push(t.key);
+      next(i + 1);
+    });
+  })(0);
 }
 /* AI で分からなかったときは、今までどおり */
 function hwFallback_(nm, why) {
