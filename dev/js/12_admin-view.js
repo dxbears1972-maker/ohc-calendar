@@ -184,9 +184,16 @@ function renderAdmin_(which){
     if (!lg.length) h = '<p class="note">記録がありません。</p>';
   } else {
     var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
-    var genki = 0;
-    for (var m0 = 0; m0 < mb.length; m0++){ if (!mb[m0].left) genki++; }
-    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + mb.length + '行）です。';
+    /* ★2026-10-05b　保守業者の行（保守業者の端末でだけ見える）は、人数に入れません。
+       　只隈さん「16として」 */
+    var genki = 0, rowsN = 0, maintN = 0;
+    for (var m0 = 0; m0 < mb.length; m0++){
+      if (mb[m0].maintRow){ maintN++; continue; }
+      rowsN++;
+      if (!mb[m0].left) genki++;
+    }
+    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + rowsN + '行）です。' +
+      (maintN ? '　このほかに保守の行が ' + maintN + 'つあります（人数には入れていません・クラブの方には見えません）。' : '');
     for (var k = 0; k < mb.length; k++){
       var m = mb[k];
       var tag = [];

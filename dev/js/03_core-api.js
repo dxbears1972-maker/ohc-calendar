@@ -426,6 +426,8 @@ function applyData(data){
   try { fillTargetSelect_(); } catch (e) {}
   if (data.members && data.members.length) {
     MEMBERS = data.members;
+    /* ★2026-10-05b　保守業者の名前（保守業者の端末でだけ届く）。人数・出欠の数から外す */
+    MAINT_NAMES = data.maints || [];
     /* 名簿が読めているのに管理者が1人もいないときは、管理者なしのまま。
        ここでコードの名前を使うと、ほかのクラブでも只隈が管理者になってしまう。 */
     ADMINS  = (data.admins && data.admins.length) ? data.admins : [];
