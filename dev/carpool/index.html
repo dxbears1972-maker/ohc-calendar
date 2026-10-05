@@ -594,7 +594,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05e";
+var APP_VER = "2026-10-05f";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1905,7 +1905,7 @@ function hwKeyOfName_(nm) {
 function hwUnchecked_(r) {
   if (!HW_ON || !HW_TABLE || !r) return null;
   var h = HW_TABLE[hwKeyOfName_(r.name)];
-  if (!h || h.checked || h.src.indexOf("AI") !== 0) return null;
+  if (!h || h.checked || h.src === "会員") return null;
   return (h.etc === r.etc) ? h : null;
 }
 /* 車種を変えたとき：料金表から入れた金額なら、車種に合わせて入れ直す */
@@ -3186,7 +3186,7 @@ function applyIcRoute_(data) {
       : "各車の高速料金は、すでに入っているのでそのままにしています"];
   /* ★2026-10-04b（㊹）AI の答えのまま（まだ確かめていない）区間・軽の車 */
   var hu = hwUnchecked_(routes[idx]);
-  if (hu) liF.push("🤖 この区間の料金は、<b>AIと地図で調べた距離から NEXCO の料金の決まりで計算した金額</b>です（普通車・ETC平日 " + hu.etc + "円" + "）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
+  if (hu) liF.push("🤖 この区間の料金は、<b>地図で測った高速の距離から NEXCO の料金の決まりで計算した見込み</b>です（普通車・ETC平日 " + jpn(hu.etc) + "円）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
   var keiN = 0;
   cars.forEach(function (c) { if (isKeiCar_(c)) keiN++; });
   if (keiN) liF.push("軽の車（" + keiN + "台）は、軽の料金（普通車の約8割＋α・目安）を入れています");
@@ -3222,7 +3222,10 @@ function hwFill_(data, nm) {
   hwBusy_ = key;
   if (box) box.innerHTML = '<div>この区間 <b>' + escapeHtml(nm) + '</b> は、まだ料金表にありません。</div>' +
     '<div style="margin-top:4px;">🤖 AIが高速料金を調べています…（数秒かかります）</div>';
-  apiPost({ action: "hwFee", "in": lastTollIn, out: lastTollOut }, function (err, d) {
+  /* ★2026-10-05f　選んだ道の「高速の区間の距離」を添える（サーバーはこの距離×NEXCOの決まりで計算する） */
+  var dSel = lastRouteList[lastRouteIdx];
+  var hwKm = (dSel && dSel.seg && dSel.seg[1]) ? dSel.seg[1].km : "";
+  apiPost({ action: "hwFee", "in": lastTollIn, out: lastTollOut, hwKm: hwKm }, function (err, d) {
     if (err || !d || d.error || !d.fee) {
       hwBusy_ = "";
       if (hwKey_(lastTollIn, lastTollOut) !== key) return;
@@ -3240,49 +3243,44 @@ function hwFill_(data, nm) {
    　計算できなければ、その行の金額を空にする（間違った金額を使い続けない。次に調べたとき、また聞く）。
    　★会員が直した金額（違う金額）には触らない。
    ------------------------------------------------------------------ */
-var hwFixing_ = false;
 function hwFixBad_() {
-  if (!HW_ON || !HW_BAD || hwFixing_) return;
-  var todo = [];
+  if (!HW_ON || !HW_BAD) return;
+  var routes = getEtcRoutes(), gone = [];
   document.querySelectorAll("#etcRows .etc-row").forEach(function (tr) {
     var key = hwKeyOfName_(tr.querySelector(".etc-name").value);
     var etc = parseInt(tr.querySelector(".etc-fee").value, 10);
-    if (key && HW_BAD[key] != null && etc === HW_BAD[key]) todo.push({ tr: tr, key: key });
-  });
-  if (!todo.length) return;
-  hwFixing_ = true;
-  var done = [], blank = [];
-  (function next(i) {
-    if (i >= todo.length) {
-      hwFixing_ = false;
-      saveEtc();
-      try { syncFeesFromTable_(); } catch (eS) {}
-      var box = document.getElementById("hwFixMsg");
-      if (!box) {
-        box = document.createElement("p");
-        box.id = "hwFixMsg"; box.className = "note";
-        box.style.cssText = "margin:6px 0;padding:8px 10px;background:#fff6e0;border-radius:8px;";
-        var rows = document.getElementById("etcRows");
-        if (rows && rows.parentNode) rows.parentNode.insertBefore(box, rows);
-      }
-      box.innerHTML = "🤖 前にAIが入れた料金を見直しました。" +
-        (done.length ? "<br>計算し直した区間：<b>" + escapeHtml(done.join("、")) + "</b>" : "") +
-        (blank.length ? "<br>計算できなかったので金額を消した区間：<b>" + escapeHtml(blank.join("、")) + "</b>（次に調べたときにまた計算します）" : "");
-      return;
-    }
-    var t = todo[i], p = t.key.split("⇔");
-    delete HW_BAD[t.key];
-    apiPost({ action: "hwFee", "in": p[0] + "IC", out: p[1] + "IC" }, function (err, d) {
-      var f = (!err && d && d.fee && d.fee.etc != null) ? d.fee : null;
-      t.tr.querySelector(".etc-fee").value = f ? f.etc : "";
-      t.tr.querySelector(".etc-normal").value = (f && f.normal != null) ? f.normal : "";
-      var h = t.tr.querySelector(".etc-holi");
-      if (h) h.value = (f && f.etcHoli != null) ? f.etcHoli : "";
-      if (f) { done.push(t.key + " " + f.etc + "円"); if (HW_TABLE) HW_TABLE[t.key] = f; }
-      else blank.push(t.key);
-      next(i + 1);
+    if (!key || HW_BAD[key] == null || etc !== HW_BAD[key]) return;
+    /* その行を選んでいる車の料金と区間も外す（残すと「手で入れた金額」に見える） */
+    var ix = -1;
+    for (var i = 0; i < routes.length; i++) if (hwKeyOfName_(routes[i].name) === key) ix = i;
+    document.querySelectorAll("#cars .car-card").forEach(function (c) {
+      [[".car-route", ".car-etc"], [".car-rroute", ".car-retc"]].forEach(function (p) {
+        var sel = c.querySelector(p[0]), fee = c.querySelector(p[1]);
+        if (sel && ix >= 0 && sel.value === String(ix)) {
+          sel.value = ""; rememberRouteName_(sel);
+          if (fee) { fee.value = ""; fee.removeAttribute("data-auto"); }
+        }
+      });
     });
-  })(0);
+    tr.querySelector(".etc-fee").value = "";
+    tr.querySelector(".etc-normal").value = "";
+    var h = tr.querySelector(".etc-holi");
+    if (h) h.value = "";
+    gone.push(key);
+    delete HW_BAD[key];
+  });
+  if (!gone.length) return;
+  saveEtc();
+  var box = document.getElementById("hwFixMsg");
+  if (!box) {
+    box = document.createElement("p");
+    box.id = "hwFixMsg"; box.className = "note";
+    box.style.cssText = "margin:6px 0;padding:8px 10px;background:#fff6e0;border-radius:8px;";
+    var rows = document.getElementById("etcRows");
+    if (rows && rows.parentNode) rows.parentNode.insertBefore(box, rows);
+  }
+  box.innerHTML = "🤖 前にAIが入れた料金（確かめていないもの）を消しました：<b>" + escapeHtml(gone.join("、")) +
+    "</b>。その区間を通る道を調べたときに、地図の距離から計算し直します。";
 }
 /* AI で分からなかったときは、今までどおり */
 function hwFallback_(nm, why) {
