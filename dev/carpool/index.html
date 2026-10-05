@@ -188,6 +188,7 @@
     padding: 10px; border-radius: 8px;
     font-size: 15px; margin-top: 8px; font-family: inherit;
   }
+  #distMsg.pa-locked button { pointer-events: none; opacity: .55; }
 </style>
 </head>
 <body>
@@ -598,7 +599,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05j";
+var APP_VER = "2026-10-05k";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2920,6 +2921,24 @@ function syncFeesFromTable_() {
     var wr = routeFeeFor_(rr, c.querySelector(".car-retcuse").value, true, c);
     if (wr != null && String(fr.value) !== String(wr)) { fr.value = wr; retChanged = true; }
   });
+  /* ★2026-10-05k　計画の段階は「料金表とちがいます」を出さず、料金表の金額・区間にそのまま入れ替える
+     　（只隈さん 10/5：計画は見込み。手で入れた金額は無い前提） */
+  if (paPlanFree_() && suggest.length) {
+    var cardsP = document.querySelectorAll("#cars .car-card");
+    suggest.forEach(function (g) {
+      var cp = cardsP[g.idx]; if (!cp) return;
+      if (g.routeIdx != null && g.routeIdx >= 0) {
+        var selP = cp.querySelector(".car-route"), chkP = cp.querySelector(".chk-etc");
+        if (chkP && !chkP.checked) { chkP.checked = true; toggleOpt(chkP, "blk-etc"); }
+        if (selP) { selP.value = String(g.routeIdx); rememberRouteName_(selP); }
+      }
+      var feeP = cp.querySelector(".car-etc"); if (!feeP) return;
+      var beforeP = feeP.value;
+      feeP.value = g.want; feeP.setAttribute("data-auto", String(g.want));
+      changed.push({ no: g.no, name: g.name, use: g.use, before: beforeP, after: g.want });
+    });
+    suggest = [];
+  }
   renderFeeSyncMsg_(changed, suggest, missing, noHwLeft);
   if (changed.length || retChanged || fwdMulti) saveForm();
 }
@@ -4072,6 +4091,7 @@ function paRender_() {
   var bar = document.getElementById("paBar");
   var shb = document.getElementById("saveHistBtn");
   if (!bar) return;
+  try { paLockTop_(paActive_() && PA_STAGE === "actual"); } catch (eL) {}
   if (!paActive_()) {
     bar.style.display = "none";
     document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
@@ -4095,6 +4115,30 @@ function paRender_() {
   bar.style.display = "block";
   if (shb && EVENT_ID) shb.textContent = (PA_STAGE === "plan") ? "📅 計画としてカレンダーに記録する" : "📅 実績としてカレンダーに記録する";
   document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
+}
+
+/* ★2026-10-05k　実績では上（日付・集合場所・行き先・道）は計画のまま固定（只隈さん「上は固定がいいよね」）。
+   　変わったことは車ごとに［変わった］で直す。人数・人にかかる費用は直せる */
+var PA_LOCK_IDS = ["hikeDate", "retDate", "hikeName", "meetPlace", "meetTime", "destPlace", "fwdVia"];
+function paLockTop_(on) {
+  PA_LOCK_IDS.forEach(function (id) {
+    var el = document.getElementById(id); if (!el) return;
+    el.readOnly = on;
+    el.style.background = on ? "#eceeec" : "";
+    el.style.color = on ? "#555" : "";
+  });
+  var btn = document.getElementById("distBtn"); if (btn) btn.style.display = on ? "none" : "";
+  var dm = document.getElementById("distMsg"); if (dm) dm.classList.toggle("pa-locked", on);
+  var pf = document.getElementById("routePref"); if (pf) pf.disabled = on;
+  var nt = document.getElementById("paLockNote");
+  if (on && !nt) {
+    var h2 = document.getElementById("hikeDate").closest(".card").querySelector("h2");
+    nt = document.createElement("div"); nt.id = "paLockNote";
+    nt.style.cssText = "margin:0 0 10px;padding:8px 10px;border:2px solid #5aa86a;border-radius:8px;background:#eefaf0;font-weight:bold;";
+    nt.textContent = "🔒 実績では、ここ（日付・集合場所・行き先・道）は計画のまま固定です。実際と違ったことは、下の車ごとに［変わった］で直してください。";
+    h2.parentNode.insertBefore(nt, h2.nextSibling);
+  }
+  if (nt) nt.style.display = on ? "block" : "none";
 }
 
 /* 結果のいちばん上に1行（calc から） */
