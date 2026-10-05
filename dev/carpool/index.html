@@ -582,7 +582,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05b";
+var APP_VER = "2026-10-05c";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2069,6 +2069,7 @@ function addCar(data) {
       '<option value="normal">ETCなし（通常料金）</option></select>' +
       '<label>高速料金（円・片道）</label>' +
       '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)">' +
+      '<p class="note car-etc-why" style="margin:4px 0 0;color:#1f5a2a;"></p>' +
       '<div class="fee-remember" style="display:none;margin-top:8px;">' +
         '<button type="button" class="btn btn-sub" onclick="rememberFee(this)">' +
         '⭐ この料金を覚える（次から自動で入ります）</button>' +
@@ -2116,6 +2117,7 @@ function addCar(data) {
           '<option value="normal">ETCなし（現金などで手払い）</option></select>' +
           '<label>帰りの高速料金（円）</label>' +
           '<input type="number" class="car-retc" placeholder="0（帰りは高速に乗らない）" min="0">' +
+          '<p class="note car-retc-why" style="margin:4px 0 0;color:#1f5a2a;"></p>' +
         '</div>' +
         '<div class="ret-ferry"><label>帰りのフェリー（車分）</label>' +
           '<input type="number" class="car-rferry" placeholder="0（帰りは乗らない）" min="0"></div>' +
@@ -3980,6 +3982,36 @@ function getFormData() {
 }
 function saveForm() {
   lsSet(LS_FORM, getFormData());
+  try { feeWhyAll_(); } catch (eW) {}
+}
+/* ★2026-10-05d　高速料金の欄の下に「どう計算したか」を1行出す
+   （只隈さん「軽自動車で休日ETCで計算とか書かないとわからない」） */
+function feeWhyText_(c, ret) {
+  var fee = c.querySelector(ret ? ".car-retc" : ".car-etc");
+  if (!fee || fee.value === "") return "";
+  var sel = c.querySelector(ret ? ".car-rroute" : ".car-route");
+  var use = c.querySelector(ret ? ".car-retcuse" : ".car-etcuse").value;
+  var d = ret ? retDateVal_() : document.getElementById("hikeDate").value;
+  var kind = HW_ON ? (isKeiCar_(c) ? "軽自動車・" : "普通車・") : "";
+  var hi = hwHoliInfo_(d);
+  var day = (use !== "etc") ? "ETCなし（通常料金）"
+          : hi.on ? "ETC・休日料金（" + mdOf_(d) + "は" + hi.why + "）"
+                  : "ETC・平日料金（" + mdOf_(d) + "は" + hi.why + "）";
+  var r = (sel && sel.value !== "") ? getEtcRoutes()[parseInt(sel.value, 10)] : null;
+  if (r && String(routeFeeFor_(r, use, ret, c)) === String(fee.value)) {
+    return "料金表「" + r.name + "」から、" + kind + day + "で計算しました";
+  }
+  if (!ret && fwdSegs && fwdViaVal_() && fee.value === fee.getAttribute("data-auto")) {
+    return "立ち寄りを含む区間の合計を、" + kind + day + "で計算しました";
+  }
+  return "手で入れた金額です（料金表からの計算ではありません）";
+}
+function feeWhyAll_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    var a = c.querySelector(".car-etc-why"), b = c.querySelector(".car-retc-why");
+    if (a) a.textContent = feeWhyText_(c, false);
+    if (b) b.textContent = feeWhyText_(c, true);
+  });
 }
 function applyForm(f) {
   if (!f) return false;
