@@ -582,7 +582,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05c";
+var APP_VER = "2026-10-05d";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2045,7 +2045,7 @@ function addCar(data) {
       '<label>車種</label>' +
       '<select class="car-type" onchange="carTypeChanged(this)">' +
       '<option value="">普通車</option><option value="kei">軽自動車</option></select>' +
-      '<p class="note" style="margin:4px 0 0;">軽の高速料金は、普通車の約8割（目安）で入れます。</p>' +
+      '<p class="note" style="margin:4px 0 0;">軽の高速料金は、普通車の金額から NEXCO の決まりで計算します（約8割＋α）。下の「高速料金」の欄に、どう計算したかが出ます。</p>' +
     '</div>' +
     /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
     '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
