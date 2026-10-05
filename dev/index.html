@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-10-05d">
+<link rel="stylesheet" href="css/app.css?v=2026-10-06a">
 </head>
 <body>
 
@@ -429,7 +429,9 @@
   </div>
 
   <!-- まとめて登録（管理者専用） -->
-  <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 Excelからまとめて登録</button>
+  <!-- ★★2026-10-06a　ボタンの名前を「Excelからまとめて登録」→「まとめて登録（画面でもExcelでも）」に。
+       　中の①は画面の表で続けて入れる形で、杉野さんはExcelではなくこちらを重宝されている（只隈さん 10/6）。 -->
+  <button class="bigbtn gray" id="showImport" type="button" style="display:none">📋 まとめて登録（画面でもExcelでも）</button>
   <div class="card" id="importCard" style="display:none">
     <h2>まとめて登録（管理者用）</h2>
     <!-- ★★2026-09-15（工事F）　管理者の画面（#adminBox）とまったく同じ入れ子にします。
@@ -633,22 +635,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-10-05d"></script>
-<script src="js/02_kind-target.js?v=2026-10-05d"></script>
-<script src="js/03_core-api.js?v=2026-10-05d"></script>
-<script src="js/04_render.js?v=2026-10-05d"></script>
-<script src="js/05_attend-proxy.js?v=2026-10-05d"></script>
-<script src="js/06_notice-line.js?v=2026-10-05d"></script>
-<script src="js/07_cancel-ops.js?v=2026-10-05d"></script>
-<script src="js/08_event-form.js?v=2026-10-05d"></script>
-<script src="js/09_bulk-add.js?v=2026-10-05d"></script>
-<script src="js/10_export-pick.js?v=2026-10-05d"></script>
-<script src="js/11_code-name.js?v=2026-10-05d"></script>
-<script src="js/12_admin-view.js?v=2026-10-05d"></script>
-<script src="js/13_admin-edit.js?v=2026-10-05d"></script>
-<script src="js/14_install-card.js?v=2026-10-05d"></script>
+<script src="js/01_club-config.js?v=2026-10-06a"></script>
+<script src="js/02_kind-target.js?v=2026-10-06a"></script>
+<script src="js/03_core-api.js?v=2026-10-06a"></script>
+<script src="js/04_render.js?v=2026-10-06a"></script>
+<script src="js/05_attend-proxy.js?v=2026-10-06a"></script>
+<script src="js/06_notice-line.js?v=2026-10-06a"></script>
+<script src="js/07_cancel-ops.js?v=2026-10-06a"></script>
+<script src="js/08_event-form.js?v=2026-10-06a"></script>
+<script src="js/09_bulk-add.js?v=2026-10-06a"></script>
+<script src="js/10_export-pick.js?v=2026-10-06a"></script>
+<script src="js/11_code-name.js?v=2026-10-06a"></script>
+<script src="js/12_admin-view.js?v=2026-10-06a"></script>
+<script src="js/13_admin-edit.js?v=2026-10-06a"></script>
+<script src="js/14_install-card.js?v=2026-10-06a"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-10-05d"></script>
-<script src="js/15_namepick-init.js?v=2026-10-05d"></script>
+<script src="js/16_plan-sheet.js?v=2026-10-06a"></script>
+<script src="js/15_namepick-init.js?v=2026-10-06a"></script>
 </body>
 </html>
