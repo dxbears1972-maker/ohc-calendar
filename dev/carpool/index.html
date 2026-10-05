@@ -76,6 +76,18 @@
   .chk-row input[type=checkbox] { width: 26px; height: 26px; }
   .opt-blk { display: none; }
   .opt-blk.on { display: block; }
+  /* ★2026-10-05e　車ごとの費用（高速・フェリー・駐車・入場）を枠で分け、見出しを付ける
+     （只隈さん「フェリーにチェックを入れたとき、高速とフェリーの間に境目がなくてわかりづらい」） */
+  .car-card .blk-etc.on, .car-card .blk-ferry.on, .car-card .blk-park.on, .car-card .blk-ent.on {
+    border: 1px solid #cfd8cd; border-left: 5px solid var(--club); border-radius: 8px;
+    padding: 6px 10px 10px; margin: 10px 0; background: #fafcfa; }
+  .car-card .blk-etc.on::before, .car-card .blk-ferry.on::before,
+  .car-card .blk-park.on::before, .car-card .blk-ent.on::before {
+    display: block; font-weight: bold; color: var(--club); margin-bottom: 2px; }
+  .car-card .blk-etc.on::before { content: "🛣 高速道路"; }
+  .car-card .blk-ferry.on::before { content: "⛴ フェリー"; }
+  .car-card .blk-park.on::before { content: "🅿 駐車料金"; }
+  .car-card .blk-ent.on::before { content: "🎫 入場料"; }
   .row { display: flex; gap: 10px; }
   .row > div { flex: 1; }
   .subhead { font-size: 15px; font-weight: bold; color: var(--club); margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
@@ -582,7 +594,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05d";
+var APP_VER = "2026-10-05e";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1304,7 +1316,52 @@ function lookupDistance() {
    　・高速に乗る区間があれば、料金表から区間ごとの料金を足して各車の高速料金へ
    　・AIの候補と地図のPDFは、立ち寄りがないときだけ（ここでは出さない）
    ================================================================== */
-var fwdSegs = null, fwdMissNow = false;
+var fwdSegs = null, fwdMissNow = false, savedRoute_ = null;
+/* ★2026-10-05d　いま選んでいる行きの道（精算の記録に道順を書くため）。開き直したときは保存した分 */
+function routeInfo_() {
+  function one(from, to, x) {
+    return { from: from, to: to, km: x.km, mins: x.mins, noHw: !!x.noHw,
+             "in": (x.tollIn && x.tollIn.name) || "", out: (x.tollOut && x.tollOut.name) || "", seg: x.seg || null };
+  }
+  var meet = document.getElementById("meetPlace").value.trim(), dest = document.getElementById("destPlace").value.trim();
+  if (fwdSegs && fwdViaVal_()) {
+    return { legs: fwdSegs.map(function (sg) { return one(sg.from, sg.to, sg.list[sg.idx] || sg.list[0]); }) };
+  }
+  var d = lastRouteList[lastRouteIdx];
+  if (d && lastRouteFor === dest) return { legs: [one(meet, dest, d)] };
+  return savedRoute_;
+}
+/* 道順の文（カレンダーの￥の中に出る）。例：
+   瀬高駅 →（一般道 5.2km・約10分）→ みやま柳川IC →（高速 46.3km・約30分・普通車ETC 980円）→ 熊本IC →（一般道 34km・約55分）→ 草千里 */
+function routeText_() {
+  var ri = routeInfo_();
+  if (!ri || !ri.legs || !ri.legs.length) return "";
+  var t = "【行きの道順】\n", tk = 0, tm = 0;
+  ri.legs.forEach(function (g) {
+    tk += Number(g.km) || 0; tm += Number(g.mins) || 0;
+    if (g.noHw || !g["in"] || !g.out) {
+      t += g.from + "\n　↓ 一般道 " + g.km + "km・約" + g.mins + "分（高速なし）\n";
+      return;
+    }
+    var s3 = g.seg || [];
+    var ix = findRouteByIcPair_(g["in"], g.out), fee = "";
+    if (ix >= 0) {
+      var r = getEtcRoutes()[ix], f1 = routeFeeFor0_(r, "etc", false);
+      fee = (f1 != null ? "・普通車ETC " + jpn(f1) + "円" : "") +
+            (HW_ON && r.etc != null ? "／軽 " + jpn(hwKeiOf_(r, "etc", false)) + "円" : "") +
+            (isHolidayRate_() ? "（休日料金）" : "（平日料金）");
+    }
+    t += g.from + "\n";
+    t += "　↓ " + (s3[0] ? "一般道 " + s3[0].km + "km・約" + s3[0].mins + "分" : "一般道") + "\n";
+    t += g["in"] + "（高速に乗る）\n";
+    t += "　↓ " + (s3[1] ? "高速 " + s3[1].km + "km・約" + s3[1].mins + "分" : "高速") + fee + "\n";
+    t += g.out + "（高速を降りる）\n";
+    t += "　↓ " + (s3[2] ? "一般道 " + s3[2].km + "km・約" + s3[2].mins + "分" : "一般道") + "\n";
+  });
+  t += ri.legs[ri.legs.length - 1].to + "\n";
+  t += "合計 片道 " + (Math.round(tk * 10) / 10) + "km・約" + tm + "分（時間はGoogleの見込み）\n";
+  return t;
+}
 function fwdViaVal_() {
   var el = document.getElementById("fwdVia");
   return el ? el.value.replace(/^[\s　]+|[\s　]+$/g, "") : "";
@@ -2069,7 +2126,7 @@ function addCar(data) {
       '<option value="normal">ETCなし（通常料金）</option></select>' +
       '<label>高速料金（円・片道）</label>' +
       '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)">' +
-      '<p class="note car-etc-why" style="margin:4px 0 0;color:#1f5a2a;"></p>' +
+      '<p class="note car-etc-why" style="margin:4px 0 0;color:#1f5a2a;white-space:pre-line;"></p>' +
       '<div class="fee-remember" style="display:none;margin-top:8px;">' +
         '<button type="button" class="btn btn-sub" onclick="rememberFee(this)">' +
         '⭐ この料金を覚える（次から自動で入ります）</button>' +
@@ -2117,7 +2174,7 @@ function addCar(data) {
           '<option value="normal">ETCなし（現金などで手払い）</option></select>' +
           '<label>帰りの高速料金（円）</label>' +
           '<input type="number" class="car-retc" placeholder="0（帰りは高速に乗らない）" min="0">' +
-          '<p class="note car-retc-why" style="margin:4px 0 0;color:#1f5a2a;"></p>' +
+          '<p class="note car-retc-why" style="margin:4px 0 0;color:#1f5a2a;white-space:pre-line;"></p>' +
         '</div>' +
         '<div class="ret-ferry"><label>帰りのフェリー（車分）</label>' +
           '<input type="number" class="car-rferry" placeholder="0（帰りは乗らない）" min="0"></div>' +
@@ -3664,6 +3721,8 @@ function calc(noScroll) {
   });
   if (passengers > 0) t += "■同乗者" + passengers + "名 → 一人 " + jpn(displayTotal) + "円\n";
   if (surplus > 0) t += "（切り上げの余り " + jpn(surplus) + "円は車の持ち主の受け取り）\n";
+  /* ★2026-10-05d　道順（出発地・乗るIC・降りるIC・到着地と、区間ごとの距離・時間・高速料金） */
+  try { var rtx = routeText_(); if (rtx) t += "――――――――――\n" + rtx; } catch (eRt) {}
   lastResultText = t;
   lastResultData = {
     savedAt: new Date().toLocaleString("ja-JP"),
@@ -3942,6 +4001,7 @@ function getFormData() {
     place: document.getElementById("meetPlace").value,
     dest: document.getElementById("destPlace").value,
     fwdVia: fwdViaVal_(),
+    route: routeInfo_(),
     mapUrl: routeMapUrl,
     /* 道の選びかたと、アプリが入れた距離も覚えます。
        開き直したときに選び直さなくてよいようにです。（2026-08-03） */
@@ -3992,19 +4052,38 @@ function feeWhyText_(c, ret) {
   var sel = c.querySelector(ret ? ".car-rroute" : ".car-route");
   var use = c.querySelector(ret ? ".car-retcuse" : ".car-etcuse").value;
   var d = ret ? retDateVal_() : document.getElementById("hikeDate").value;
-  var kind = HW_ON ? (isKeiCar_(c) ? "軽自動車・" : "普通車・") : "";
   var hi = hwHoliInfo_(d);
-  var day = (use !== "etc") ? "ETCなし（通常料金）"
-          : hi.on ? "ETC・休日料金（" + mdOf_(d) + "は" + hi.why + "）"
-                  : "ETC・平日料金（" + mdOf_(d) + "は" + hi.why + "）";
+  var dayLine = mdOf_(d) + "は" + hi.why + "＝" + (use !== "etc" ? "ETCなし（通常料金）" : hi.on ? "ETCの休日料金" : "ETCの平日料金");
   var r = (sel && sel.value !== "") ? getEtcRoutes()[parseInt(sel.value, 10)] : null;
   if (r && String(routeFeeFor_(r, use, ret, c)) === String(fee.value)) {
-    return "料金表「" + r.name + "」から、" + kind + day + "で計算しました";
+    return "料金表「" + r.name + "」・" + (HW_ON ? (isKeiCar_(c) ? "軽自動車" : "普通車") : "") + "\n" +
+           feeCalcLine_(r, use, ret, c) + "\n（" + dayLine + "）";
   }
   if (!ret && fwdSegs && fwdViaVal_() && fee.value === fee.getAttribute("data-auto")) {
-    return "立ち寄りを含む区間の合計を、" + kind + day + "で計算しました";
+    return "立ち寄りを含む区間の料金の合計（" + dayLine + "）";
   }
   return "手で入れた金額です（料金表からの計算ではありません）";
+}
+/* 計算の式（例：普通車 ETC平日 1,350円 × 0.8 ＋ 33円 ≒ 1,110円（軽） → × 0.7（休日割引） ≒ 780円） */
+function feeCalcLine_(r, use, ret, c) {
+  var holi = (use === "etc") && (ret ? isHolidayRateRet_() : isHolidayRate_());
+  if (use !== "etc") {
+    var n0 = r.normal;
+    if (HW_ON && isKeiCar_(c) && n0 != null) return "通常料金（普通車）" + jpn(n0) + "円 × 0.8 ＋ 33円 ≒ " + jpn(hwKeiFee_(n0)) + "円（軽）";
+    return "通常料金 " + jpn(n0) + "円";
+  }
+  if (HW_ON && isKeiCar_(c) && r.etc != null) {
+    var k = hwKeiFee_(r.etc);
+    var t = "ETC平日（普通車）" + jpn(r.etc) + "円 × 0.8 ＋ 33円 ≒ " + jpn(k) + "円（軽）";
+    if (holi) t += " → × 0.7（休日割引） ≒ " + jpn(Math.round(k * 0.7 / 10) * 10) + "円";
+    return t;
+  }
+  if (!holi) return "ETC平日 " + jpn(r.etc) + "円";
+  if (r.etcHoli != null && r.etc != null && r.etcHoli === Math.round(r.etc * 0.7 / 10) * 10) {
+    return "ETC平日 " + jpn(r.etc) + "円 × 0.7（休日割引） ≒ " + jpn(r.etcHoli) + "円";
+  }
+  if (r.etcHoli != null) return "料金表の土日祝の金額 " + jpn(r.etcHoli) + "円";
+  return "土日祝の金額が料金表に無いので、ETC平日 " + jpn(r.etc) + "円 のまま";
 }
 function feeWhyAll_() {
   document.querySelectorAll("#cars .car-card").forEach(function (c) {
@@ -4025,6 +4104,7 @@ function applyForm(f) {
   document.getElementById("meetPlace").value = f.place || "";
   document.getElementById("destPlace").value = f.dest || "";
   document.getElementById("fwdVia").value = f.fwdVia || "";
+  savedRoute_ = f.route || null;
   if (f.pref) {
     var pfEl = document.getElementById("routePref");
     if (pfEl) pfEl.value = (f.pref === "dist") ? "dist" : "time";
