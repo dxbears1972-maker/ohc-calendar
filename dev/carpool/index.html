@@ -598,7 +598,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-05i";
+var APP_VER = "2026-10-05j";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1457,6 +1457,7 @@ function renderFwd_(fill) {
     mins += Number(r.mins) || 0;
     h += '<div style="margin:8px 0 2px;"><b>' + (si === 0 ? "①" : "②") +
          escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    h += vagueWarnHtml_([[sg.from, sg.fromAddr, "出発"], [sg.to, sg.toAddr, "行き先"]]);
     if (sg.fromAddr || sg.toAddr) {
       h += '<div style="font-size:13px;color:#3d4a3e;">📍 地図は「' + escapeHtml(sg.from) + '」→ ' + escapeHtml(sg.fromAddr) +
            '／「' + escapeHtml(sg.to) + '」→ ' + escapeHtml(sg.toAddr) + ' で調べました</div>';
@@ -1578,11 +1579,42 @@ function placeSeenHtml_(word, addr, label) {
   if (!addr) return '';
   return '<div>' + label + '：「' + escapeHtml(word) + '」→ <b>' + escapeHtml(addr) + '</b></div>';
 }
+/* ------------------------------------------------------------------
+   ★★2026-10-05j　あいまいな場所（市・町・地名だけ）で調べたときは、黒字で大きく知らせる
+   　（只隈さん 10/5「あいまいにすると距離が全然変わってくるので」）。
+   　見分け方：地図の住所から「日本、」「〒000-0000」を外して、番地などの数字が1つも無ければ、
+   　市や地名を表す1点で調べている＝実際の集合場所・駐車場と数km ずれることがある。
+   ------------------------------------------------------------------ */
+function placeVague_(addr) {
+  var a = String(addr || "").replace(/日本[、,]?\s*/g, "").replace(/〒?\s*[0-9０-９]{3}[-－ー][0-9０-９]{4}/g, "");
+  if (!a.replace(/[\s　]/g, "")) return false;
+  return !/[0-9０-９]/.test(a);
+}
+function vagueWarnHtml_(pairs) {
+  var bad = [];
+  /* 入れた言葉が施設の名前（駅・駐車場など）なら、住所に番地が無くても知らせない（駅は番地なしで返ることがある） */
+  var SPOT = /(駅|駐車場|役所|役場|センター|館|公園|登山口|IC|ＩＣ|インター|道の駅|学校|病院|ホテル|旅館|山荘|小屋|キャンプ|神社|寺|店|ビル|港|空港|バス停|展望|ダム|温泉|入口|前)$/;
+  pairs.forEach(function (p) {
+    if (p[1] && placeVague_(p[1]) && !SPOT.test(String(p[0] || "").replace(/[\s　]/g, ""))) bad.push(p);
+  });
+  if (!bad.length) return "";
+  var li = bad.map(function (p) {
+    return "<div>・" + escapeHtml(p[2]) + "「" + escapeHtml(p[0]) + "」→ " + escapeHtml(p[1]) + "</div>";
+  }).join("");
+  return '<div style="margin:0 0 10px;padding:10px 12px;background:#fff;border:3px solid #000;border-radius:8px;' +
+         'color:#000;font-size:18px;font-weight:bold;line-height:1.5;">' +
+         '⚠ 場所があいまいです。この距離は、実際とかなり違うことがあります。' +
+         '<div style="font-size:16px;margin-top:4px;">' + li + '</div>' +
+         '<div style="font-size:16px;margin-top:6px;">市や地名だけだと、地図はその中のどこか1点で調べます。' +
+         '駅・施設・駐車場の名前（例：大牟田駅、草千里駐車場）を入れて、もう一度調べてください。</div></div>';
+}
 function routeListHtml_(detail) {
   var cur = lastRouteList[lastRouteIdx];
   var h = '';
   var seen = placeSeenHtml_(document.getElementById("meetPlace").value.trim(), lastRouteFrom, "出発地") +
              placeSeenHtml_(document.getElementById("destPlace").value.trim(), lastRouteTo, "到着地");
+  h += vagueWarnHtml_([[document.getElementById("meetPlace").value.trim(), lastRouteFrom, "出発地"],
+                       [document.getElementById("destPlace").value.trim(), lastRouteTo, "到着地"]]);
   if (seen) {
     h += '<div style="margin:0 0 8px;padding:7px 10px;background:#fff;border:1px dashed #b9d2ba;border-radius:8px;font-size:13px;color:#3d4a3e;">' +
          '📍 地図はこの場所で調べました' + seen +
@@ -2379,7 +2411,7 @@ function lookupRet_(btn) {
       if (data.error) { btn.disabled = false; msg.innerHTML = "<b>" + escapeHtml(data.error) + "</b>"; return; }
       var list = data.list || [];
       if (!list.length) { btn.disabled = false; msg.innerHTML = "<b>「" + escapeHtml(segs[i][0]) + "」から「" + escapeHtml(segs[i][1]) + "」への道が見つかりませんでした。名前を変えてお試しください。</b>"; return; }
-      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0 });
+      got.push({ from: segs[i][0], to: segs[i][1], list: list, idx: data.pick || 0, fromAddr: data.from || "", toAddr: data.to || "" });
       next(i + 1);
     });
   })(0);
@@ -2404,6 +2436,7 @@ function renderRet_(c, fill) {
     }
     h += '<div style="margin:8px 0 2px;"><b>' + (segs.length > 1 ? (si === 0 ? "①" : "②") : "") +
          escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    h += vagueWarnHtml_([[sg.from, sg.fromAddr, "出発"], [sg.to, sg.toAddr, "行き先"]]);   /* ★2026-10-05j */
     sg.list.forEach(function (x, xi) {
       var on = (xi === sg.idx);
       h += '<button type="button" onclick="pickRetSeg_(this,' + si + ',' + xi + ')" ' +
