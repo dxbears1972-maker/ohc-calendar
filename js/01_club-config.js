@@ -153,7 +153,7 @@ var CLUB = {
    直したら、ここの1行だけ書き換えてください（画面いちばん下に出ます）。
    付け方：日付 ＋ その日の何回目か（a, b, c …）
    ------------------------------------------------------------------ */
-var APP_VER = '2026-10-06本番a';
+var APP_VER = '2026-10-06本番b';
 
 /* 設定した文言を画面に反映する（起動時に1回だけ呼ぶ） */
 function applyClubConfig(){
@@ -462,8 +462,11 @@ function lineShareUrl(ev){
    “実際に山行へ参加する人”を数える一覧にだけは出さない。（2026-08-17〜）
    半角・全角どちらの丸カッコで入力されても弾けるよう、両方入れてある。 */
 var NON_MEMBER_NAMES = ['DXベアーズ(保守)', 'DXベアーズ（保守）'];
+/* ★2026-10-05b　サーバーが「この名前が保守業者」と教えてくれた分（役割「保守」）。
+   　保守業者の端末で開いたときだけ届きます。名前の決め打ちに頼らないため。 */
+var MAINT_NAMES = [];
 function isRealMember_(name){
-  return !!name && NON_MEMBER_NAMES.indexOf(name) < 0;
+  return !!name && NON_MEMBER_NAMES.indexOf(name) < 0 && MAINT_NAMES.indexOf(name) < 0;
 }
 /* ★2026-08-25　この方々のうち、LINEのお知らせに登録していない方を返す。
    　分からないとき（サーバーが古い／幹事・管理者でない）は null を返し、

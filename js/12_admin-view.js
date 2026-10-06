@@ -184,9 +184,16 @@ function renderAdmin_(which){
     if (!lg.length) h = '<p class="note">記録がありません。</p>';
   } else {
     var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
-    var genki = 0;
-    for (var m0 = 0; m0 < mb.length; m0++){ if (!mb[m0].left) genki++; }
-    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + mb.length + '行）です。';
+    /* ★2026-10-05b　保守業者の行（保守業者の端末でだけ見える）は、人数に入れません。
+       　只隈さん「16として」 */
+    var genki = 0, rowsN = 0, maintN = 0;
+    for (var m0 = 0; m0 < mb.length; m0++){
+      if (mb[m0].maintRow){ maintN++; continue; }
+      rowsN++;
+      if (!mb[m0].left) genki++;
+    }
+    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + rowsN + '行）です。' +
+      (maintN ? '　このほかに保守の行が ' + maintN + 'つあります（人数には入れていません・クラブの方には見えません）。' : '');
     for (var k = 0; k < mb.length; k++){
       var m = mb[k];
       var tag = [];
@@ -604,7 +611,13 @@ function drawStats_(st){
     { k: 'lead',   t: '任される係' },
     { k: 'staff',  t: '係ぜんぶ' },
     { k: 'attend', t: '参加' },
-    { k: 'owner',  t: '予定の登録' }
+    { k: 'owner',  t: '予定の登録' },
+    /* ★2026-10-05d（貢献度に5つ足した） */
+    { k: 'rusu',    t: '留守宅' },
+    { k: 'car',     t: '車を出した' },
+    { k: 'proxyBy', t: '代理で回答した' },
+    { k: 'proxied', t: '代理で回答された' },
+    { k: 'docs',    t: '計画表・報告書を付けた' }
   ];
 
   var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">';
@@ -649,6 +662,9 @@ function drawStats_(st){
            '</div>' +
            '<div style="font-size:13px;color:#666">' +
              '任される係 ' + x.lead + '・係 ' + x.staff + '・参加 ' + x.attend + '・登録 ' + x.owner +
+             '<br>留守宅 ' + (x.rusu || 0) + '・車 ' + (x.car || 0) +
+             '・代理で回答した ' + (x.proxyBy || 0) + '・された ' + (x.proxied || 0) +
+             '・計画表 ' + (x.plan || 0) + '・報告書 ' + (x.report || 0) +
              (parts.length ? '<br>（' + esc(parts.join('、')) + '）' : '') +
            '</div>' +
          '</div>';
@@ -670,6 +686,11 @@ function drawStats_(st){
   h += '<p class="note" style="margin-top:10px">★数え方：終わった予定だけ（今日より前）。中止・削除した予定は数えません。' +
        '「任される係」は ' + esc(statsLeadLabel_(st)) + ' です。' +
        '「参加」は、参加と答えた回数です（当日来られたかは分かりません）。' +
-       '係は、予定に書いてあった係です。「登録」は、その予定をアプリで入れた方です。</p>';
+       '係は、予定に書いてあった係です。「登録」は、その予定をアプリで入れた方です。' +
+       '「留守宅」は、係の名前に「留守」が入っている係です（係ぜんぶにも入っています）。' +
+       '「車」は、精算が記録された予定は精算の運転手（行き・帰り）、記録が無い予定は「参加」で車を出せると答えた方です。' +
+       '「代理で回答」は、1つの予定につき1人1回、最後にその回答を押した方で数えます（2026年10月5日より前の分は、操作ログに残っている分だけ）。' +
+       '「計画表・報告書」は、予定にリンクを付けた方です（2026年10月5日より前に付けた分は、付けた方が分からないので数えていません' +
+       (st.docUnknown ? '：' + st.docUnknown + '件' : '') + '）。</p>';
   $('adminList_stats').innerHTML = h + admCloseBtn_();
 }

@@ -194,6 +194,9 @@ function attOf(evId){
   for (var i = 0; i < state.attendance.length; i++){
     var a = state.attendance[i];
     if (a.eventId !== evId) continue;
+    /* ★2026-10-05b　保守業者（DXベアーズ）の回答は数えません。
+       　保守業者の端末で開いたときだけ届く分です（只隈さん「16として」） */
+    if (!isRealMember_(a.name)) continue;
     if (a.status === 'yes') r.yes.push(a.name);
     else if (a.status === 'maybe') r.maybe.push(a.name);
     else if (a.status === 'no') r.no.push(a.name);
