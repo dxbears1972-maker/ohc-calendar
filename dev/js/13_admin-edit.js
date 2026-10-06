@@ -13,6 +13,8 @@
 var ADM_BUSY_ = null;
 function admBusy_(btn, text){
   if (!btn) return;
+  /* ★2026-10-06c　保存を押したら書きかけの印を消す（成功なら変えた、断られたら画面を本当の姿に戻すため） */
+  try { clearDirty_(btn); } catch (eDB) {}
   ADM_BUSY_ = { el: btn, text: btn.textContent };
   try {
     btn.disabled = true;
@@ -319,7 +321,7 @@ function adminEditWork(name){
   }
   admMsg_().textContent = name + 'の画面です。';
   admList_().innerHTML =
-    '<div style="padding:10px">' +
+    '<div style="padding:10px" data-dirtybox>' +
       '<div style="font-size:19px;margin-bottom:6px"><b>' + esc(name) + '</b></div>' +
       /* ① 毎回入る方 */
       '<div class="admsec">' +
@@ -341,7 +343,7 @@ function adminEditWork(name){
         admSecMsg_('workdel') +
       '</div>' +
       '<button type="button" class="cancelbtn" style="margin-top:14px"' +
-        ' onclick="showAdminView(\'works\', true)">やめる</button>' +
+        ' onclick="if(okToClose_(this))showAdminView(\'works\', true)">← 一覧へ戻る</button>' +
     '</div>';
 }
 

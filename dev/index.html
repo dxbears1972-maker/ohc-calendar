@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="OHC予定">
 <title>OHC カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-10-06b">
+<link rel="stylesheet" href="css/app.css?v=2026-10-06c">
 </head>
 <body>
 
@@ -248,7 +248,7 @@
 
   <!-- お知らせ（クラブからの連絡） -->
   <div id="noticeWrap"></div>
-  <div class="card" id="noticeCard" style="display:none">
+  <div class="card" id="noticeCard" data-dirtybox style="display:none">
     <h2>お知らせを書く</h2>
     <p class="note">会員のアプリのいちばん上に出ます。LINEのように下へ流れていきません。<br>
       開いた方は自動で記録されるので、まだ見ていない方が分かります。</p>
@@ -270,7 +270,7 @@
       LINEは通数（無料枠 月200通）を使いますので、
       <b>いち早く、絶対に見てほしいとき</b>だけお使いください。</p>
     <button class="subbtn" id="noticeSave" type="button">この内容で出す</button>
-    <button class="cancelbtn" id="noticeCancel" type="button">やめる</button>
+    <button class="cancelbtn" id="noticeCancel" type="button">✕ 閉じる</button>
   </div>
 
   <!-- カレンダー -->
@@ -317,7 +317,7 @@
   <div id="lineQuota" class="linequota" style="display:none"></div>
 
   <button class="bigbtn" id="showAdd" type="button">＋ 予定を追加する</button>
-  <div class="card" id="addCard" style="display:none">
+  <div class="card" id="addCard" data-dirtybox style="display:none">
     <h2 id="addTitleH">予定を追加</h2>
     <label>日付</label>
     <!-- ★★2026-09-29o　日付はスマホ標準のカレンダーで選ぶ（只隈さん「カレンダー方式の方が分かりやすい」）。
@@ -417,7 +417,7 @@
     <div id="pickerCard" style="display:none; border:2px solid #2e6b34; border-radius:10px; padding:10px; margin-top:10px; background:#f7fbf7;">
       <p class="note" id="pickerPath"></p>
       <div id="pickerList"></div>
-      <button class="cancelbtn" id="pickerClose" type="button">選ぶのをやめる</button>
+      <button class="cancelbtn" id="pickerClose" type="button">✕ 閉じる</button>
     </div>
     </div>
     <p class="chkrow" id="addMailRow">
@@ -425,7 +425,7 @@
         メールでも知らせる（名簿にアドレスがある方へ。費用はかかりません）</label>
     </p>
     <button class="subbtn" id="addBtn" type="button">この内容で登録する</button>
-    <button class="cancelbtn" id="addCancel" type="button">やめる</button>
+    <button class="cancelbtn" id="addCancel" type="button">✕ 閉じる</button>
   </div>
 
   <!-- まとめて登録（管理者専用） -->
@@ -483,7 +483,7 @@
     </div>
     </div>
 
-    <button class="cancelbtn" id="importCancel" type="button">やめる</button>
+    <button class="cancelbtn" id="importCancel" type="button">✕ 閉じる</button>
   </div>
 
   <button class="bigbtn gray" id="reloadBtn" type="button">最新の情報に更新する</button>
@@ -616,7 +616,7 @@
       <input type="tel" class="pin" id="code2" inputmode="numeric" pattern="[0-9]*"
              maxlength="4" autocomplete="off" placeholder="････">
       <button type="button" class="subbtn" onclick="submitSetCode(this)">この番号で登録する</button>
-      <button type="button" class="cancelbtn" onclick="closeCodeForm()">やめる</button>
+      <button type="button" class="cancelbtn" onclick="closeCodeForm()">✕ 閉じる</button>
     </div>
 
     <button type="button" class="cancelbtn" id="reInstallBtn" onclick="showInstallAgain()">
@@ -635,22 +635,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-10-06b"></script>
-<script src="js/02_kind-target.js?v=2026-10-06b"></script>
-<script src="js/03_core-api.js?v=2026-10-06b"></script>
-<script src="js/04_render.js?v=2026-10-06b"></script>
-<script src="js/05_attend-proxy.js?v=2026-10-06b"></script>
-<script src="js/06_notice-line.js?v=2026-10-06b"></script>
-<script src="js/07_cancel-ops.js?v=2026-10-06b"></script>
-<script src="js/08_event-form.js?v=2026-10-06b"></script>
-<script src="js/09_bulk-add.js?v=2026-10-06b"></script>
-<script src="js/10_export-pick.js?v=2026-10-06b"></script>
-<script src="js/11_code-name.js?v=2026-10-06b"></script>
-<script src="js/12_admin-view.js?v=2026-10-06b"></script>
-<script src="js/13_admin-edit.js?v=2026-10-06b"></script>
-<script src="js/14_install-card.js?v=2026-10-06b"></script>
+<script src="js/01_club-config.js?v=2026-10-06c"></script>
+<script src="js/02_kind-target.js?v=2026-10-06c"></script>
+<script src="js/03_core-api.js?v=2026-10-06c"></script>
+<script src="js/04_render.js?v=2026-10-06c"></script>
+<script src="js/05_attend-proxy.js?v=2026-10-06c"></script>
+<script src="js/06_notice-line.js?v=2026-10-06c"></script>
+<script src="js/07_cancel-ops.js?v=2026-10-06c"></script>
+<script src="js/08_event-form.js?v=2026-10-06c"></script>
+<script src="js/09_bulk-add.js?v=2026-10-06c"></script>
+<script src="js/10_export-pick.js?v=2026-10-06c"></script>
+<script src="js/11_code-name.js?v=2026-10-06c"></script>
+<script src="js/12_admin-view.js?v=2026-10-06c"></script>
+<script src="js/13_admin-edit.js?v=2026-10-06c"></script>
+<script src="js/14_install-card.js?v=2026-10-06c"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-10-06b"></script>
-<script src="js/15_namepick-init.js?v=2026-10-06b"></script>
+<script src="js/16_plan-sheet.js?v=2026-10-06c"></script>
+<script src="js/15_namepick-init.js?v=2026-10-06c"></script>
 </body>
 </html>

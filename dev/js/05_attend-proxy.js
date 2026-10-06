@@ -115,7 +115,7 @@ function lineToPending(evId){
              + (lineMode === 'test'
                  ? '■ いまは動作確認中のため、実際には確認用の方にしか届きません\n' : '')
              + (miss ? '' : '\n※LINEのお知らせに登録されている方にだけ届きます。\n')
-             + '※通数を使いたくないときは「やめる」を押して、\n'
+             + '※通数を使いたくないときは「キャンセル」を押して、\n'
              + '　予定の「LINEグループに貼る（0通）」をお使いください。\n'
              + '　スマホならそのボタン、パソコンなら「文だけコピーする」です。\n\n'
              + 'よろしいですか？';
@@ -162,7 +162,11 @@ function getProxyList(){
 }
 
 function openProxySetup(evId){ proxySetupFor = evId; render(); }
-function closeProxySetup(){ proxySetupFor = ''; render(); }
+/* ★2026-10-06c　☑ を変えたまま閉じるときだけ確かめる（「✕ 閉じる」） */
+function closeProxySetup(){
+  if (!okToClose_($('psetup-' + proxySetupFor))) return;
+  proxySetupFor = ''; render();
+}
 
 function saveProxySetup(evId){
   var box = $('psetup-' + evId);
@@ -207,7 +211,7 @@ function buildProxyBox(ev){
   var html = '<div class="proxybox">';
   if (proxySetupFor === ev.id){
     html += '<div class="psetlbl">代理で回答する人に印を付けてください（この端末に記憶されます）</div>';
-    html += '<div id="psetup-' + ev.id + '">';
+    html += '<div id="psetup-' + ev.id + '" data-dirtybox>';
     var proxyMembers = realMembers_();
     for (var i = 0; i < proxyMembers.length; i++){
       var m = proxyMembers[i];
@@ -216,7 +220,7 @@ function buildProxyBox(ev){
     }
     html += '</div>';
     html += '<button type="button" class="psavebtn" onclick="saveProxySetup(\'' + ev.id + '\')">この内容で記憶する</button>';
-    html += '<button type="button" class="cancelbtn" onclick="closeProxySetup()">やめる</button>';
+    html += '<button type="button" class="cancelbtn" onclick="closeProxySetup()">✕ 閉じる</button>';
   } else if (plist.length === 0){
     html += '<div class="pnote">代理回答：<a href="javascript:void(0)" class="pset" onclick="openProxySetup(\'' + ev.id + '\')">設定</a> で対象の人を選ぶと、ここに○△×が並びます</div>';
   } else {

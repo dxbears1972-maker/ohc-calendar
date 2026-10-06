@@ -846,3 +846,41 @@ function ensureMonths_(list, cb){
     ensureMonth_(list[i++], next);
   })(true);
 }
+
+/* ==================================================================
+   ★2026-10-06c　「✕ 閉じる」で入力が消えるときだけ確かめる
+   　只隈さん：「やめる」より「閉じる」の方が分かりやすい。
+   　ただ「閉じる」は「保存されて閉じる」と受け取られやすいので、
+   　data-dirtybox を付けた枠の中で入力・選択が変わったときだけ、閉じる前に確かめます。
+   　（プログラムが値を入れても印は付きません。人が打った・選んだときだけです）
+   ================================================================== */
+function dirtyBoxOf_(el){
+  while (el && el.nodeType === 1){
+    if (el.getAttribute && el.getAttribute('data-dirtybox') !== null) return el;
+    el = el.parentNode;
+  }
+  return null;
+}
+function markDirty_(e){
+  var b = dirtyBoxOf_(e && e.target);
+  if (b) b.setAttribute('data-dirty', '1');
+}
+try {
+  document.addEventListener('input', markDirty_, true);
+  document.addEventListener('change', markDirty_, true);
+} catch (eDirty) {}
+function clearDirty_(el){
+  var b = dirtyBoxOf_(el);
+  if (b) b.removeAttribute('data-dirty');
+}
+/* 閉じてよければ true。force＝印が無くても書きかけとみなす（まとめて登録の表など） */
+function okToClose_(el, force){
+  var b = dirtyBoxOf_(el);
+  var dirty = !!force || !!(b && b.getAttribute('data-dirty') === '1');
+  if (!dirty) return true;
+  if (!confirm('入力した内容は消えます。閉じますか？\n\n' +
+               'OK：閉じる（入力は消えます）\n' +
+               'キャンセル：入力に戻る')) return false;
+  if (b) b.removeAttribute('data-dirty');
+  return true;
+}

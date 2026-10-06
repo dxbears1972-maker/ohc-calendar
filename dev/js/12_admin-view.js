@@ -139,7 +139,7 @@ function adminLoad_(cb){
 }
 
 /* ★force を true にすると、たたまずに必ず開き直します。
-   　保存のあとや「やめる」から一覧へ戻るときに使います。
+   　保存のあとや「← 一覧へ戻る」から一覧へ戻るときに使います。
    　（★2026-09-08：これが無く、保存のあとに逆に閉じていました） */
 function showAdminView(which, force){
   var pane = $('admPane_' + which);
@@ -379,7 +379,7 @@ function adminEditMember(name){
             '名簿のファイルで直してください。</p>' +
         '</div>' +
         '<button type="button" class="cancelbtn" style="margin-top:14px"' +
-          ' onclick="showAdminView(\'roles\', true)">やめる</button>' +
+          ' onclick="showAdminView(\'roles\', true)">← 一覧へ戻る</button>' +
       '</div>';
     return;
   }
@@ -403,7 +403,7 @@ function adminEditMember(name){
              '<input type="radio" name="admRole" value="' + v + '"' +
              (r === v ? ' checked' : '') + (off ? ' disabled' : '') + '> ' + label + '</label>';
   }
-  var h = '<div style="padding:2px 0 4px">' +
+  var h = '<div style="padding:2px 0 4px" data-dirtybox>' +
           '<div style="font-size:19px;margin:4px 0 2px"><b>' + esc(name) + '</b> さん</div>';
 
   if (m.left){
@@ -546,7 +546,7 @@ function adminEditMember(name){
   }
 
   h += '<button type="button" class="cancelbtn" style="margin-top:14px"' +
-         ' onclick="showAdminView(\'roles\', true)">やめる</button></div>';
+         ' onclick="if(okToClose_(this))showAdminView(\'roles\', true)">← 一覧へ戻る</button></div>';
   admList_().innerHTML = h;
 }
 

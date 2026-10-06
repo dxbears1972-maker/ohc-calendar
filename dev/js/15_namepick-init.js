@@ -225,7 +225,7 @@ function askPickCode(name, first){
         'maxlength="4" autocomplete="off" placeholder="････">' +
       '<button type="button" class="subbtn" onclick="submitPickCode(\'' +
         esc(name).replace(/'/g, '') + '\')">この番号で使う</button>' +
-      '<button type="button" class="cancelbtn" onclick="cancelPickCode()">やめる</button>' +
+      '<button type="button" class="cancelbtn" onclick="cancelPickCode()">← お名前の一覧へ戻る</button>' +
       '<p class="note">分からないときは' + esc(contactName()) + 'にご連絡ください。</p>' +
     '</div>';
   $('namePickBody').innerHTML = html;
@@ -509,6 +509,7 @@ function init(){
 
   $('showNotice').onclick = function(){
     $('noticeCard').style.display = 'block';
+    $('noticeCard').removeAttribute('data-dirty');   /* ★2026-10-06c */
     $('noticeCell').style.display = 'none';
     $('noticeText').value = '';
     $('noticeUntil').value = '';
@@ -518,6 +519,7 @@ function init(){
     $('noticeText').focus();
   };
   $('noticeCancel').onclick = function(){
+    if (!okToClose_($('noticeCard'))) return;   /* ★2026-10-06c 書きかけなら確かめる */
     $('noticeCard').style.display = 'none';
     $('noticeCell').style.display = canWriteNotice ? 'table-cell' : 'none';
   };
@@ -549,7 +551,12 @@ function init(){
     try { renderBulkTable(); } catch(e){}
     $('showImport').style.display = 'none';
   };
-  $('importCancel').onclick = closeImport;
+  /* ★2026-10-06c　表が貼ってあるときだけ「入力した内容は消えます」と確かめる（ファイルから読んだ表も含む） */
+  $('importCancel').onclick = function(){
+    var t = $('importText');
+    if (!okToClose_($('importCard'), !!(t && t.value.replace(/[\s　]/g, '')))) return;
+    closeImport();
+  };
   $('importBtn').onclick = submitImport;
   /* ★2026-09-03　入力表 */
   $('bulkBtn').onclick = submitBulkTable;

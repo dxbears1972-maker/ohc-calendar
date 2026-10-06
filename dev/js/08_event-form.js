@@ -391,7 +391,7 @@ function shitamiFormHtml_(ev){
   for (i = 0; i < hn.length; i++){ inH[hn[i].name] = 1; rows += chk(hn[i].name, hn[i].why); }
   var others = '', all = realMembers_();
   for (i = 0; i < all.length; i++) if (!inH[all[i]]) others += chk(all[i], '');
-  return '<div class="shitami" id="shitami-' + ev.id + '">' +
+  return '<div class="shitami" id="shitami-' + ev.id + '" data-dirtybox>' +
       '<div class="admsec-h">🔎 下見を入れる</div>' +
       '<label>下見の日</label>' +
       '<input type="date" class="datein" value="' + dkey(S.y, S.m, S.d) + '" onchange="shitamiDate_(this.value)">' +
@@ -402,7 +402,7 @@ function shitamiFormHtml_(ev){
             : '<p class="note">山行の係・参加の方がまだいません。下から選んでください。</p>') +
       (others ? '<div class="shsub">ほかの会員（＋αの方は☑）</div>' + others : '') +
       '<button type="button" class="subbtn" onclick="submitShitami()">この内容で下見を登録する</button>' +
-      '<button type="button" class="cancelbtn" onclick="openShitami(\'' + ev.id + '\')">やめる</button>' +
+      '<button type="button" class="cancelbtn" onclick="if(okToClose_(this))openShitami(\'' + ev.id + '\')">✕ 閉じる</button>' +
     '</div>';
 }
 
@@ -465,6 +465,7 @@ function setMailRow(isEdit){
 
 function openAddForm(y, m, d){
   $('addCard').style.display = 'block';
+  $('addCard').removeAttribute('data-dirty');   /* ★2026-10-06c 開いた時点は書きかけなし */
   /* ★2026-09-03　開いた時点で、種類の選択肢と「誰に届くか」を作り直す */
   try { fillTargetSelect_(); } catch (e) {}
   $('showAdd').style.display = 'none';
@@ -528,8 +529,10 @@ function backToEv_(id){
   setTimeout(function(){ if (gotoStick === id) gotoStick = ''; }, 8000);
 }
 
-/* 入力画面の「やめる」。編集中だったなら、その予定へ戻ります（★2026-09-29j） */
+/* 入力画面の「✕ 閉じる」（★2026-10-06c まで「やめる」）。編集中だったなら、その予定へ戻ります（★2026-09-29j）。
+   ★2026-10-06c　書きかけのときだけ「入力した内容は消えます」と確かめます。 */
 function cancelAddForm_(){
+  if (!okToClose_($('addCard'))) return;
   var id = editingId;
   closeAddForm();
   if (id) backToEv_(id);
@@ -782,7 +785,7 @@ function submitAdd(){
              (dates.length > 1
                ? '※' + dates.length + '件まとめても、LINEは1回ぶん（' + cst + '通）です。\n'
                : '') +
-             '※通数を使いたくないときは「やめる」を押して、\n' +
+             '※通数を使いたくないときは「キャンセル」を押して、\n' +
              '　登録後に「LINEグループに貼る（0通）」をお使いください。\n\n' +
              'よろしいですか？';
     if (!confirm(q1)) return;
