@@ -273,6 +273,20 @@ p,li,.a,.card span,.stepnote,.nar,.say,td{text-wrap:pretty}
 .totop .ic{width:24px;height:24px}
 footer{padding-bottom:90px}
 /* 紹介キャンペーンの帯（2026-10-02。料金ページには出さない） */
+.dbw{padding:10px 12px 0}
+.dbanner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;max-width:820px;margin:0 auto;padding:9px 12px;background:#0D4C30;border-radius:12px;text-decoration:none;color:#fff;box-shadow:0 3px 0 #06301d}
+.dbanner .dic{width:34px;height:34px;color:#fff;flex:none}
+.dbanner div{flex:1 1 200px;min-width:0}
+.dbanner b{display:block;font-size:clamp(16px,4.4vw,19px);line-height:1.4}
+.dbanner span{display:block;font-size:clamp(14px,3.9vw,16px);line-height:1.45;text-wrap:pretty}
+.dbanner em{font-style:normal;margin-left:auto;flex:none;background:var(--orange);color:#fff;font-weight:700;border-radius:999px;padding:6px 12px;font-size:clamp(14px,3.9vw,16px);white-space:nowrap}
+.dbanner em::after{content:" ›"}
+.dbanner.big{flex-wrap:wrap;max-width:640px;padding:14px 16px;gap:10px 12px}
+.dbanner.big .dic{width:44px;height:44px}
+.dbanner.big div{flex:1;min-width:0}
+.dbanner.big b{font-size:clamp(20px,5.6vw,26px)}
+.dbanner.big span{font-size:clamp(15px,4.2vw,17px)}
+.dbanner.big em{width:100%;text-align:center;font-size:clamp(17px,4.8vw,20px);padding:10px 12px}
 .cbw{padding:0 12px}
 .cbanner{display:flex;align-items:center;gap:10px;max-width:820px;margin:0 auto 10px;padding:8px 12px;background:var(--orange);border-radius:12px;text-decoration:none;color:#fff}
 .cbanner b{display:block;font-size:clamp(16px,4.4vw,19px);line-height:1.4}
@@ -331,6 +345,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
     <li><a href="../toiawase/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg><span class="l">お問い合わせ</span><span class="s">問合せ</span></a></li>
   </ul></nav>
 </div></header>
+<div class="dbw"><a class="dbanner" href="../mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>見本の会で、出欠・車・精算をお試しください</span></div><em>見本の会を開く</em></a></div>
 <div class="cbw"><a class="cbanner" href="../ryokin/#campaign"><div><b>ご紹介キャンペーン</b><span>ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼント</span></div></a></div>
 
 
