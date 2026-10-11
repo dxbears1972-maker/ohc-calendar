@@ -601,7 +601,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-12a";
+var APP_VER = "2026-10-12b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1450,6 +1450,15 @@ function fwdFillFees_() {
   });
   return { n: n, miss: miss, hw: hw };
 }
+/* ★2026-10-12b　立ち寄りの区間を1つずつ枠で囲む（①と②の境目がぼやけていた。只隈さん 10/12）。
+   　見出しの帯に区間と、いま選んでいる道の距離を出す。閉じるのは呼んだ側（'</div></div>'） */
+function segBoxOpen_(label, km) {
+  return '<div style="margin:12px 0;border:2px solid #9fb59c;border-radius:12px;overflow:hidden;background:#fff;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;' +
+    'background:#dfeadd;border-bottom:1px solid #9fb59c;font-size:15px;">' +
+    '<b>' + escapeHtml(label) + '</b><span style="white-space:nowrap;color:#3d4a3e;">' + escapeHtml(String(km)) + 'km</span></div>' +
+    '<div style="padding:6px 10px 8px;">';
+}
 function renderFwd_(fill) {
   var segs = fwdSegs || [];
   var msg = document.getElementById("distMsg");
@@ -1458,12 +1467,12 @@ function renderFwd_(fill) {
     var r = sg.list[sg.idx] || sg.list[0];
     total += Number(r.km) || 0;
     mins += Number(r.mins) || 0;
-    h += '<div style="margin:8px 0 2px;"><b>' + (si === 0 ? "①" : "②") +
-         escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    h += segBoxOpen_((si === 0 ? "① " : "② ") + sg.from + " → " + sg.to, r.km);
     h += vagueWarnHtml_([[sg.from, sg.fromAddr, "出発"], [sg.to, sg.toAddr, "行き先"]]);
     if (sg.fromAddr || sg.toAddr) {
-      h += '<div style="font-size:13px;color:#3d4a3e;">📍 地図は「' + escapeHtml(sg.from) + '」→ ' + escapeHtml(sg.fromAddr) +
-           '／「' + escapeHtml(sg.to) + '」→ ' + escapeHtml(sg.toAddr) + ' で調べました</div>';
+      /* ★2026-10-12b　出発と行き先を2段に分け、「日本、」と郵便番号を外す（読みづらかった。只隈さん 10/12） */
+      h += '<div style="margin:0 0 6px;font-size:13px;color:#3d4a3e;">📍 地図で調べた場所' +
+           placeSeenHtml_(sg.from, sg.fromAddr, "出発") + placeSeenHtml_(sg.to, sg.toAddr, "行き先") + '</div>';
     }
     sg.list.forEach(function (x, xi) {
       var on = (xi === sg.idx);
@@ -1475,6 +1484,7 @@ function renderFwd_(fill) {
         (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
         '</button>';
     });
+    h += '</div></div>';   /* ★2026-10-12b　区間の枠を閉じる */
   });
   total = Math.round(total * 10) / 10;
   var notes = [], btns = [];
@@ -1578,9 +1588,17 @@ function placeMapSaveArea_() {
 
 /* 候補の一覧。押すと、その道に切り替わります（2026-08-17：候補1〜4の番号付き） */
 /* ★2026-10-05f　入れた言葉を、地図がどこと見たか（「大牟田」→ 大牟田市の○○）。只隈さん 10/5 */
+/* ★2026-10-12b　地図の住所から「日本、」と郵便番号を外す（見せるときだけ。判定の placeVague_ は元の住所を見る） */
+function addrShort_(addr) {
+  return String(addr || "").replace(/日本[、,]?\s*/g, "").replace(/〒?\s*[0-9０-９]{3}[-－ー][0-9０-９]{4}\s*/g, "").replace(/^[\s　]+|[\s　]+$/g, "");
+}
+/* ★2026-10-12b　1か所を2段で：左に「出発」などの札、右の上に入れた言葉、下に地図の住所 */
 function placeSeenHtml_(word, addr, label) {
   if (!addr) return '';
-  return '<div>' + label + '：「' + escapeHtml(word) + '」→ <b>' + escapeHtml(addr) + '</b></div>';
+  return '<div style="display:flex;gap:8px;align-items:flex-start;margin-top:4px;">' +
+    '<span style="flex:0 0 auto;min-width:3.5em;text-align:center;padding:1px 6px;border-radius:6px;background:#e6efe5;color:#2f4a2f;font-weight:bold;">' + escapeHtml(label) + '</span>' +
+    '<div style="min-width:0;"><b style="color:#222;">' + escapeHtml(word) + '</b>' +
+    '<div style="color:#5a6b5c;">' + escapeHtml(addrShort_(addr)) + '</div></div></div>';
 }
 /* ------------------------------------------------------------------
    ★★2026-10-05j　あいまいな場所（市・町・地名だけ）で調べたときは、黒字で大きく知らせる
@@ -1602,7 +1620,7 @@ function vagueWarnHtml_(pairs) {
   });
   if (!bad.length) return "";
   var li = bad.map(function (p) {
-    return "<div>・" + escapeHtml(p[2]) + "「" + escapeHtml(p[0]) + "」→ " + escapeHtml(p[1]) + "</div>";
+    return "<div>・" + escapeHtml(p[2]) + "「" + escapeHtml(p[0]) + "」→ " + escapeHtml(addrShort_(p[1])) + "</div>";
   }).join("");
   return '<div style="margin:0 0 10px;padding:10px 12px;background:#fff;border:3px solid #000;border-radius:8px;' +
          'color:#000;font-size:18px;font-weight:bold;line-height:1.5;">' +
@@ -2447,8 +2465,7 @@ function renderRet_(c, fill) {
     if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name) {
       hw.push({ a: r.tollIn.name, b: r.tollOut.name });
     }
-    h += '<div style="margin:8px 0 2px;"><b>' + (segs.length > 1 ? (si === 0 ? "①" : "②") : "") +
-         escapeHtml(sg.from) + " → " + escapeHtml(sg.to) + "</b></div>";
+    h += segBoxOpen_((segs.length > 1 ? (si === 0 ? "① " : "② ") : "") + sg.from + " → " + sg.to, r.km);
     h += vagueWarnHtml_([[sg.from, sg.fromAddr, "出発"], [sg.to, sg.toAddr, "行き先"]]);   /* ★2026-10-05j */
     sg.list.forEach(function (x, xi) {
       var on = (xi === sg.idx);
@@ -2460,6 +2477,7 @@ function renderRet_(c, fill) {
         (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
         '</button>';
     });
+    h += '</div></div>';   /* ★2026-10-12b　区間の枠を閉じる */
   });
   total = Math.round(total * 10) / 10;
   var notes = [], btns = [];
