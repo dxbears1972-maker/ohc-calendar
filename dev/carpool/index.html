@@ -601,7 +601,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-12b";
+var APP_VER = "2026-10-12c";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -3814,6 +3814,7 @@ function calc(noScroll) {
     }).join('');
   }
   /* 車ごとの費用 */
+  var calcCarT_ = [];   /* ★2026-10-12 計算のしかた（記録の文に残す） */
   function legs_(g, r) { return (g === r) ? ("往復 " + yen(g + r)) : ("行き " + yen(g) + "＋帰り " + yen(r)); }
   cars.forEach(function (c, i) {
     var kmTxt = (c.kmGo === c.kmRet) ? ("往復" + c.km + "km") : ("行き" + c.kmGo + "km＋帰り" + c.kmRet + "km");
@@ -3833,6 +3834,7 @@ function calc(noScroll) {
       '<div class="name">車' + (i + 1) + '（' + escapeHtml(c.name) + 'さんの車）' +
       (c.rDriver !== c.name ? '　帰りの運転：' + escapeHtml(c.rDriver) + 'さん' : '') + '</div>' +
       '<div class="detail">車の費用 ' + yen(c.cost) + '（' + parts.join('　＋　') + '）</div></div>';
+    calcCarT_.push('車' + (i + 1) + '（' + c.name + 'さんの車）' + jpn(c.cost) + '円＝' + parts.map(function (x) { return String(x).replace(/¥([\d,]+)/g, '$1円'); }).join('＋'));
   });
 
   /* 人ごとの受け取り・支払い */
@@ -3899,6 +3901,21 @@ function calc(noScroll) {
   });
   if (passengers > 0) t += "■同乗者" + passengers + "名 → 一人 " + jpn(displayTotal) + "円\n";
   if (surplus > 0) t += "（切り上げの余り " + jpn(surplus) + "円は車の持ち主の受け取り）\n";
+  /* ★2026-10-12　計算のしかた（只隈さん 10/12「計算根拠を残してほしい」「人数が増えて最新情報ではない旨伝えないと誤解が生じる」）
+     　カレンダーの￥に、記録したときの根拠（距離×単価・高速・フェリー・合計÷人数・切り上げ）を残します。
+     　「一人あたり：」はいちばん上の1回だけ（計画書の下書きが読むため）。ここでは使いません。 */
+  try {
+    var nowD = new Date();
+    t += "――――――――――\n【計算のしかた】（" + (nowD.getMonth() + 1) + "/" + nowD.getDate() + " " + nowD.getHours() + ":" + ("0" + nowD.getMinutes()).slice(-2) + " の計算・参加 " + nPeople + "名）\n";
+    calcCarT_.forEach(function (s) { t += s + "\n"; });
+    if (cars.length > 1) t += "車費用の合計 " + jpn(carTotal) + "円\n";
+    if (personPooled) t += pName + " " + jpn(personRate) + "円×" + nPeople + "名＝" + jpn(personTotal) + "円（" + payerName + "さんが払った" + ((typeof fdTotal !== "undefined" && fdTotal) ? "・うち運転手の分 " + jpn(fdTotal) + "円は車の運賃に入っていたので、車の運賃を払った方へ" : "") + "）\n";
+    if (stayPooled) t += "宿泊代 " + jpn(stayRate) + "円×" + nPeople + "名＝" + jpn(stayTotal) + "円（" + stayPayer + "さんが払った）\n";
+    var rawPer = grandTotal / nPeople;
+    t += "合計 " + jpn(grandTotal) + "円 ÷ " + nPeople + "名 ＝ " + (rawPer === Math.floor(rawPer) ? "" : "約") + jpn(Math.round(rawPer)) + "円" + (share !== rawPer ? " → " + jpn(unit) + "円単位で切り上げ " + jpn(share) + "円" : "") + "\n";
+    if (selfPay > 0) t += "＋ 自分で払う " + jpn(selfPay) + "円（" + selfPartsT.join("、") + "）＝ 一人あたり " + jpn(displayTotal) + "円\n";
+    t += "※ この文は上の日時・人数で計算したものです。そのあと参加人数や料金表が変わっても、この文は変わりません。🚗から開くと、いまの人数で計算し直した結果が出ます（記録し直すまで、ここは前の計算のままです）。\n";
+  } catch (eCt) {}
   /* ★2026-10-05d　道順（出発地・乗るIC・降りるIC・到着地と、区間ごとの距離・時間・高速料金） */
   try { var rtx = routeText_(); if (rtx) t += "――――――――――\n" + rtx; } catch (eRt) {}
   lastResultText = t;
@@ -5004,7 +5021,9 @@ function fetchPrevSettle(skipForm) {
            （結果へ自動でスクロールしない）。修正したら「計算する」を押す */
         calc(true);
         var m = document.getElementById("loadMsg");
-        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。";
+        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。" +
+          ((f.n && Number(f.n) !== nPeople) ? "\n★カレンダーに記録した精算は " + f.n + "名 で計算したものです。下の結果は、いまの参加 " + nPeople + "名 で計算し直しています。カレンダーの￥は、記録し直すまで " + f.n + "名 の計算のままです。" : "");
+        m.style.whiteSpace = "pre-line";   /* ★2026-10-12 */
         m.style.display = "block";
         noteCountChanged_(shownN);
         window.scrollTo(0, 0);
