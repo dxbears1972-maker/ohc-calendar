@@ -601,7 +601,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-12c";
+var APP_VER = "2026-10-12d";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1344,6 +1344,15 @@ function routeText_() {
   var ri = routeInfo_();
   if (!ri || !ri.legs || !ri.legs.length) return "";
   var t = "【行きの道順】\n", tk = 0, tm = 0;
+  /* ★★2026-10-12d（10/6 の a）実績で行きの道が変わった車があるときは、ここは予定のときの道順だと書く
+     　（車ごとに違うので差し替えない。走った道は「予定と変わった車」の行にある） */
+  try {
+    if (paActive_() && PA_STAGE === "actual") {
+      var chg = [];
+      document.querySelectorAll("#cars .car-card").forEach(function (c, i) { if (c.dataset.pa === "chg" && c.dataset.paFwd) chg.push("車" + (i + 1)); });
+      if (chg.length) t = "【行きの道順（予定のときの道）】\n★" + chg.join("・") + " は別の道を走りました（下の「予定と変わった車」）\n";
+    }
+  } catch (eA) {}
   ri.legs.forEach(function (g) {
     tk += Number(g.km) || 0; tm += Number(g.mins) || 0;
     if (g.noHw || !g["in"] || !g.out) {
@@ -4152,14 +4161,14 @@ function copyResult() {
 
 /* ---------- 入力の記憶 ---------- */
 /* ==================================================================
-   ★★2026-10-05i　精算の「計画」と「実績」（段4''・只隈さん決定 10/5）
-   　・計画＝出発前の見込み。道を選び直したら、料金・区間は確認なしで入れ替える
-   　・実績＝計画を元に「実績に直す」。車ごとに［計画どおり］［変わった］。
-   　　変わった車だけ、走った道を選ぶ（計画の候補を1回押す／乗ったIC・降りたICを一覧から）。
+   ★★2026-10-05i　精算の「予定」と「実績」（段4''・只隈さん決定 10/5）
+   　・予定＝出発前の見込み。道を選び直したら、料金・区間は確認なしで入れ替える
+   　・実績＝予定を元に「実績に直す」。車ごとに［予定どおり］［変わった］。
+   　　変わった車だけ、走った道を選ぶ（予定の候補を1回押す／乗ったIC・降りたICを一覧から）。
    　　メーターの距離・ETC明細の金額は入れたいときだけ（★キーボードでIC名を打たせない）
-   　・カレンダーの￥：計画は【計画】、実績は【実績】と1人あたりの差（計画 → 実績）
+   　・カレンダーの￥：予定は【予定】、実績は【実績】と1人あたりの差（予定 → 実績）
    　・入れた方の名前は、サーバーが名乗った端末から入れる（〔入れた方〕を置き換える）
-   　・★スイッチ（有料オプション表の列「計画と実績」）がオフなら、何も変わらない
+   　・★スイッチ（有料オプション表の列「予定と実績」）がオフなら、何も変わらない
    ================================================================== */
 /* ★2026-10-05k　端末の控えのクラブ設定（loadClubCfg_）はこの行より先に動くので、そこで入った値を消さない */
 var PA_ON = !!PA_ON, PA_STAGE = PA_STAGE || "plan", PA_PLAN = PA_PLAN || null, PA_CANDS = PA_CANDS || [], PA_ICS = PA_ICS || [];
@@ -4167,7 +4176,7 @@ var PA_WHO = "〔入れた方〕";
 
 /* 予定から開いていて、スイッチがオンのときだけ */
 function paActive_() { return !!(PA_ON && EVENT_ID); }
-/* 計画の段階は、料金表と違う金額も「アプリが入れたもの」とみなして入れ替える */
+/* 予定の段階は、料金表と違う金額も「アプリが入れたもの」とみなして入れ替える */
 function paPlanFree_() { return paActive_() && PA_STAGE === "plan"; }
 
 function paCandOf_(x) {
@@ -4175,7 +4184,7 @@ function paCandOf_(x) {
   return { "in": i, out: o, km: x.km, mins: x.mins, noHw: !!x.noHw || !(i && o),
            hwKm: (x.seg && x.seg[1]) ? x.seg[1].km : "", label: (i && o) ? (i + "〜" + o) : (x.summary || "") };
 }
-/* 計画のときに出た道の候補（実績で「実際はこの道だった」を1回押すため） */
+/* 予定のときに出た道の候補（実績で「実際はこの道だった」を1回押すため） */
 function paCands_() {
   var dest = document.getElementById("destPlace").value.trim();
   if (PA_STAGE === "plan" && lastRouteList.length && lastRouteFor === dest && !fwdViaVal_()) {
@@ -4211,25 +4220,34 @@ function paRender_() {
   }
   var h = "";
   if (PA_STAGE === "plan") {
-    h = '<div style="font-weight:bold;font-size:17px;">📝 いまは【計画】です（出発前の見込み）</div>' +
-        '<div style="margin-top:4px;">記録すると、カレンダーの￥に「計画」として出ます。道を選び直すと、高速の料金と区間はそのまま入れ替わります。</div>' +
+    h = '<div style="font-weight:bold;font-size:17px;">📝 いまは【予定】です（出発前の見込み）</div>' +
+        '<div style="margin-top:4px;">記録すると、カレンダーの￥に「予定」として出ます。道を選び直すと、高速の料金と区間はそのまま入れ替わります。</div>' +
         '<button type="button" class="btn btn-sub" style="margin-top:8px;" onclick="paToActual_()">✅ 山行が終わったら：実績に直す</button>';
+    /* ★★2026-10-12d　山行の日（帰る日）が過ぎていたら、開いた方に「予定どおりでしたか？」を確かめる（只隈さん 10/12） */
+    if (paDayPassed_()) {
+      h = '<div style="font-weight:bold;font-size:18px;">📝 山行の日が過ぎました。予定どおりでしたか？</div>' +
+          '<div style="margin-top:4px;">いまカレンダーに出ているのは【予定】の金額です。実際も同じだったら、下のボタン1つで【実績】にできます。</div>' +
+          '<button type="button" class="btn" style="margin-top:8px;display:block;width:100%;" onclick="paSameAsPlan_()">✅ 予定どおりだった（この金額を実績として記録する）</button>' +
+          '<button type="button" class="btn btn-sub" style="margin-top:8px;display:block;width:100%;" onclick="paToActual_()">✏ 変わった（実績に直す）</button>' +
+          '<div class="note" style="margin-top:6px;">★山行の日から3日たっても実績が入らないときは、予定の金額をそのまま実績として扱います（カレンダーに「予定どおりとして扱いました」と出ます）。</div>';
+    }
     bar.style.background = "#eef5ff"; bar.style.borderColor = "#7aa7e0";
   } else {
     var p = PA_PLAN || {};
     h = '<div style="font-weight:bold;font-size:17px;">✅ いまは【実績】です（実際にかかった金額で精算）</div>' +
-        '<div style="margin-top:4px;">計画（' + escapeHtml(p.at || "") + '）：1人 <b>' + (p.share != null ? jpn(p.share) + "円" : "—") + '</b></div>' +
-        '<div style="margin-top:4px;">下の車ごとに［計画どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら「計算する」→「実績としてカレンダーに記録する」。</div>' +
-        '<button type="button" class="btn-small" style="margin-top:8px;" onclick="paBackToPlan_()">計画に戻す</button>';
+        (p.auto ? '<div style="margin-top:6px;padding:6px 8px;background:#fff;border:2px solid #5aa86a;border-radius:6px;"><b>山行の日から3日たっても実績の入力がなかったので、予定どおりとして扱いました（アプリが自動で）。</b>実際と違っていたら、下の車ごとに［変わった］で直して、記録し直してください。</div>' : '') +
+        '<div style="margin-top:4px;">予定' + (p.at ? '（' + escapeHtml(p.at) + '）' : '') + '：1人 <b>' + (p.share != null ? jpn(p.share) + "円" : "—") + '</b></div>' +
+        '<div style="margin-top:4px;">下の車ごとに［予定どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら「計算する」→「実績としてカレンダーに記録する」。</div>' +
+        '<button type="button" class="btn-small" style="margin-top:8px;" onclick="paBackToPlan_()">予定に戻す</button>';
     bar.style.background = "#eefaf0"; bar.style.borderColor = "#5aa86a";
   }
   bar.innerHTML = h;
   bar.style.display = "block";
-  if (shb && EVENT_ID) shb.textContent = (PA_STAGE === "plan") ? "📅 計画としてカレンダーに記録する" : "📅 実績としてカレンダーに記録する";
+  if (shb && EVENT_ID) shb.textContent = (PA_STAGE === "plan") ? "📅 予定としてカレンダーに記録する" : "📅 実績としてカレンダーに記録する";
   document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
 }
 
-/* ★2026-10-05k　実績では上（日付・集合場所・行き先・道）は計画のまま固定（只隈さん「上は固定がいいよね」）。
+/* ★2026-10-05k　実績では上（日付・集合場所・行き先・道）は予定のまま固定（只隈さん「上は固定がいいよね」）。
    　変わったことは車ごとに［変わった］で直す。人数・人にかかる費用は直せる */
 var PA_LOCK_IDS = ["hikeDate", "retDate", "hikeName", "meetPlace", "meetTime", "destPlace", "fwdVia"];
 function paLockTop_(on) {
@@ -4247,7 +4265,7 @@ function paLockTop_(on) {
     var h2 = document.getElementById("hikeDate").closest(".card").querySelector("h2");
     nt = document.createElement("div"); nt.id = "paLockNote";
     nt.style.cssText = "margin:0 0 10px;padding:8px 10px;border:2px solid #5aa86a;border-radius:8px;background:#eefaf0;font-weight:bold;";
-    nt.textContent = "🔒 実績では、ここ（日付・集合場所・行き先・道）は計画のまま固定です。実際と違ったことは、下の車ごとに［変わった］で直してください。";
+    nt.textContent = "🔒 実績では、ここ（日付・集合場所・行き先・道）は予定のまま固定です。実際と違ったことは、下の車ごとに［変わった］で直してください。";
     h2.parentNode.insertBefore(nt, h2.nextSibling);
   }
   if (nt) nt.style.display = on ? "block" : "none";
@@ -4257,21 +4275,21 @@ function paLockTop_(on) {
 function paResultHead_(share) {
   if (!paActive_()) return "";
   if (PA_STAGE === "plan") {
-    return '<div style="background:#eef5ff;border-radius:8px;padding:8px 10px;margin-bottom:8px;">📝 これは<b>計画（見込み）</b>です。山行のあと「実績に直す」で、実際の金額にします。</div>';
+    return '<div style="background:#eef5ff;border-radius:8px;padding:8px 10px;margin-bottom:8px;">📝 これは<b>予定（見込み）</b>です。山行のあと「実績に直す」で、実際の金額にします。</div>';
   }
   var p = PA_PLAN || {};
   if (p.share == null) return "";
-  return '<div style="background:#eefaf0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">✅ <b>実績</b>　1人あたり：計画 ' +
+  return '<div style="background:#eefaf0;border-radius:8px;padding:8px 10px;margin-bottom:8px;">✅ <b>実績</b>　1人あたり：予定 ' +
          jpn(p.share) + '円 → 実績 <b>' + jpn(share) + '円</b>（' + paSign_(share - p.share) + '）</div>';
 }
 
 /* カレンダーに記録する文（saveHistory から） */
 function paText_(t) {
   if (!paActive_() || !t) return t;
-  if (PA_STAGE === "plan") return "【計画】出発前の見込みです（山行のあと、実績に直して精算します）\n" + t;
+  if (PA_STAGE === "plan") return "【予定】出発前の見込みです（山行のあと、実績に直して精算します）\n" + t;
   var p = PA_PLAN || {}, cur = lastResultData ? lastResultData.share : null;
   var s = "【実績】" + PA_WHO + "が " + paNowMd_() + " に入れました\n";
-  if (p.share != null && cur != null) s += "1人あたりの差：計画 " + jpn(p.share) + "円 → 実績 " + jpn(cur) + "円（" + paSign_(cur - p.share) + "）\n";
+  if (p.share != null && cur != null) s += "1人あたりの差：予定 " + jpn(p.share) + "円 → 実績 " + jpn(cur) + "円（" + paSign_(cur - p.share) + "）\n";
   var ch = [];
   document.querySelectorAll("#cars .car-card").forEach(function (c, i) {
     if (c.dataset.pa !== "chg") return;
@@ -4281,15 +4299,15 @@ function paText_(t) {
     if (c.dataset.paRet) parts.push("帰り " + c.dataset.paRet);
     ch.push("車" + (i + 1) + (nm ? "（" + nm + "さん）" : "") + (parts.length ? "：" + parts.join("／") : "：距離・料金を直した"));
   });
-  s += ch.length ? "計画と変わった車：\n　" + ch.join("\n　") + "\n" : "車はすべて計画どおり\n";
+  s += ch.length ? "予定と変わった車：\n　" + ch.join("\n　") + "\n" : "車はすべて予定どおり\n";
   return s + "――――――――――\n" + t;
 }
 
-/* ---------- 計画 → 実績 ---------- */
+/* ---------- 予定 → 実績 ---------- */
 function paToActual_() {
   if (!lastResultData) { try { calc(true); } catch (e) {} }
-  if (!lastResultData) { alert("先に「計算する」を押して、計画の金額を出してください。"); return; }
-  if (!confirm("計画を残したまま、実績に直します。\n\n車ごとに［計画どおり］か［変わった］を選び、変わった車だけ走った道を選んでください。\n（いつでも「計画に戻す」で戻せます）")) return;
+  if (!lastResultData) { alert("先に「計算する」を押して、予定の金額を出してください。"); return; }
+  if (!confirm("予定を残したまま、実績に直します。\n\n車ごとに［予定どおり］か［変わった］を選び、変わった車だけ走った道を選んでください。\n（いつでも「予定に戻す」で戻せます）")) return;
   var f = getFormData(); delete f.pa;
   PA_PLAN = { form: f, share: lastResultData.share, total: lastResultData.total, n: nPeople,
               at: paNowMd_(), cands: paCands_() };
@@ -4301,9 +4319,30 @@ function paToActual_() {
   var cs = document.getElementById("cars");
   if (cs) cs.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+/* ★★2026-10-12d　山行の日（帰る日があれば帰る日）が今日より前か */
+function paDayPassed_() {
+  var d = retDateVal_();
+  if (!d) return false;
+  var t = new Date(), k = t.getFullYear() + "-" + ("0" + (t.getMonth() + 1)).slice(-2) + "-" + ("0" + t.getDate()).slice(-2);
+  return d < k;
+}
+/* ★★2026-10-12d　［予定どおりだった］＝全部の車を［予定どおり］にして、実績として記録する（確認の窓は出さない。帯の問いが確認） */
+function paSameAsPlan_() {
+  if (!lastResultData) { try { calc(true); } catch (e) {} }
+  if (!lastResultData) { alert("先に「計算する」を押して、予定の金額を出してください。"); return; }
+  var f = getFormData(); delete f.pa;
+  PA_PLAN = { form: f, share: lastResultData.share, total: lastResultData.total, n: nPeople,
+              at: paNowMd_(), cands: paCands_() };
+  PA_STAGE = "actual";
+  document.querySelectorAll("#cars .car-card").forEach(function (c) { c.dataset.pa = "same"; });
+  paRender_();
+  saveForm();
+  try { calc(true); } catch (e2) {}
+  saveHistory();
+}
 function paBackToPlan_() {
   if (!PA_PLAN || !PA_PLAN.form) return;
-  if (!confirm("実績で入れた内容を消して、計画に戻します。よろしいですか？")) return;
+  if (!confirm("実績で入れた内容を消して、予定に戻します。よろしいですか？")) return;
   var f = JSON.parse(JSON.stringify(PA_PLAN.form));
   f.pa = { stage: "plan", plan: null, cands: PA_PLAN.cands || [] };
   document.getElementById("cars").innerHTML = "";
@@ -4338,8 +4377,8 @@ function paCarRender_(c) {
     return '<button type="button" class="btn-small" style="margin:0 6px 6px 0;padding:8px 12px;font-size:16px;' +
            (on ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="' + fn + '">' + lbl + '</button>';
   }
-  var h = '<div style="font-weight:bold;margin-bottom:6px;">この車は計画と比べて</div>' +
-          (pc ? b("計画どおり", st === "same", "paCarSame_(this)") : '<div class="note" style="margin-bottom:6px;">計画に無かった車です。</div>') +
+  var h = '<div style="font-weight:bold;margin-bottom:6px;">この車は予定と比べて</div>' +
+          (pc ? b("予定どおり", st === "same", "paCarSame_(this)") : '<div class="note" style="margin-bottom:6px;">予定に無かった車です。</div>') +
           b("変わった", st === "chg", "paCarChg_(this)");
   if (st === "chg") {
     h += paLegHtml_(c, "fwd") + paLegHtml_(c, "ret") +
@@ -4351,7 +4390,7 @@ function paCarRender_(c) {
       '<input type="number" class="pa-bill-ret" min="0" placeholder="帰り" value="' + escapeHtml(c.dataset.paBillRet || "") + '" onchange="paBill_(this,\'ret\')"></div>' +
       '<p class="note" style="margin:4px 0 0;">入れた金額をそのまま使います（料金表の金額で上書きしません）。</p></div>';
   } else {
-    h += '<div class="note">計画のときの距離・高速料金のまま精算します。</div>';
+    h += '<div class="note">予定のときの距離・高速料金のまま精算します。</div>';
   }
   box.innerHTML = h;
 }
@@ -4374,14 +4413,14 @@ function paLegHtml_(c, dir) {
          (on ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="paPickCand_(this,\'' + dir + '\',' + i + ')">' +
          (on ? "✔ " : "") + "候補" + (i + 1) + "　" + escapeHtml(lbl) + (x.km ? "（片道 " + x.km + "km）" : "") + '</button>';
   });
-  if (!cs.length) h += '<p class="note" style="margin:4px 0;">計画のときの道の候補が残っていません。下の一覧から選んでください。</p>';
+  if (!cs.length) h += '<p class="note" style="margin:4px 0;">予定のときの道の候補が残っていません。下の一覧から選んでください。</p>';
   h += '<button type="button" class="btn-small" style="margin:4px 6px 4px 0;padding:8px 12px;font-size:16px;' +
        (cur === "高速なし" ? 'background:#2e7d32;color:#fff;border-color:#2e7d32;' : 'background:#fff;color:#1f5a2a;border:2px solid #5aa86a;') + '" onclick="paNoHw_(this,\'' + dir + '\')">高速に乗らなかった</button>';
   h += '<details style="margin-top:6px;"><summary style="font-size:16px;">候補に無いとき：乗ったIC・降りたICを選ぶ</summary>' + paIcPickHtml_(dir) + '</details>';
   h += '<div class="pa-msg-' + dir + '" style="margin-top:6px;font-size:15px;color:#1f5a2a;"></div>';
   return h + '</div>';
 }
-/* インターの一覧（近い順）。乗ったIC＝計画の乗るICの近く、降りたIC＝計画の降りるICの近く */
+/* インターの一覧（近い順）。乗ったIC＝予定の乗るICの近く、降りたIC＝予定の降りるICの近く */
 function paIcSorted_(refName) {
   var list = (PA_ICS || []).slice(), ref = null;
   for (var i = 0; i < list.length; i++) if (icShort_(list[i].name) === icShort_(refName)) ref = list[i];
@@ -4415,7 +4454,7 @@ function paIcPickHtml_(dir) {
 function paCarSame_(btn) {
   var c = btn.closest(".car-card"), pc = paPlanCar_(c);
   if (!pc) return;
-  if (c.dataset.pa === "chg" && !confirm("この車を計画のときの距離・料金に戻します。よろしいですか？")) return;
+  if (c.dataset.pa === "chg" && !confirm("この車を予定のときの距離・料金に戻します。よろしいですか？")) return;
   var d = JSON.parse(JSON.stringify(pc));
   d.pa = { s: "same" };
   addCar(d);
@@ -4426,7 +4465,7 @@ function paCarSame_(btn) {
   renumberCars();
   refreshAllDropdowns();
   refreshPayerDropdown();
-  nc.dataset.pa = "same";   /* 足した直後は列の最後にいて「計画に無い車」に見えたため、ここで決め直す */
+  nc.dataset.pa = "same";   /* 足した直後は列の最後にいて「予定に無い車」に見えたため、ここで決め直す */
   ["paFwd", "paRet", "paMeter", "paBillFwd", "paBillRet"].forEach(function (k) { delete nc.dataset[k]; });
   paCarRender_(nc);
   saveForm();
@@ -5012,7 +5051,14 @@ function fetchPrevSettle(skipForm) {
         /* 保存されていた精算の n は古いことがある（その後に参加者が増えた場合）。
            いまの生きた人数で入れ直す。人数いがいの下書きはそのまま活かす。 */
         var liveN = JOINED.length || EVENT_N;
-        if (liveN > 0 && liveN !== nPeople) {
+        /* ★★2026-10-12d（10/6 の c）実績の記録（f.pa が actual）を開き直したときは、記録した人数のままにする。
+           　出欠の数に戻すと、予定と実績の差の計算が狂うため。違えば知らせるだけ。
+           　★予定の段階（山行の前）は今までどおり出欠の数に合わせる（参加が増えたら予定も増えるのが自然） */
+        var paKeepN = !!(f.pa && f.pa.stage === "actual" && f.n);
+        if (paKeepN) {
+          nPeople = Number(f.n);
+          document.getElementById("nDisp").textContent = nPeople;
+        } else if (liveN > 0 && liveN !== nPeople) {
           nPeople = liveN;
           document.getElementById("nDisp").textContent = nPeople;
         }
@@ -5022,10 +5068,11 @@ function fetchPrevSettle(skipForm) {
         calc(true);
         var m = document.getElementById("loadMsg");
         m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。" +
-          ((f.n && Number(f.n) !== nPeople) ? "\n★カレンダーに記録した精算は " + f.n + "名 で計算したものです。下の結果は、いまの参加 " + nPeople + "名 で計算し直しています。カレンダーの￥は、記録し直すまで " + f.n + "名 の計算のままです。" : "");
+          ((paKeepN && liveN > 0 && liveN !== nPeople) ? "\n★人数は、記録した精算の " + nPeople + "名 のままにしています（いまの出欠の「参加」は " + liveN + "名）。違うときは上の＋−で直してください。" : "") +
+          ((!paKeepN && f.n && Number(f.n) !== nPeople) ? "\n★カレンダーに記録した精算は " + f.n + "名 で計算したものです。下の結果は、いまの参加 " + nPeople + "名 で計算し直しています。カレンダーの￥は、記録し直すまで " + f.n + "名 の計算のままです。" : "");
         m.style.whiteSpace = "pre-line";   /* ★2026-10-12 */
         m.style.display = "block";
-        noteCountChanged_(shownN);
+        if (!paKeepN) noteCountChanged_(shownN);
         window.scrollTo(0, 0);
       } catch (e) {}
     } else if (data.text) {
