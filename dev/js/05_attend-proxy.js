@@ -337,11 +337,18 @@ function renderList(){
        　・club … どのクラブの精算かを、精算アプリにも伝えます
        　・「マイカー精算のURL」に ?gas=dev が付いていることがあるので、
        　　 そのときは ? ではなく & でつなぎます（?が2つになるのを防ぐ） */
-    var carSep_ = (String(CLUB.carpoolUrl).indexOf('?') >= 0) ? '&' : '?';
+    /* ★★2026-10-12a（不具合2）開発版のページ（/ohc-calendar/dev/）からは、いつも開発版の精算（…/dev/carpool/?gas=dev）へ。
+       　端末の控え（LSK.club）は開発版と本番で同じキーなので、本番を開いたことのあるパソコンでは
+       　本番の精算のURLが控えに入っていて、そちらへ行っていた（スマホは本番を開いていないので開発版だった）。
+       　★控えそのものを分けるのは別の判断（06_いまの状況 0-2 の 13） */
+    var carUrl_ = IS_DEV_PAGE_
+      ? (location.pathname.replace(/\/ohc-calendar\/dev\/.*$/, '/ohc-calendar/dev/') + 'carpool/?gas=dev')
+      : CLUB.carpoolUrl;
+    var carSep_ = (String(carUrl_).indexOf('?') >= 0) ? '&' : '?';
     /* ★★2026-09-29i　マイカー移動の印がある予定だけ（★すでに精算した予定は、印が無くても出す） */
     var carOn_ = !!ev.mycar;
     var icons = (canSettle_ && (carOn_ || ev.settle)) ?
-      ('<a href="' + CLUB.carpoolUrl + carSep_ + 'club=' + encodeURIComponent(CLUB.id) +
+      ('<a href="' + carUrl_ + carSep_ + 'club=' + encodeURIComponent(CLUB.id) +
         '&event=' + ev.id +
         '&date=' + ev.date + '&title=' + encodeURIComponent(ev.title) +
         '&time=' + encodeURIComponent(ev.time || '') +
