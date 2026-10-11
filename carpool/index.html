@@ -81,6 +81,8 @@
   .subhead { font-size: 15px; font-weight: bold; color: var(--club); margin-top: 14px; border-top: 1px dashed #bbb; padding-top: 8px; }
   /* 人数ステッパー */
   .stepper { display: flex; align-items: center; gap: 14px; justify-content: center; margin-top: 8px; }
+  /* ★2026-10-12a（ご依頼5）高速料金の枠は「✏ 手入力」のときだけ打てる */
+  .car-card input.fee-lock { background: #eceeec; color: #333; }
   .stepper button {
     width: 64px; height: 64px;
     font-size: 34px; font-weight: bold;
@@ -593,7 +595,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-12本番a";
+var APP_VER = "2026-10-12本番b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1842,7 +1844,7 @@ function addCar(data) {
     '</div>' +
     '<div class="opt-blk blk-etc">' +
       '<label>高速ルート（料金表から選ぶ）</label>' +
-      '<select class="car-route" onchange="routeSelected(this)"><option value="">使わない／下に直接入力</option></select>' +
+      '<select class="car-route" onchange="routeSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select>' +
       '<label>ETCの有無</label>' +
       '<select class="car-etcuse" onchange="routeSelected(this)">' +
       '<option value="etc">ETCあり（ETC料金）</option>' +
@@ -1896,7 +1898,7 @@ function addCar(data) {
         '<input type="number" class="car-rkm" placeholder="例：45" min="0" step="0.1">' +
         '<div class="ret-etc">' +
           '<label>帰りの高速ルート（料金表から選ぶ）</label>' +
-          '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">使わない／下に直接入力</option></select>' +
+          '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select>' +
           '<label>帰りのETCの有無</label>' +
           '<select class="car-retcuse" onchange="retRouteSelected(this)">' +
           '<option value="etc">ETCあり（ETC料金）</option>' +
@@ -2199,6 +2201,8 @@ function retRouteSelected(el) {
   var c = el.closest(".car-card");
   var sel = c.querySelector(".car-rroute");
   rememberRouteName_(sel);
+  if (sel.value === "") hwPickBlank_(sel, c.querySelector(".car-retc"));
+  else delete sel.dataset.manual;
   if (sel.value !== "") {
     var r = getEtcRoutes()[parseInt(sel.value, 10)];
     var fee = routeFeeFor_(r, c.querySelector(".car-retcuse").value, true, c);
@@ -2323,7 +2327,9 @@ function refreshAllDropdowns() {
        ------------------------------------------------------------------ */
     var wantName = sel.dataset.routeName || "";
     var wantIdx  = (sel.value !== "") ? sel.value : (sel.dataset.routeIdx || "");
-    sel.innerHTML = '<option value="">使わない／下に直接入力</option>';
+    /* ★2026-10-12a（ご依頼5）先頭は「区間を選んでください」と「✏ 手入力」の2つ（どちらも値は空＝料金表を使わない）。
+       　枠に手で打てるのは「✏ 手入力」のときだけ（hwUiSync_ が決める） */
+    sel.innerHTML = '<option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option>';
     routes.forEach(function (r, i) {
       var op = document.createElement("option");
       op.value = String(i);
@@ -2364,6 +2370,7 @@ function refreshAllDropdowns() {
       sel.dataset.routeIdx  = wantIdx;
     }
   });
+  try { hwUiSyncAll_(); } catch (eHs) {}
 }
 
 /* ------------------------------------------------------------------
@@ -2379,7 +2386,7 @@ function refreshAllDropdowns() {
    区間を選んでいる以上、金額は料金表に従うのが筋なので、ここで合わせます。
    ただし**黙って書き換えると精算の金額が勝手に変わってしまう**ので、
    直したときは必ず画面に出してお知らせします。
-   「使わない／下に直接入力」を選んでいる車は、手入力とみなして触りません。
+   「✏ 手入力」（区間を選んでいない）車は、手入力とみなして触りません。
    ------------------------------------------------------------------ */
 /* ------------------------------------------------------------------
    行き先が一致する料金表の行を**すべて**返します。（2026-08-17n）
@@ -2673,7 +2680,7 @@ function renderFeeSyncMsg_(changed, suggest, missing, noHwLeft) {
     h += '<span style="color:#5a6b5c;">いまの金額のままでよければ、そのままにしてください。</span><br>';
   }
   if (changed.length || suggest.length) {
-    h += '<span style="color:#5a6b5c;">料金表を使わない場合は「使わない／下に直接入力」を選びます。</span>';
+    h += '<span style="color:#5a6b5c;">料金表を使わない場合は「✏ 手入力」を選んで、金額を入れます。</span>';
   }
   box.innerHTML = h;
   box.style.display = "block";
@@ -3031,7 +3038,8 @@ function routeSelected(el) {
   var selRoute = card.querySelector(".car-route");
   var idx = selRoute.value;
   rememberRouteName_(selRoute);
-  if (idx === "") { saveForm(); return; }
+  if (idx === "") { hwPickBlank_(selRoute, card.querySelector(".car-etc")); saveForm(); return; }
+  delete selRoute.dataset.manual;
   var routes = getEtcRoutes();
   var r = routes[parseInt(idx, 10)];
   if (!r) return;
@@ -3041,7 +3049,7 @@ function routeSelected(el) {
   if (fee == null) {
     alert("このルートの" +
       (use === "etc" ? ("ETC料金（" + (isHolidayRate_() ? "土日祝" : "平日") + "）") : "通常料金") +
-      "が料金表に未登録です。料金表に入力するか、下に直接入力してください。");
+      "が料金表に未登録です。料金表に入力するか、「✏ 手入力」を選んで下に入れてください。");
     card.querySelector(".car-etc").value = "";
     return;
   }
@@ -3748,6 +3756,59 @@ function getFormData() {
 }
 function saveForm() {
   lsSet(LS_FORM, getFormData());
+  try { hwUiSyncAll_(); } catch (eHs) {}
+}
+/* ------------------------------------------------------------------
+   ★2026-10-12a（ご依頼5・只隈さん「高速料金は、プルダウンで手入力を選んだときだけ、下の枠に手で入れられるように」）
+   　高速ルートの先頭は2つ（どちらも値は空＝料金表を使わない。ほかの作りは前と同じに読める）：
+   　・「区間を選んでください」… 枠は打てない（空のまま＝高速料金 0）
+   　・「✏ 手入力」………………… 枠に打てる
+   　区間を選んでいるとき・アプリが入れた金額（立ち寄りの区間の合計など）のときも、枠は打てない（灰色）。
+   　★前に手で入れた金額（区間なし）で開き直したときは「✏ 手入力」で開く。
+   　★saveForm のたびに見直す（アプリが金額を入れたあとは必ず saveForm を通るため）。
+   ------------------------------------------------------------------ */
+function hwIsManualOpt_(sel) {
+  var o = (sel && sel.selectedIndex >= 0) ? sel.options[sel.selectedIndex] : null;
+  return !!(o && o.getAttribute("data-manual") === "1");
+}
+/* 区間をやめて先頭の2つのどちらかを選んだとき */
+function hwPickBlank_(sel, fee) {
+  if (!sel || !fee) return;
+  if (hwIsManualOpt_(sel)) {
+    sel.dataset.manual = "1";
+    fee.removeAttribute("data-auto");      /* ここから先は手で入れた金額として守る */
+    fee.readOnly = false;
+    setTimeout(function () { try { fee.focus(); } catch (eF) {} }, 0);
+  } else {
+    delete sel.dataset.manual;
+    fee.value = ""; fee.removeAttribute("data-auto");
+  }
+}
+function hwUiSync1_(c, sel, fee, fwd) {
+  if (!sel || !fee) return;
+  var ph = sel.options[0], man = sel.querySelector('option[data-manual="1"]');
+  if (!ph || !man) return;
+  var mode;
+  if (sel.value !== "") { mode = "route"; delete sel.dataset.manual; }
+  else if (fee.value !== "" && fee.value === fee.getAttribute("data-auto")) mode = "auto";
+  else if (fee.value !== "" || sel.dataset.manual === "1") mode = "manual";
+  else mode = "none";
+  if (mode === "manual") { if (!man.selected) man.selected = true; }
+  else if (mode !== "route") { if (!ph.selected) ph.selected = true; }
+  var phTxt = "区間を選んでください";
+  if (mode === "auto") phTxt = "アプリが入れた金額（自動）";   /* ★本番の精算には立ち寄りが無い */
+  if (ph.textContent !== phTxt) ph.textContent = phTxt;
+  var lock = (mode !== "manual");
+  fee.readOnly = lock;
+  fee.classList.toggle("fee-lock", lock);
+  if (!fee.dataset.ph0) fee.dataset.ph0 = fee.getAttribute("placeholder") || "0";
+  fee.setAttribute("placeholder", lock ? "上で区間か「✏ 手入力」を選びます" : fee.dataset.ph0);
+}
+function hwUiSyncAll_() {
+  document.querySelectorAll("#cars .car-card").forEach(function (c) {
+    hwUiSync1_(c, c.querySelector(".car-route"), c.querySelector(".car-etc"), true);
+    hwUiSync1_(c, c.querySelector(".car-rroute"), c.querySelector(".car-retc"), false);
+  });
 }
 function applyForm(f) {
   if (!f) return false;
