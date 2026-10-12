@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13d";
+var APP_VER = "2026-10-13e";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1541,7 +1541,8 @@ function renderFwd_(fill) {
         (on ? '✅ ' : '') + '<b>' + x.km + 'km</b>・' + x.mins + '分' +
         (x.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
         (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
-        '</button>';
+        segDiffHtml_(x, sg.list) +
+        '</button>' + segMapLink_(x);
     });
     h += '</div></div>';   /* ★2026-10-12b　区間の枠を閉じる */
   });
@@ -1611,6 +1612,35 @@ function renderFwd_(fill) {
    ★高速を使わない道… 「高速なし」だけでは候補の見分けがつかないので、
    　　　　　　　　　 通る道の名前（県道52号など）も必ず出します。
    ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   ★2026-10-13e　立ち寄り・帰りの区間の道の候補が、どう違うのか分からない（只隈さん 10/13
+   　「この2つの違いを選ぶ人が分からないのでは、地図を出すとか、何が違うかを記載するとかしないと」）。
+   　①おもに通る道（Google の summary）②いちばん早い道・いちばん短い道との差 を書き、
+   　③候補ごとに「🗺 この道を地図で見る」（Google マップで同じ道順が開く）を付ける。
+   ------------------------------------------------------------------ */
+function segDiffHtml_(x, list) {
+  if (!list || list.length < 2) return "";
+  var fast = list[0], short = list[0];
+  list.forEach(function (y) {
+    if (Number(y.mins) < Number(fast.mins)) fast = y;
+    if (Number(y.km) < Number(short.km)) short = y;
+  });
+  var t = [];
+  /* Google は高速道路を正式の路線名で返す（吹田山口線＝中国道 など）。ふだんの呼び名を添える */
+  var ROAD_NICK = { "吹田山口線": "中国道", "西宮線": "名神", "名古屋神戸線": "新名神・伊勢湾岸道",
+                    "東京名古屋線": "東名", "近畿自動車道": "近畿道", "関門橋": "関門橋" };
+  if (x.summary) t.push("おもに " + x.summary + (ROAD_NICK[x.summary] && ROAD_NICK[x.summary] !== x.summary ? "（" + ROAD_NICK[x.summary] + "）" : "") + " を通る");
+  if (x === fast) t.push("いちばん早い");
+  else t.push("いちばん早い道より " + (Number(x.mins) - Number(fast.mins)) + "分 長くかかる");
+  if (x === short) t.push("いちばん短い");
+  else t.push("いちばん短い道より " + (Math.round((Number(x.km) - Number(short.km)) * 10) / 10) + "km 長い");
+  return '<br><span style="color:#1f5a2a;font-size:13px;">' + escapeHtml(t.join("・")) + '</span>';
+}
+function segMapLink_(x) {
+  if (!x || !x.mapUrl) return "";
+  return '<div style="text-align:right;margin:-2px 2px 6px;font-size:14px;">' +
+    '<a href="' + escapeHtml(x.mapUrl) + '" target="_blank" rel="noopener">🗺 この道を地図で見る</a></div>';
+}
 function routeSubLabel_(r) {
   if (r.noHw) return String(r.summary || '');
   var inNm  = (r.tollIn  && r.tollIn.name)  ? r.tollIn.name  : '';
@@ -2551,7 +2581,8 @@ function renderRet_(c, fill) {
         (on ? '✅ ' : '') + '<b>' + x.km + 'km</b>・' + x.mins + '分' +
         (x.noHw ? '　<span style="color:#8a5a00;font-weight:bold;">高速なし</span>' : '') +
         (routeSubLabel_(x) ? '<br><span style="color:#5a6b5c;font-size:14px;">' + escapeHtml(routeSubLabel_(x)) + '</span>' : '') +
-        '</button>';
+        segDiffHtml_(x, sg.list) +
+        '</button>' + segMapLink_(x);
     });
     h += '</div></div>';   /* ★2026-10-12b　区間の枠を閉じる */
   });
