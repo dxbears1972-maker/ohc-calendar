@@ -607,7 +607,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13a";
+var APP_VER = "2026-10-13b";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1426,9 +1426,45 @@ function fwdHw_() {
   var hw = [];
   (fwdSegs || []).forEach(function (sg) {
     var r = sg.list[sg.idx] || sg.list[0];
-    if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name) hw.push({ a: r.tollIn.name, b: r.tollOut.name });
+    if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name)
+      hw.push({ a: r.tollIn.name, b: r.tollOut.name, km: (r.seg && r.seg[1]) ? r.seg[1].km : "" });
   });
   return hw;
+}
+/* ------------------------------------------------------------------
+   ★2026-10-13b　立ち寄りの区間で料金表に無いものは、地図で測った高速の距離×NEXCO の決まりで概算を出して
+   　料金表に足す（サーバーの hwFee・共通の表に「地図の距離から計算」＝未確定で覚え、月1回 Claude が確かめる）。
+   　只隈さん 10/13「登録がないのであれば、まずは距離X単価で金額を出したうえで、概算で出し…」。
+   　★確かめるのは実績を入れる時（只隈さん 10/13 の選択）。
+   　返り：まだ待っている区間の数（0 なら、足し終わった／足せなかった）
+   ------------------------------------------------------------------ */
+var fwdHwBusy_ = {};
+function r0Wait_() { try { return fwdHwFill_(); } catch (e) { return 0; } }
+function fwdHwFill_() {
+  if (!HW_ON) return 0;
+  var wait = 0, dest = document.getElementById("destPlace").value.trim(), token = fwdSegs;
+  fwdHw_().forEach(function (p) {
+    if (findRouteByIcPair_(p.a, p.b) >= 0) return;
+    var key = hwKey_(p.a, p.b), nm = icShort_(p.a) + "⇔" + icShort_(p.b);
+    if (!key || fwdHwBusy_[key] === "fail") return;
+    function put_(f) {
+      if (findRouteByIcPair_(p.a, p.b) < 0) { addEtcRow(nm, f.etc, f.normal, dest, f.etcHoli); saveEtc(); }
+    }
+    if (HW_TABLE && HW_TABLE[key] && HW_TABLE[key].etc != null) { put_(HW_TABLE[key]); return; }
+    wait++;
+    if (fwdHwBusy_[key]) return;
+    fwdHwBusy_[key] = "busy";
+    apiPost({ action: "hwFee", "in": p.a, out: p.b, hwKm: p.km }, function (err, d) {
+      if (err || !d || d.error || !d.fee || d.fee.etc == null) { fwdHwBusy_[key] = "fail"; }
+      else {
+        delete fwdHwBusy_[key];
+        if (HW_TABLE) HW_TABLE[key] = d.fee; else { HW_TABLE = {}; HW_TABLE[key] = d.fee; }
+        put_(d.fee);
+      }
+      if (fwdSegs === token) renderFwd_(true);   /* 待つ間に調べ直していなければ、入れ直す */
+    });
+  });
+  return wait;
 }
 /* 各車の高速料金を、区間ごとの料金の合計で入れる。返り：{ n:入れた台数, miss:[料金表に無い区間], sum } */
 function fwdFillFees_() {
@@ -1530,10 +1566,14 @@ function renderFwd_(fill) {
     notes.push("立ち寄りを含めて片道 <b>" + total + "km</b>（車で約" + mins + "分）");
     notes.push(kmN ? "<b>" + kmN + "台</b> の走行距離に「片道」として入れました（往復ぶんは自動で計算）"
                    : "各車の距離は、手で直した数字をそのままにしています");
+    var hwWait = r0Wait_();
     var r0 = fwdFillFees_();
     fwdMissNow = r0.miss.length > 0;
     if (!r0.hw.length) {
       notes.push("この道は高速に乗らないので、<b>高速料金はかかりません</b>");
+    } else if (r0.miss.length && hwWait) {
+      notes.push("区間 <b>" + escapeHtml(r0.miss.join("・")) + "</b> の料金が料金表に無いので、" +
+                 "🤖 地図で測った高速の距離から <b>概算</b> を出しています…（数秒）");
     } else if (r0.miss.length) {
       notes.push("区間 <b>" + escapeHtml(r0.miss.join("・")) + "</b> の料金が、まだ料金表にありません。" +
                  "料金表に足すと、次から自動で入ります");
@@ -1542,6 +1582,13 @@ function renderFwd_(fill) {
           'onclick="addRetIcRoute_(this,\'' + escapeHtml(nm).replace(/'/g, "") + '\')">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>');
       });
     } else {
+      var gaisan = r0.hw.filter(function (p) {
+        var k = hwKey_(p.a, p.b), h = HW_TABLE && HW_TABLE[k];
+        return h && !h.checked && h.src === "地図の距離から計算";
+      });
+      if (gaisan.length) notes.push("🤖 <b>" + escapeHtml(gaisan.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("・")) +
+        "</b> は、地図で測った高速の距離から NEXCO の決まりで出した <b>概算</b> です（都市高速の区間は本物と数百円違うことがあります）。" +
+        "山行のあと、実績を入れるときに ETC の明細と比べてください");
       notes.push("高速：<b>" + escapeHtml(r0.hw.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("＋")) +
                  "</b>。" + (r0.n ? "<b>" + r0.n + "台</b> 分の高速料金を料金表から入れました"
                                  : "各車の高速料金は、すでに入っているのでそのままにしています"));
@@ -2738,13 +2785,27 @@ function refreshAllDropdowns() {
     /* ★2026-10-12a（ご依頼5）先頭は「区間を選んでください」と「✏ 手入力」の2つ（どちらも値は空＝料金表を使わない）。
        　枠に手で打てるのは「✏ 手入力」のときだけ（hwUiSync_ が決める） */
     sel.innerHTML = '<option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option>';
-    routes.forEach(function (r, i) {
+    /* ★2026-10-13b　いま調べた道の区間を先頭に、残りは名前順（足した順で探しにくかった。只隈さん 10/13） */
+    var curK = {};
+    try {
+      ((fwdSegs && fwdSegs.length) ? fwdHw_() : [{ a: lastTollIn, b: lastTollOut }]).forEach(function (p) {
+        var k0 = hwKey_(p.a, p.b); if (k0) curK[k0] = 1;
+      });
+    } catch (eK) {}
+    var ord = routes.map(function (r, i) { return i; });
+    ord.sort(function (x, y) {
+      var cx = curK[hwKeyOfName_(routes[x].name)] ? 0 : 1, cy = curK[hwKeyOfName_(routes[y].name)] ? 0 : 1;
+      if (cx !== cy) return cx - cy;
+      return String(routes[x].name).localeCompare(String(routes[y].name), "ja");
+    });
+    ord.forEach(function (i) {
+      var r = routes[i];
       var op = document.createElement("option");
       op.value = String(i);
       /* ★いまの山行日に使う金額を先に出します（2026-08-17i）。
          　どれが使われるのか、選ぶ前に分かるようにするためです。 */
       var nowFee = routeFeeFor_(r, "etc", isRet);
-      op.textContent = r.name +
+      op.textContent = (curK[hwKeyOfName_(r.name)] ? "★今の道　" : "") + r.name +
         "（ETC" + ((isRet ? isHolidayRateRet_() : isHolidayRate_()) ? "土日祝 " : "平日 ") +
         (nowFee != null ? yen(nowFee) : "未登録") +
         "／通常 " + (r.normal != null ? yen(r.normal) : "未登録") + "）";
@@ -3212,6 +3273,11 @@ var lastTollIn = "", lastTollOut = "", lastTollFor = "";
    分かっているので、そこから料金表を引いて自動で入れます。
    ================================================================== */
 /* 「杷木IC」→「杷木」。名前をくらべやすくします */
+/* ★2026-10-13b　画面に出すインターの名前。都市高速の「錦橋出口」「名駅付近」には IC を付けない */
+function icLbl_(v) {
+  var t = icShort_(v);
+  return /(出口|入口|付近)$/.test(t) ? t : t + "IC";
+}
 function icShort_(v) {
   return String(v || "").replace(/^[\s　]+|[\s　]+$/g, "")
                         .replace(/(IC|ＩＣ|インターチェンジ)$/, "");
@@ -4244,7 +4310,8 @@ function paRender_() {
           '<div style="margin-top:4px;">いまカレンダーに出ているのは【予定】の金額です。実際も同じだったら、下のボタン1つで【実績】にできます。</div>' +
           '<button type="button" class="btn" style="margin-top:8px;display:block;width:100%;" onclick="paSameAsPlan_()">✅ 予定どおりだった（この金額を実績として記録する）</button>' +
           '<button type="button" class="btn btn-sub" style="margin-top:8px;display:block;width:100%;" onclick="paToActual_()">✏ 変わった（実績に直す）</button>' +
-          '<div class="note" style="margin-top:6px;">★山行の日から3日たっても実績が入らないときは、予定の金額をそのまま実績として扱います（カレンダーに「予定どおりとして扱いました」と出ます）。</div>';
+          '<div class="note" style="margin-top:6px;">★山行の日から3日たっても実績が入らないときは、予定の金額をそのまま実績として扱います（カレンダーに「予定どおりとして扱いました」と出ます）。</div>' +
+          paGaisanHtml_();
     }
     bar.style.background = "#eef5ff"; bar.style.borderColor = "#7aa7e0";
   } else {
@@ -4253,6 +4320,7 @@ function paRender_() {
         (p.auto ? '<div style="margin-top:6px;padding:6px 8px;background:#fff;border:2px solid #5aa86a;border-radius:6px;"><b>山行の日から3日たっても実績の入力がなかったので、予定どおりとして扱いました（アプリが自動で）。</b>実際と違っていたら、下の車ごとに［変わった］で直して、記録し直してください。</div>' : '') +
         '<div style="margin-top:4px;">予定' + (p.at ? '（' + escapeHtml(p.at) + '）' : '') + '：1人 <b>' + (p.share != null ? jpn(p.share) + "円" : "—") + '</b></div>' +
         '<div style="margin-top:4px;">下の車ごとに［予定どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら「計算する」→「実績としてカレンダーに記録する」。</div>' +
+        paGaisanHtml_() +
         '<button type="button" class="btn-small" style="margin-top:8px;" onclick="paBackToPlan_()">予定に戻す</button>';
     bar.style.background = "#eefaf0"; bar.style.borderColor = "#5aa86a";
   }
@@ -4318,6 +4386,44 @@ function paText_(t) {
   return s + "――――――――――\n" + t;
 }
 
+/* ------------------------------------------------------------------
+   ★2026-10-13b　高速料金が「概算」（地図の距離×NEXCO の決まり・まだ誰も確かめていない）の区間を、
+   　実績のときに ETC の明細と比べていただく（只隈さん 10/13：概算でいいかは実績を入れる時に確かめる）。
+   　違っていたら料金表のその区間を明細の金額に直す → サーバーが「会員が直した金額（未確定）」として覚え、
+   　月1回の確かめ（スケジュールされたタスク）で確定する。
+   ------------------------------------------------------------------ */
+function paGaisanHtml_() {
+  if (!HW_ON || !HW_TABLE) return "";
+  var cur = {};
+  try {
+    ((fwdSegs && fwdSegs.length) ? fwdHw_() : [{ a: lastTollIn, b: lastTollOut }]).forEach(function (q) {
+      var k = hwKey_(q.a, q.b); if (k) cur[k] = 1;
+    });
+  } catch (eC) {}
+  var rows = [];
+  getEtcRoutes().forEach(function (r) {
+    var k = hwKeyOfName_(r.name), h = HW_TABLE[k];
+    if (cur[k] && h && !h.checked && h.src === "地図の距離から計算") rows.push(r);
+  });
+  if (!rows.length) return "";
+  return '<div style="margin-top:8px;padding:8px 10px;background:#fff6e0;border:2px solid #e0b040;border-radius:8px;">' +
+    '<div><b>🛣 高速料金のうち、次の区間は概算でした。</b>ETC の明細と比べてください。</div>' +
+    rows.map(function (r) {
+      var p = String(r.name).split(/[⇔↔〜～~\-–—]/);
+      return '<div style="margin-top:3px;">・' + escapeHtml(p.length === 2 ? icLbl_(p[0]) + " ⇔ " + icLbl_(p[1]) : r.name) +
+             '　概算 <b>' + (r.etc != null ? jpn(r.etc) + "円" : "—") + '</b>（ETC平日・普通車）</div>';
+    }).join("") +
+    '<div style="margin-top:4px;">・明細と同じなら、そのままで大丈夫です。</div>' +
+    '<div>・違っていたら、下の［料金表を開く］で、その区間の金額を明細の金額に直してください。次からその金額を使います（月に1回、本物の料金で確かめます）。</div>' +
+    '<button type="button" class="btn-small" style="margin-top:6px;" onclick="paOpenEtc_()">料金表を開く</button></div>';
+}
+function paOpenEtc_() {
+  var box = document.getElementById("etcRows");
+  if (!box) return;
+  var d = box.closest("details");
+  if (d) d.open = true;
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
 /* ---------- 予定 → 実績 ---------- */
 function paToActual_() {
   if (!lastResultData) { try { calc(true); } catch (e) {} }
@@ -4804,12 +4910,25 @@ function hwSumSync_(sel, fee, mode, fwd) {
       var r = getEtcRoutes()[parseInt(sel.value, 10)];
       var nm = r ? String(r.name || "") : "";
       var p = nm.split(/[⇔↔〜～~\-–—]/);
-      var lbl = (p.length === 2) ? (p[0].trim() + "IC → " + p[1].trim() + "IC") : nm;
+      var lbl = (p.length === 2) ? (icLbl_(p[0]) + " → " + icLbl_(p[1])) : nm;
       h = "🛣 " + escapeHtml(lbl) + "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" +
           '<span class="hw-st">' + escapeHtml(hwRowState_(r)) + "</span>";
     } else {
-      h = "🛣 " + ((fwd && fwdSegs && fwdViaVal_()) ? "立ち寄りの区間の合計" : "アプリが入れた金額") +
-          "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" + '<span class="hw-st">自動</span>';
+      var segLines = "";
+      /* ★2026-10-13b　立ち寄りで高速に2回乗るときは、区間ごとの料金と合計を出す（只隈さん 10/13「料金は2つ存在するはず」） */
+      if (fwd && fwdSegs && fwdViaVal_()) {
+        var rts = getEtcRoutes(), cc = sel.closest(".car-card"), use = cc && cc.querySelector(".car-etcuse");
+        fwdHw_().forEach(function (p) {
+          var ix = findRouteByIcPair_(p.a, p.b), rr = ix >= 0 ? rts[ix] : null;
+          var f = rr ? routeFeeFor_(rr, use ? use.value : "etc", false, cc) : null;
+          segLines += "<div>🛣 " + escapeHtml(icLbl_(p.a) + " → " + icLbl_(p.b)) +
+            "　<b>" + (f == null ? "？" : jpn(f) + "円") + "</b>" +
+            (rr ? '<span class="hw-st">' + escapeHtml(hwRowState_(rr)) + "</span>" : "") + "</div>";
+        });
+      }
+      h = segLines ? segLines + "<div>合計　<b>" + jpn(Number(fee.value) || 0) + "円</b></div>"
+                   : "🛣 " + ((fwd && fwdSegs && fwdViaVal_()) ? "立ち寄りの区間の合計" : "アプリが入れた金額") +
+                     "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" + '<span class="hw-st">自動</span>';
     }
     h += '<button type="button" onclick="hwOpenEdit_(this)">区間・金額を変える</button>';
     if (sum.innerHTML !== h) sum.innerHTML = h;
