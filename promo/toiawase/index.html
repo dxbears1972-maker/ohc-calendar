@@ -288,10 +288,58 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <div class="cta" id="contact">
   <div class="wrap">
     <h1 class="h2">まずは3ヶ月、無料でお試しください</h1>
-    <p>「画面だけ見てみたい」というご連絡でもかまいません。<br>
+    <p>下のフォームから送れます。「画面だけ見てみたい」というご連絡でもかまいません。<br>
        クラブ名と、だいたいの会員数を書き添えていただけると助かります。<br>
        お試し期間中の費用はいただきません。自動で請求が始まることもありません。</p>
-    <a class="btn" href="mailto:dxbears.office@gmail.com?subject=%E3%82%AF%E3%83%A9%E3%83%96%E9%81%8B%E5%96%B6%E3%82%A2%E3%83%97%E3%83%AA%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6&amp;body=%0A%E3%82%AF%E3%83%A9%E3%83%96%E5%90%8D%EF%BC%9A%0A%E3%81%8A%E5%90%8D%E5%89%8D%EF%BC%9A%0A%E4%BC%9A%E5%93%A1%E6%95%B0%EF%BC%9A%E7%B4%84%E3%80%80%E3%80%80%E5%90%8D%0A%E3%81%94%E8%B3%AA%E5%95%8F%E3%83%BB%E3%81%94%E8%A6%81%E6%9C%9B%EF%BC%9A%0A">メールで問い合わせる</a>
+    <form class="qform" id="qform" novalidate>
+      <label>クラブ名<input name="club" maxlength="60" autocomplete="organization"></label>
+      <label>お名前<em>必須</em><input name="name" maxlength="40" required autocomplete="name"></label>
+      <label>メールアドレス<em>必須</em><input name="email" type="email" maxlength="120" required autocomplete="email" inputmode="email"></label>
+      <label>会員数（だいたいで結構です）<input name="members" maxlength="20" inputmode="numeric" placeholder="例：20名"></label>
+      <label>ご質問・ご要望<em>必須</em><textarea name="message" rows="6" maxlength="3000" required placeholder="「画面だけ見てみたい」だけでもかまいません"></textarea></label>
+      <div class="qhp" aria-hidden="true"><label>この欄は空のままにしてください<input name="hp" tabindex="-1" autocomplete="off"></label></div>
+      <input type="hidden" name="t"><input type="hidden" name="page">
+      <p class="qmsg" role="status" aria-live="polite"></p>
+      <button class="btn" type="submit">送信する</button>
+      <p class="qpriv">いただいたお名前・メールアドレスは、お返事のためだけに使い、第三者には渡しません。</p>
+    </form>
+    <div class="qdone" id="qdone" hidden><b>送信しました。ありがとうございます。</b><span>おおむね3〜5日以内に、メールでお返事いたします。<br>数日たっても届かないときは、迷惑メールのフォルダもご覧ください。</span></div>
+    <p class="note">メールソフトから送る場合：<a href="mailto:dxbears.office@gmail.com?subject=%E3%82%AF%E3%83%A9%E3%83%96%E9%81%8B%E5%96%B6%E3%82%A2%E3%83%97%E3%83%AA%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6&amp;body=%0A%E3%82%AF%E3%83%A9%E3%83%96%E5%90%8D%EF%BC%9A%0A%E3%81%8A%E5%90%8D%E5%89%8D%EF%BC%9A%0A%E4%BC%9A%E5%93%A1%E6%95%B0%EF%BC%9A%E7%B4%84%E3%80%80%E3%80%80%E5%90%8D%0A%E3%81%94%E8%B3%AA%E5%95%8F%E3%83%BB%E3%81%94%E8%A6%81%E6%9C%9B%EF%BC%9A%0A">dxbears.office@gmail.com</a></p>
+<style>
+.qform{background:#fff;color:var(--ink);border-radius:14px;padding:20px 18px;margin:24px auto 0;max-width:560px;text-align:left}
+.qform label{display:block;font-size:17px;font-weight:700;margin-bottom:14px}
+.qform label em{font-style:normal;font-size:13px;background:var(--orange);color:#fff;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:2px}
+.qform input,.qform textarea{display:block;width:100%;margin-top:6px;font:inherit;font-weight:400;font-size:18px;padding:10px 12px;border:2px solid #b9c7bf;border-radius:8px;background:#fff;color:var(--ink)}
+.qform input:focus,.qform textarea:focus{outline:3px solid #f0b37e;border-color:var(--green)}
+.qform .btn{display:block;width:100%;margin-top:6px;border:none;cursor:pointer;font-family:inherit}
+.qform .btn[disabled]{opacity:.6;cursor:wait}
+.qhp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.qmsg{color:#b3261e;font-weight:700;font-size:16px;margin:0}
+.qmsg:empty{display:none}
+.qpriv{font-size:14px;color:var(--gray);margin-top:12px;line-height:1.7}
+.qdone{background:#fff;color:var(--ink);border-radius:14px;padding:22px 18px;margin:24px auto 0;max-width:560px}
+.qdone b{display:block;font-size:21px;color:var(--green)}
+.qdone span{display:block;margin-top:8px;font-size:17px}
+.cta .note a{color:#fff}
+</style>
+<script>
+(function(){
+  var f=document.getElementById("qform");if(!f)return;var E=f.elements;
+  E["t"].value=Date.now();E["page"].value=location.pathname+location.search;
+  var m=f.querySelector(".qmsg"),b=f.querySelector("button");
+  f.addEventListener("submit",function(e){
+    e.preventDefault();m.textContent="";
+    if(!E["name"].value.trim()){m.textContent="お名前をお書きください。";E["name"].focus();return}
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(E["email"].value.trim())){m.textContent="メールアドレスをご確認ください。";E["email"].focus();return}
+    if(!E["message"].value.trim()){m.textContent="ご質問・ご要望をお書きください。";E["message"].focus();return}
+    b.disabled=true;b.textContent="送信しています…";
+    fetch("https://script.google.com/macros/s/AKfycbyiPA5kbzYU4pkXGJx7vvpAq03aZG_2ybC64L1a0WAgMwRgN-t766p1q5u-gn3gQH6vRQ/exec",{method:"POST",mode:"no-cors",body:new URLSearchParams(new FormData(f))})
+      .then(function(){f.hidden=true;var d=document.getElementById("qdone");d.hidden=false;d.scrollIntoView({block:"center"});
+        try{gtag("event","form_submit",{form_id:"qform"})}catch(x){}})
+      .catch(function(){b.disabled=false;b.textContent="送信する";m.textContent="送れませんでした。通信のよい所でもう一度押すか、下のアドレスへメールでお送りください。"});
+  });
+})();
+</script>
     <p class="note">dxbears.office@gmail.com<br>返信までに数日いただくことがあります</p>
   </div>
 </div>
@@ -311,7 +359,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
       <tr><th>提供時期</th><td>お申し込みから10日以内に、3ヶ月間の無料お試しを開始いたします。<br>有料期間は、無料お試し期間の終了後、ご継続のお申し出をいただいた時点から開始します。</td></tr>
       <tr><th>無料お試しについて</th><td>お申し込みから3ヶ月間は無料でご利用いただけます。<br>お試し期間中にご解約いただく場合、費用は一切かかりません。ご連絡も不要です。<br>お試し期間が自動で有料に切り替わることはありません。期間終了前に当方よりご継続の可否を確認いたします。</td></tr>
       <tr><th>解約・返金について</th><td>ご契約は1年単位です。翌年分をお振込みいただかないことで終了となり、解約手数料はかかりません。<br>年度の途中で解約された場合、サービスの性質上、お支払い済みの年額利用料の返金および日割り計算による精算は行っておりません。<br>導入初期設定費は、設定作業および取扱説明書等のご提供に対する費用のため、ご提供後の返金は行っておりません。</td></tr>
-      <tr><th>個人情報の取り扱い</th><td>本サービスの運用のため、会員のお名前をお預かりします。ご連絡に電話番号・メールアドレスをご利用の場合は、それらもお預かりします。<br>運用以外の目的には使用せず、第三者への提供は行いません。データはクラブごとに分けて管理します。<br>ご利用終了のお申し出をいただいた場合、<b>お預かりしている名簿・年間予定・出欠の記録は、ご希望によりお客様がお使いになれる形（Excel等）でお渡しします。</b>お渡しののち当方の控えを消去し、完了をご報告します。お渡しが不要な場合は、そのまま消去いたします。</td></tr>
+      <tr><th>個人情報の取り扱い</th><td>本サービスの運用のため、会員のお名前をお預かりします。ご連絡に電話番号・メールアドレスをご利用の場合は、それらもお預かりします。<br>運用以外の目的には使用せず、第三者への提供は行いません。データはクラブごとに分けて管理します。<br>お問い合わせ（フォーム・メール）でいただいたお名前・メールアドレス等は、お返事とご案内のためだけに使い、第三者への提供は行いません。<br>ご利用終了のお申し出をいただいた場合、<b>お預かりしている名簿・年間予定・出欠の記録は、ご希望によりお客様がお使いになれる形（Excel等）でお渡しします。</b>お渡しののち当方の控えを消去し、完了をご報告します。お渡しが不要な場合は、そのまま消去いたします。</td></tr>
       <tr><th>動作環境</th><td>リンク、またはQRコードから開けるブラウザを備えたスマートフォン・携帯電話。<br>らくらくホンでもお使いいただけますが、表示の調整と機種に合わせた手順書のご用意が必要になる場合があります。</td></tr>
     </table>
   </div>
