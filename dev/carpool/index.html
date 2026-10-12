@@ -342,8 +342,8 @@
     </div>
   </div>
 
-  <button type="button" class="btn btn-main" onclick="calc()">計算する</button>
-  <p class="note" id="calcHint" style="display:none;text-align:center;">計算すると、下に「カレンダーに記録する」ボタンが出ます</p>
+  <!-- ★2026-10-13c「計算する」ボタンはなくした。入力を変えると、すぐ下の結果が計算し直される（只隈さん 10/13） -->
+  <p class="note" id="calcHint" style="text-align:center;">入力を変えると、すぐ下の精算結果が計算し直されます</p>
 
   <!-- 結果 -->
   <div class="card" id="result" style="display:none;">
@@ -413,7 +413,7 @@
       <p>車にかかる費用（ガソリン＝往復距離×50円　＋　高速往復　＋　フェリー車分　＋　駐車料金　＋　入場料車分）を全部合計し、参加者全員で等分します。ドライバーには立替えた車の費用が全額戻ります（本人負担分を差し引いた額を受け取り）。切り上げで出た余りもドライバーが受け取ります。</p>
       <p>人にかかる費用（フェリー人分・入場料人分）は一人あたりに加えます。各自その場で払った場合は精算せず表示のみ、誰かがまとめて立替えた場合はその人が受け取ります。</p>
       <p><b>手順</b></p>
-      <p>① 人数を入れる　② 車ごとに費用を入れる　③ 人にかかる費用を入れる　④「計算する」　⑤ 結果をコピーして共有</p>
+      <p>① 人数を入れる　② 車ごとに費用を入れる　③ 人にかかる費用を入れる　④ 下に出る結果を見る（入力を変えると、すぐ計算し直されます）　⑤ 結果をコピーして共有</p>
       <p style="margin-top:8px;">入力した内容は自動で記憶され、次に開いたときに復元されます。カレンダーの予定から開いた場合は、前に誰かが記録した精算内容が自動で読み込まれます。</p>
     </div>
   </details>
@@ -581,7 +581,8 @@ function applyClub_(c) {
     if (back) {
       /* 戻り先の呼び名は、カレンダー側の「アプリの名前」に合わせます */
       var calNm = c.appTitle || (nm ? nm + "カレンダー" : "");
-      if (calNm) back.textContent = "📅 " + calNm + "に戻る";
+      if (calNm) CAL_NM_ = calNm;
+      backLbl_();
       back.href = EVENT_ID ? (CAL_PAGE + "?goto=" + EVENT_ID) : CAL_PAGE;
     }
   } catch (e) {}
@@ -607,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13b";
+var APP_VER = "2026-10-13c";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -3686,7 +3687,7 @@ function calc(noScroll) {
     if (bad) badCars.push(i + 1);
   });
   if (badCars.length) {
-    showWarn("車 " + badCars.join("・") + " の走行距離が入っていません（赤い枠の欄）。入力してから、もう一度「計算する」を押してください。");
+    showWarn("車 " + badCars.join("・") + " の走行距離が入っていません（赤い枠の欄）。入れると、ここに結果が出ます。");
     return;
   }
 
@@ -3972,7 +3973,7 @@ function calc(noScroll) {
   if (!noScroll) resultDiv.scrollIntoView({ behavior: "smooth" });
 
   /* 計算した＝この道順で確定、として選び直しの一覧を閉じます（2026-08-17） */
-  lockRoute_();
+  if (!AUTO_CALC_) lockRoute_();   /* ★2026-10-13c すぐの計算では道の候補を閉じない（選び比べている途中のため） */
 
   /* ---------- コピー用テキスト ---------- */
   var t = "【マイカー精算】" + (dateStr ? dateStr + " " : "") + (hikeName ? hikeName : "") + "\n";
@@ -4031,7 +4032,8 @@ function showWarn(msg) {
   document.getElementById("resultBody").innerHTML = '<p class="warn">' + escapeHtml(msg) + '</p>';
   var r = document.getElementById("result");
   r.style.display = "block";
-  r.scrollIntoView({ behavior: "smooth" });
+  if (!AUTO_CALC_) r.scrollIntoView({ behavior: "smooth" });
+  try { lastResultData = null; } catch (eL) {}   /* ★2026-10-13c 足りない入力のままの古い結果で記録させない */
 }
 
 /* ---------- 履歴 ---------- */
@@ -4043,7 +4045,7 @@ function histKey(e) {
 }
 
 function saveHistory() {
-  if (!lastResultData) { alert("先に「計算する」を押してください。"); return; }
+  if (!lastResultData) { alert("まだ精算結果が出ていません。走行距離などを入れてください。"); return; }
   /* ------------------------------------------------------------------
      ★2026-08-18　記録する前に、地図が「この道順のもの」か確かめます。
 
@@ -4106,6 +4108,7 @@ function saveHistory() {
       }
       if (!err) {
         m0.textContent = "カレンダーに記録しました！カレンダーに戻ります…";
+        HIST_SAVED_ = true; backLbl_();
         setTimeout(function () { location.href = CAL_PAGE + "?goto=" + EVENT_ID; }, 1200);
       } else {
         m0.textContent = "カレンダーへの記録に失敗しました。電波の良い所でもう一度押してください";
@@ -4119,6 +4122,34 @@ function saveHistory() {
   m.style.display = "block";
   setTimeout(function () { m.style.display = "none"; }, 2000);
 }
+/* ------------------------------------------------------------------
+   ★2026-10-13c　戻るボタンの文（只隈さん 10/13「カレンダーに戻るボタンは、単純にキャンセルでもいいのでは」）
+   　予定から開いて、まだ記録していない間は「記録しないで戻る」。記録したあとは「○○カレンダーに戻る」。
+   　★「キャンセル」にしなかったのは、入力の途中はこの端末に残るので「消える」と思われないため。
+   ------------------------------------------------------------------ */
+var CAL_NM_ = "", HIST_SAVED_ = false;
+function backLbl_() {
+  var back = document.getElementById("backCalBtn");
+  if (!back) return;
+  back.textContent = (EVENT_ID && !HIST_SAVED_) ? "✕ 記録しないで戻る" : "📅 " + (CAL_NM_ || "カレンダー") + "に戻る";
+}
+/* ------------------------------------------------------------------
+   ★2026-10-13c　「計算する」ボタンをなくし、入力を変えたらすぐ計算し直す（只隈さん 10/13）。
+   　打っている途中で何度も動かないよう、手が止まって 0.4 秒あとに1回。結果の所へは飛ばない。
+   ------------------------------------------------------------------ */
+var autoCalcT_ = null, AUTO_CALC_ = false;
+function autoCalc_() {
+  if (autoCalcT_) clearTimeout(autoCalcT_);
+  autoCalcT_ = setTimeout(function () {
+    autoCalcT_ = null;
+    if (!document.querySelector("#cars .car-card")) return;
+    AUTO_CALC_ = true;
+    try { calc(true); } catch (eC) {}
+    AUTO_CALC_ = false;
+  }, 400);
+}
+document.addEventListener("input", function (e) { if (e.target && e.target.closest && e.target.closest("main")) autoCalc_(); }, true);
+document.addEventListener("change", function (e) { if (e.target && e.target.closest && e.target.closest("main")) autoCalc_(); }, true);
 function renderHist() {
   var h = lsGet(LS_HIST) || [];
   var box = document.getElementById("histList");
@@ -4319,14 +4350,16 @@ function paRender_() {
     h = '<div style="font-weight:bold;font-size:17px;">✅ いまは【実績】です（実際にかかった金額で精算）</div>' +
         (p.auto ? '<div style="margin-top:6px;padding:6px 8px;background:#fff;border:2px solid #5aa86a;border-radius:6px;"><b>山行の日から3日たっても実績の入力がなかったので、予定どおりとして扱いました（アプリが自動で）。</b>実際と違っていたら、下の車ごとに［変わった］で直して、記録し直してください。</div>' : '') +
         '<div style="margin-top:4px;">予定' + (p.at ? '（' + escapeHtml(p.at) + '）' : '') + '：1人 <b>' + (p.share != null ? jpn(p.share) + "円" : "—") + '</b></div>' +
-        '<div style="margin-top:4px;">下の車ごとに［予定どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら「計算する」→「実績としてカレンダーに記録する」。</div>' +
+        '<div style="margin-top:4px;">下の車ごとに［予定どおり］か［変わった］を選んでください。変わった車だけ、走った道を選びます（道を調べ直す必要はありません）。済んだら、いちばん下の「この金額で精算する」。</div>' +
         paGaisanHtml_() +
         '<button type="button" class="btn-small" style="margin-top:8px;" onclick="paBackToPlan_()">予定に戻す</button>';
     bar.style.background = "#eefaf0"; bar.style.borderColor = "#5aa86a";
   }
   bar.innerHTML = h;
   bar.style.display = "block";
-  if (shb && EVENT_ID) shb.textContent = (PA_STAGE === "plan") ? "📅 予定としてカレンダーに記録する" : "📅 実績としてカレンダーに記録する";
+  /* ★2026-10-13c　記録のボタンは「何をするか」で言う（只隈さん 10/13「これで予定を立てるとかいう表現で」） */
+  if (shb && EVENT_ID) shb.innerHTML = (PA_STAGE === "plan") ? "📅 この内容で予定を立てる<br><small>（カレンダーに記録されます）</small>"
+                                                             : "📅 この金額で精算する<br><small>（カレンダーに記録されます）</small>";
   document.querySelectorAll("#cars .car-card").forEach(paCarRender_);
 }
 
@@ -4427,7 +4460,7 @@ function paOpenEtc_() {
 /* ---------- 予定 → 実績 ---------- */
 function paToActual_() {
   if (!lastResultData) { try { calc(true); } catch (e) {} }
-  if (!lastResultData) { alert("先に「計算する」を押して、予定の金額を出してください。"); return; }
+  if (!lastResultData) { alert("まだ予定の金額が出ていません。走行距離などを入れてください。"); return; }
   if (!confirm("予定を残したまま、実績に直します。\n\n車ごとに［予定どおり］か［変わった］を選び、変わった車だけ走った道を選んでください。\n（いつでも「予定に戻す」で戻せます）")) return;
   var f = getFormData(); delete f.pa;
   PA_PLAN = { form: f, share: lastResultData.share, total: lastResultData.total, n: nPeople,
@@ -4450,7 +4483,7 @@ function paDayPassed_() {
 /* ★★2026-10-12d　［予定どおりだった］＝全部の車を［予定どおり］にして、実績として記録する（確認の窓は出さない。帯の問いが確認） */
 function paSameAsPlan_() {
   if (!lastResultData) { try { calc(true); } catch (e) {} }
-  if (!lastResultData) { alert("先に「計算する」を押して、予定の金額を出してください。"); return; }
+  if (!lastResultData) { alert("まだ予定の金額が出ていません。走行距離などを入れてください。"); return; }
   var f = getFormData(); delete f.pa;
   PA_PLAN = { form: f, share: lastResultData.share, total: lastResultData.total, n: nPeople,
               at: paNowMd_(), cands: paCands_() };
@@ -4642,7 +4675,7 @@ function paNoHw_(btn, dir, km, lbl) {
   }
   saveForm();
   paCarRender_(c);
-  paMsg_(c, dir, "高速料金なしにしました。「計算する」を押すと実績の金額が出ます。");
+  paMsg_(c, dir, "高速料金なしにしました。下に実績の金額が出ます。");
 }
 /* 走った区間を1台に入れる。料金は料金表 → 無ければ（高速料金AIがオンなら）地図の距離×決まり → 無ければ明細の金額を */
 function paApply_(c, dir, a, b, km, hwKm, lbl) {
@@ -4667,7 +4700,7 @@ function paApply_(c, dir, a, b, km, hwKm, lbl) {
     try { feeWhyAll_(); } catch (eW) {}
     paMsg_(c, dir, "区間 <b>" + escapeHtml(nm) + "</b> の料金を料金表から入れました" +
            ((isRet ? c.dataset.paBillRet : c.dataset.paBillFwd) ? "（明細の金額を使っています）" : "") +
-           "。「計算する」を押すと実績の金額が出ます。");
+           "。下に実績の金額が出ます。");
   }
   function none_(why) {
     if (isRet) { var sr = c.querySelector(".car-rroute"); sr.value = ""; rememberRouteName_(sr);
@@ -4830,6 +4863,7 @@ function getFormData() {
 }
 function saveForm() {
   lsSet(LS_FORM, getFormData());
+  try { autoCalc_(); } catch (eAc) {}
   try { feeWhyAll_(); } catch (eW) {}
   try { hwUiSyncAll_(); } catch (eHs) {}
 }
@@ -5254,7 +5288,7 @@ function fetchPrevSettle(skipForm) {
            （結果へ自動でスクロールしない）。修正したら「計算する」を押す */
         calc(true);
         var m = document.getElementById("loadMsg");
-        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。修正したら「計算する」を押してください。" +
+        m.textContent = "前回の精算内容を読み込みました。下に結果を表示しています。入力を直すと、すぐ計算し直されます。" +
           ((paKeepN && liveN > 0 && liveN !== nPeople) ? "\n★人数は、記録した精算の " + nPeople + "名 のままにしています（いまの出欠の「参加」は " + liveN + "名）。違うときは上の＋−で直してください。" : "") +
           ((!paKeepN && f.n && Number(f.n) !== nPeople) ? "\n★カレンダーに記録した精算は " + f.n + "名 で計算したものです。下の結果は、いまの参加 " + nPeople + "名 で計算し直しています。カレンダーの￥は、記録し直すまで " + f.n + "名 の計算のままです。" : "");
         m.style.whiteSpace = "pre-line";   /* ★2026-10-12 */
@@ -5413,7 +5447,7 @@ function draftHasInput_() {
           saveForm();
           calc(true);
           var lm = document.getElementById("loadMsg");
-          lm.textContent = "前回の精算内容を読み込みました。修正したら「計算する」を押してください。";
+          lm.textContent = "前回の精算内容を読み込みました。入力を直すと、すぐ計算し直されます。";
           lm.style.display = "block";
           window.scrollTo(0, 0);
         }
@@ -5431,7 +5465,7 @@ function draftHasInput_() {
       var lmC = document.getElementById("loadMsg");
       lmC.innerHTML = "カレンダーで「車を出す」と答えた方の車を並べました（" +
         calCars.map(function (cc) { return escapeHtml(cc.name) + "さん " + (cc.carType === "kei" ? "軽・" : "") + cc.seats + "人乗り"; }).join("、") +
-        "）。<br>走行距離などを入れて「計算する」を押してください。";
+        "）。<br>走行距離などを入れると、下に結果が出ます。";
       lmC.style.display = "block";
     } else {
       addCar();
@@ -5497,7 +5531,7 @@ function draftHasInput_() {
        　・「全員が見られます」はボタンの下に小さく添え
        　・計算する前にも「押すと下に出ます」と1行出します */
     var shb = document.getElementById("saveHistBtn");
-    shb.textContent = "📅 カレンダーに記録する";
+    shb.innerHTML = "📅 この内容で記録する<br><small>（カレンダーに記録されます）</small>";
     shb.className = "btn";
     shb.style.background = "var(--club)";
     shb.style.color = "#fff";
@@ -5518,6 +5552,7 @@ function draftHasInput_() {
        画面をそのまま覚えているので**一瞬で戻ります**（読み込み直しません）。 */
     var back = document.getElementById("backCalBtn");
     back.href = CAL_PAGE + "?goto=" + EVENT_ID;
+    backLbl_();
     back.onclick = function (e) {
       try {
         if (document.referrer && document.referrer.indexOf(CAL_PAGE) === 0 && history.length > 1) {
