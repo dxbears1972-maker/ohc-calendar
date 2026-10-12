@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13c";
+var APP_VER = "2026-10-13d";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2248,12 +2248,21 @@ function addCar(data) {
     '<label>車の持ち主（行きの運転手）</label>' + carNameFieldHtml("car-name") +
     '<p class="note car-seats" style="display:none;margin:4px 0 0;"></p>' +
     /* ★2026-10-04b（㊹）車種。軽は高速料金が普通車の0.8倍（目安） */
-    '<div class="car-type-wrap" style="display:' + (HW_ON ? 'block' : 'none') + ';">' +
-      '<label>車種</label>' +
-      '<select class="car-type" onchange="carTypeChanged(this)">' +
-      '<option value="">普通車</option><option value="kei">軽自動車</option></select>' +
-      '<p class="note" style="margin:4px 0 0;">軽の高速料金は、普通車の金額から NEXCO の決まりで計算します（約8割＋α）。下の「高速料金」の欄に、どう計算したかが出ます。</p>' +
+    /* ★2026-10-13d　ETC の有無は車に付いているものなので、車種の横へ（只隈さん 10/13）。帰りも同じ車なので帰りの欄は出さず、行きに合わせる */
+    '<div style="display:flex;gap:10px;align-items:flex-end;">' +
+      '<div class="car-type-wrap" style="flex:1;display:' + (HW_ON ? 'block' : 'none') + ';">' +
+        '<label>車種</label>' +
+        '<select class="car-type" onchange="carTypeChanged(this)">' +
+        '<option value="">普通車</option><option value="kei">軽自動車</option></select>' +
+      '</div>' +
+      '<div style="flex:1;">' +
+        '<label>ETC</label>' +
+        '<select class="car-etcuse" onchange="etcUseChanged_(this)">' +
+        '<option value="etc">ETCあり</option>' +
+        '<option value="normal">ETCなし</option></select>' +
+      '</div>' +
     '</div>' +
+    (HW_ON ? '<p class="note" style="margin:4px 0 0;">軽の高速料金は、普通車の金額から NEXCO の決まりで計算します（約8割＋α）。下の「高速料金」の欄に、どう計算したかが出ます。</p>' : '') +
     /* ★2026-08-23：ドライバーに選んだ方が、そのあと「不参加」になったときの知らせ場所 */
     '<div class="drv-warn" style="display:none;margin:6px 0 2px;padding:8px 10px;' +
       'background:#fff3e0;border:2px solid #e8a000;border-radius:8px;' +
@@ -2271,10 +2280,6 @@ function addCar(data) {
       '<div class="hw-sum hw-hide"></div>' +
       '<div class="hw-pick"><label>高速ルート（料金表から選ぶ）</label>' +
       '<select class="car-route" onchange="routeSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select></div>' +
-      '<label>ETCの有無</label>' +
-      '<select class="car-etcuse" onchange="routeSelected(this)">' +
-      '<option value="etc">ETCあり（ETC料金）</option>' +
-      '<option value="normal">ETCなし（通常料金）</option></select>' +
       '<div class="hw-feebox"><label>高速料金（円・片道）</label>' +
       '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)"></div>' +
       '<p class="note car-etc-why" style="margin:4px 0 0;color:#1f5a2a;white-space:pre-line;"></p>' +
@@ -2327,8 +2332,7 @@ function addCar(data) {
           '<div class="hw-sum hw-hide"></div>' +
           '<div class="hw-pick"><label>帰りの高速ルート（料金表から選ぶ）</label>' +
           '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select></div>' +
-          '<label>帰りのETCの有無</label>' +
-          '<select class="car-retcuse" onchange="retRouteSelected(this)">' +
+          '<select class="car-retcuse" style="display:none;" onchange="retRouteSelected(this)">' +
           '<option value="etc">ETCあり（ETC料金）</option>' +
           '<option value="normal">ETCなし（現金などで手払い）</option></select>' +
           '<div class="hw-feebox"><label>帰りの高速料金（円）</label>' +
@@ -2372,7 +2376,7 @@ function addCar(data) {
       setCarName(div, data.rname || "", "car-rname");
       setIf(div, ".car-rkm", data.rkm);
       setIf(div, ".car-retc", data.retc);
-      if (data.retcUse) div.querySelector(".car-retcuse").value = data.retcUse;
+      div.querySelector(".car-retcuse").value = div.querySelector(".car-etcuse").value;   /* ★2026-10-13d 帰りも同じ車＝行きに合わせる */
       setIf(div, ".car-rferry", data.rferry);
       setIf(div, ".car-rvia", data.rvia);
       if (data.rlabel) div.dataset.rlabel = data.rlabel;
@@ -3585,6 +3589,14 @@ function rememberFee(btn) {
   saveForm();
 }
 
+/* ★2026-10-13d　ETC の有無（車種の横）を変えたとき：行きと帰りの料金を入れ直す */
+function etcUseChanged_(el) {
+  var c = el.closest(".car-card");
+  var r = c.querySelector(".car-retcuse");
+  if (r) r.value = el.value;
+  routeSelected(el);
+  if (r && !c.querySelector(".chk-retsame").checked) retRouteSelected(r);
+}
 function routeSelected(el) {
   var card = el.closest(".car-card");
   var selRoute = card.querySelector(".car-route");
