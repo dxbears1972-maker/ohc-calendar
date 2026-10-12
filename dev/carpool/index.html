@@ -88,6 +88,12 @@
   .car-card .blk-ferry.on::before { content: "⛴ フェリー"; }
   /* ★2026-10-12a（ご依頼5）高速料金の枠は「✏ 手入力」のときだけ打てる */
   .car-card input.fee-lock { background: #eceeec; color: #333; }
+  /* ★2026-10-12e 道順で決まった区間は、ふだん表示だけ（只隈さん「道順を選べば入口と出口は決まる。区間を選ぶのはかぶっている」） */
+  .hw-sum { margin: 6px 0 2px; padding: 9px 11px; background: #eef6ee; border: 1px solid #b9d2ba; border-radius: 8px; font-size: 16px; }
+  .hw-sum b { font-size: 17px; }
+  .hw-sum .hw-st { display: block; font-size: 14px; color: #5a6b5c; margin-top: 2px; }
+  .hw-sum button { margin-top: 6px; font-size: 15px; padding: 6px 12px; border: 1px solid #8fae90; background: #fff; border-radius: 6px; }
+  .hw-hide { display: none !important; }
   .car-card .blk-park.on::before { content: "🅿 駐車料金"; }
   .car-card .blk-ent.on::before { content: "🎫 入場料"; }
   .row { display: flex; gap: 10px; }
@@ -601,7 +607,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-12d";
+var APP_VER = "2026-10-12e";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2207,14 +2213,15 @@ function addCar(data) {
       '<label><input type="checkbox" class="chk-ent" onchange="toggleOpt(this,\'blk-ent\')">入場料</label>' +
     '</div>' +
     '<div class="opt-blk blk-etc">' +
-      '<label>高速ルート（料金表から選ぶ）</label>' +
-      '<select class="car-route" onchange="routeSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select>' +
+      '<div class="hw-sum hw-hide"></div>' +
+      '<div class="hw-pick"><label>高速ルート（料金表から選ぶ）</label>' +
+      '<select class="car-route" onchange="routeSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select></div>' +
       '<label>ETCの有無</label>' +
       '<select class="car-etcuse" onchange="routeSelected(this)">' +
       '<option value="etc">ETCあり（ETC料金）</option>' +
       '<option value="normal">ETCなし（通常料金）</option></select>' +
-      '<label>高速料金（円・片道）</label>' +
-      '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)">' +
+      '<div class="hw-feebox"><label>高速料金（円・片道）</label>' +
+      '<input type="number" class="car-etc" placeholder="0" min="0" onchange="feeChanged(this)"></div>' +
       '<p class="note car-etc-why" style="margin:4px 0 0;color:#1f5a2a;white-space:pre-line;"></p>' +
       '<div class="fee-remember" style="display:none;margin-top:8px;">' +
         '<button type="button" class="btn btn-sub" onclick="rememberFee(this)">' +
@@ -2262,14 +2269,15 @@ function addCar(data) {
         '<label>帰りの走行距離（km）</label>' +
         '<input type="number" class="car-rkm" placeholder="例：45" min="0" step="0.1">' +
         '<div class="ret-etc">' +
-          '<label>帰りの高速ルート（料金表から選ぶ）</label>' +
-          '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select>' +
+          '<div class="hw-sum hw-hide"></div>' +
+          '<div class="hw-pick"><label>帰りの高速ルート（料金表から選ぶ）</label>' +
+          '<select class="car-rroute" onchange="retRouteSelected(this)"><option value="">区間を選んでください</option><option value="" data-manual="1">✏ 手入力</option></select></div>' +
           '<label>帰りのETCの有無</label>' +
           '<select class="car-retcuse" onchange="retRouteSelected(this)">' +
           '<option value="etc">ETCあり（ETC料金）</option>' +
           '<option value="normal">ETCなし（現金などで手払い）</option></select>' +
-          '<label>帰りの高速料金（円）</label>' +
-          '<input type="number" class="car-retc" placeholder="0（帰りは高速に乗らない）" min="0">' +
+          '<div class="hw-feebox"><label>帰りの高速料金（円）</label>' +
+          '<input type="number" class="car-retc" placeholder="0（帰りは高速に乗らない）" min="0"></div>' +
           '<p class="note car-retc-why" style="margin:4px 0 0;color:#1f5a2a;white-space:pre-line;"></p>' +
         '</div>' +
         '<div class="ret-ferry"><label>帰りのフェリー（車分）</label>' +
@@ -3317,7 +3325,7 @@ function applyIcRoute_(data) {
   var hu = hwUnchecked_(routes[idx]);
   /* ★2026-10-05l　出どころで文を分ける（AI（検索つき）＝料金のページを見た金額／地図の距離から計算＝見込み） */
   if (hu) liF.push(hu.src === "地図の距離から計算"
-    ? "🤖 この区間の料金は、<b>地図で測った高速の距離から NEXCO の料金の決まりで計算した見込み</b>です（普通車・ETC平日 " + jpn(hu.etc) + "円）。数十円ずれることがあります。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います"
+    ? "🤖 この区間の料金は、<b>地図で測った高速の距離から NEXCO の料金の決まりで計算した概算</b>です（普通車・ETC平日 " + jpn(hu.etc) + "円）。本物と10〜20円ほど違うことがあります（あとで本物の料金で確かめて直します）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います"
     : "🤖 この区間の料金は、<b>AIが Google 検索で料金のページ（ドラぷら・NAVITIME など）を見て調べた金額</b>です（普通車・ETC平日 " + jpn(hu.etc) + "円）。ETCの明細と違えば、下の「料金表」で直してください。直した金額を次から使います");
   var keiN = 0;
   cars.forEach(function (c) { if (isKeiCar_(c)) keiN++; });
@@ -4757,6 +4765,59 @@ function hwUiSync1_(c, sel, fee, fwd) {
   fee.classList.toggle("fee-lock", lock);
   if (!fee.dataset.ph0) fee.dataset.ph0 = fee.getAttribute("placeholder") || "0";
   fee.setAttribute("placeholder", lock ? "上で区間か「✏ 手入力」を選びます" : fee.dataset.ph0);
+  hwSumSync_(sel, fee, mode, fwd);
+}
+/* ------------------------------------------------------------------
+   ★2026-10-12e（只隈さん 10/12「道順を選ぶということは高速の入り口と出口は確定する。その下でわざわざ高速区間を選ぶ必要がない」）
+   　区間が決まっている（道順・料金表から入った／立ち寄りの合計）ときは、プルダウンと金額の枠を隠し、
+   　「○○IC → ○○IC　○○円（料金表・確定）」と表示だけにする。［区間・金額を変える］を押したときだけ、
+   　今までどおり区間を選ぶ／「✏ 手入力」で打てる（実績で違うICで乗り降りしたとき・地図で調べない人）。
+   　★区間が決まっていない・手入力のときは、今までどおりプルダウンを出す。
+   ------------------------------------------------------------------ */
+function hwRowState_(r) {
+  /* 共通の表の状態：確定／概算（距離×単価）／未確定（会員が直した・AI） */
+  if (typeof HW_ON === "undefined" || !HW_ON || typeof HW_TABLE === "undefined" || !HW_TABLE || !r) return "料金表";
+  var h = HW_TABLE[hwKeyOfName_(r.name)];
+  if (!h) return "料金表";
+  if (h.checked) return "料金表・確定";
+  if (h.src === "地図の距離から計算") return "概算（本物と10〜20円ほど違うことがあります。あとで確かめて直します）";
+  return "料金表・未確定（あとで確かめて確定します）";
+}
+function hwSumSync_(sel, fee, mode, fwd) {
+  var box = sel.closest(".opt-blk, .ret-etc");
+  if (!box) return;
+  var sum = box.querySelector(".hw-sum"), pick = box.querySelector(".hw-pick"), fb = box.querySelector(".hw-feebox");
+  if (!sum || !pick || !fb) return;
+  /* ［変える］のあと、別の区間を選んだら、また表示だけに戻す */
+  if (sel.dataset.open === "1" && mode === "route" && sel.value !== sel.dataset.openVal) delete sel.dataset.open;
+  var show = (mode === "route" || mode === "auto") && sel.dataset.open !== "1";
+  if (show) {
+    var h;
+    if (mode === "route") {
+      var r = getEtcRoutes()[parseInt(sel.value, 10)];
+      var nm = r ? String(r.name || "") : "";
+      var p = nm.split(/[⇔↔〜～~\-–—]/);
+      var lbl = (p.length === 2) ? (p[0].trim() + "IC → " + p[1].trim() + "IC") : nm;
+      h = "🛣 " + escapeHtml(lbl) + "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" +
+          '<span class="hw-st">' + escapeHtml(hwRowState_(r)) + "</span>";
+    } else {
+      h = "🛣 " + ((fwd && fwdSegs && fwdViaVal_()) ? "立ち寄りの区間の合計" : "アプリが入れた金額") +
+          "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" + '<span class="hw-st">自動</span>';
+    }
+    h += '<button type="button" onclick="hwOpenEdit_(this)">区間・金額を変える</button>';
+    if (sum.innerHTML !== h) sum.innerHTML = h;
+  }
+  sum.classList.toggle("hw-hide", !show);
+  pick.classList.toggle("hw-hide", show);
+  fb.classList.toggle("hw-hide", show);
+}
+function hwOpenEdit_(btn) {
+  var box = btn.closest(".opt-blk, .ret-etc");
+  var sel = box && box.querySelector(".car-route, .car-rroute");
+  if (!sel) return;
+  sel.dataset.open = "1"; sel.dataset.openVal = sel.value;
+  hwUiSyncAll_();
+  try { sel.focus(); } catch (eF) {}
 }
 function hwUiSyncAll_() {
   document.querySelectorAll("#cars .car-card").forEach(function (c) {
