@@ -433,10 +433,10 @@
    　　　　　　　　　 開発版の「設定」シートの「マイカー精算のURL」に
    　　　　　　　　　 …/carpool/?gas=dev と書いてください。本番は空欄のままです。
    ================================================================== */
-var GAS_PROD = "https://script.google.com/macros/s/AKfycbwWqGkcDGcuP-6QAaVatsVfNXzR7iXdQUtAsXkEZqA4RSzbOLqLOYpHgaYk4mUnKwQ/exec";
+var GAS_MAIN = "https://script.google.com/macros/s/AKfycbwVyvBrEE03VMpc03P5fOlrcwkqlYW_pKqBcPF7l6wjy55s3790AIyLzQCKjcCsI1Y/exec";
 var GAS_DEV  = "https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
 var USE_DEV  = /[?&]gas=dev(&|$)/.test(location.search || "");
-var CAL_API  = USE_DEV ? GAS_DEV : GAS_PROD;
+var CAL_API  = USE_DEV ? GAS_DEV : GAS_MAIN;
 
 /* クラブのID。★カレンダーと同じ控え（clubId）を使います。
    　同じ場所に置いてあるアプリなので、カレンダーで一度開けばこちらも分かります。 */
