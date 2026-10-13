@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13f";
+var APP_VER = "2026-10-13g";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2582,7 +2582,7 @@ function renderRet_(c, fill) {
     var r = sg.list[sg.idx] || sg.list[0];
     total += Number(r.km) || 0;
     if (!r.noHw && r.tollIn && r.tollIn.name && r.tollOut && r.tollOut.name) {
-      hw.push({ a: r.tollIn.name, b: r.tollOut.name });
+      hw.push({ a: r.tollIn.name, b: r.tollOut.name, km: (r.seg && r.seg[1]) ? r.seg[1].km : "" });
     }
     h += segBoxOpen_((segs.length > 1 ? (si === 0 ? "① " : "② ") : "") + sg.from + " → " + sg.to, r.km);
     h += vagueWarnHtml_([[sg.from, sg.fromAddr, "出発"], [sg.to, sg.toAddr, "行き先"]]);   /* ★2026-10-05j */
@@ -2631,12 +2631,20 @@ function renderRet_(c, fill) {
         notes.push("帰りの高速料金に <b>" + yen(sum) + "</b> を入れました（" +
                    escapeHtml(hw.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("＋")) + "）");
       } else {
+        /* ★2026-10-13f　行きから写した金額（行きの道の料金）が残り「手入力」に見えていた（只隈さん 10/13）→ 空にする。
+           　そのうえで、行きと同じく概算を出して料金表に足し、入れ直す（retHwFill_） */
+        if (sr) { sr.value = ""; rememberRouteName_(sr); }
+        if (fr) fr.value = "";
+        if (retHwFill_(c, hw) > 0) {
+          notes.push("区間 <b>" + escapeHtml(miss.join("・")) + "</b> は料金表に無いので、地図の距離から概算を出しています…");
+        } else {
         notes.push("区間 <b>" + escapeHtml(miss.join("・")) + "</b> の料金が、まだ料金表にありません。" +
                    "下の「帰りの高速料金」に手で入れるか、料金表に足してください");
         miss.forEach(function (nm) {
           btns.push('<button type="button" class="btn btn-sub" style="margin-top:4px;" ' +
             'onclick="addRetIcRoute_(this,\'' + escapeHtml(nm).replace(/'/g, "") + '\')">＋ 料金表に「' + escapeHtml(nm) + '」を足す</button>');
         });
+        }
       }
     }
     var lab = segs.map(function (sg) {
@@ -2649,6 +2657,39 @@ function renderRet_(c, fill) {
   }
   msg.innerHTML = h + (notes.length ? '<div style="margin-top:8px;padding:8px 10px;background:#f2f7f2;border-radius:8px;">' +
     notes.map(function (x) { return "・" + x; }).join("<br>") + btns.join("") + '</div>' : "");
+}
+/* ★2026-10-13f　帰りの区間で料金表に無いものを、行き（fwdHwFill_）と同じく概算して料金表に足す。
+   　返り：まだ待っている区間の数（0 なら、足せなかった） */
+function retHwFill_(c, hw) {
+  if (!HW_ON) return 0;
+  var wait = 0, dest = document.getElementById("destPlace").value.trim(), token = c._retSegs;
+  hw.forEach(function (p) {
+    if (findRouteByIcPair_(p.a, p.b) >= 0) return;
+    var key = hwKey_(p.a, p.b), nm = icShort_(p.a) + "⇔" + icShort_(p.b);
+    if (!key || fwdHwBusy_[key] === "fail") return;
+    function put_(f) {
+      if (findRouteByIcPair_(p.a, p.b) < 0) { addEtcRow(nm, f.etc, f.normal, dest, f.etcHoli); saveEtc(); }
+    }
+    if (HW_TABLE && HW_TABLE[key] && HW_TABLE[key].etc != null) { put_(HW_TABLE[key]); wait++; return; }
+    wait++;
+    if (fwdHwBusy_[key]) return;
+    fwdHwBusy_[key] = "busy";
+    apiPost({ action: "hwFee", "in": p.a, out: p.b, hwKm: p.km }, function (err, d) {
+      if (err || !d || d.error || !d.fee || d.fee.etc == null) { fwdHwBusy_[key] = "fail"; }
+      else {
+        delete fwdHwBusy_[key];
+        if (!HW_TABLE) HW_TABLE = {};
+        HW_TABLE[key] = d.fee;
+        put_(d.fee);
+      }
+      if (c._retSegs === token) renderRet_(c, true);
+    });
+  });
+  /* 共通の表にあって、いま足した区間だけなら、すぐ入れ直す */
+  if (wait && hw.every(function (p) { return findRouteByIcPair_(p.a, p.b) >= 0; })) {
+    setTimeout(function () { if (c._retSegs === token) renderRet_(c, true); }, 0);
+  }
+  return wait;
 }
 /* 料金表に金額が入ったら、帰りの道（地図で調べた分）の高速料金を入れ直す */
 function fillRetFromMap_() {
