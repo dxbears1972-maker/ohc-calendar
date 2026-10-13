@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13h";
+var APP_VER = "2026-10-13i";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -2409,7 +2409,9 @@ function addCar(data) {
        これまで保存していなかったため、開き直すと必ず「ETCあり」に
        戻ってしまい、金額（通常料金で入れた額など）と食い違っていました。 */
     if (data.etcUse) div.querySelector(".car-etcuse").value = data.etcUse;
-    if (data.hwBrk) { div.dataset.hwBrk = data.hwBrk; div.dataset.hwBrkFee = data.hwBrkFee || ""; }
+    if (data.hwBrk) { div.dataset.hwBrk = data.hwBrk; div.dataset.hwBrkFee = data.hwBrkFee || "";
+      /* ★2026-10-13i　内訳どおりの金額なら、アプリが入れた金額として開く（「手入力」にしない） */
+      if (String(data.etc) === String(data.hwBrkFee)) div.querySelector(".car-etc").setAttribute("data-auto", String(data.etc)); }
     if (data.rhwBrk) { div.dataset.rhwBrk = data.rhwBrk; div.dataset.rhwBrkFee = data.rhwBrkFee || ""; }
     setIf(div, ".car-ferry", data.ferry);
     /* ★2026-10-12a　前の記録（この欄が無い）でフェリー車分が入っているものは、引かない
@@ -2422,6 +2424,7 @@ function addCar(data) {
       setCarName(div, data.rname || "", "car-rname");
       setIf(div, ".car-rkm", data.rkm);
       setIf(div, ".car-retc", data.retc);
+      if (data.rhwBrk && String(data.retc) === String(data.rhwBrkFee)) div.querySelector(".car-retc").setAttribute("data-auto", String(data.retc));
       div.querySelector(".car-retcuse").value = div.querySelector(".car-etcuse").value;   /* ★2026-10-13d 帰りも同じ車＝行きに合わせる */
       setIf(div, ".car-rferry", data.rferry);
       setIf(div, ".car-rvia", data.rvia);
@@ -5063,6 +5066,15 @@ function hwSumSync_(sel, fee, mode, fwd) {
             (rr ? '<span class="hw-st">' + escapeHtml(hwRowState_(rr)) + "</span>" : "") + "</div>";
         });
       }
+      /* ★2026-10-13i　開き直したとき（道の候補が無い）は、記録に残した内訳から区間ごとに出す */
+      var cc2 = sel.closest(".car-card"), bk = cc2 && cc2.dataset[fwd ? "hwBrk" : "rhwBrk"];
+      if (!segLines && bk && String(cc2.dataset[fwd ? "hwBrkFee" : "rhwBrkFee"]) === String(fee.value)) {
+        bk.split("＋").forEach(function (t) {
+          var m = t.match(/^(.*)\s(\S+円)$/), nm = m ? m[1] : t, pp = nm.split("⇔");
+          segLines += "<div>🛣 " + escapeHtml(pp.length === 2 ? icLbl_(pp[0]) + " → " + icLbl_(pp[1]) : nm) +
+            "　<b>" + escapeHtml(m ? m[2] : "") + "</b></div>";
+        });
+      }
       h = segLines ? segLines + "<div>合計　<b>" + jpn(Number(fee.value) || 0) + "円</b></div>"
                    : "🛣 " + ((fwd && fwdSegs && fwdViaVal_()) ? "立ち寄りの区間の合計" : "アプリが入れた金額") +
                      "　<b>" + jpn(Number(fee.value) || 0) + "円</b>" + '<span class="hw-st">自動</span>';
@@ -5243,6 +5255,9 @@ function applyForm(f) {
   refreshPayerDropdown();
   syncStayUi_();
   try { paRender_(); } catch (ePa) {}
+  /* ★2026-10-13i　開き直したとき、高速料金の欄（区間の表示・内訳の行）を作り直していなかった（只隈さん 10/13） */
+  try { hwUiSyncAll_(); } catch (eHu) {}
+  try { feeWhyAll_(); } catch (eW) {}
   return hasCars;
 }
 function loadForm() {
