@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13g";
+var APP_VER = "2026-10-13h";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -1506,12 +1506,13 @@ function fwdFillFees_() {
       if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
       return;
     }
-    var sum = 0, ok = true;
+    var sum = 0, ok = true, brk = [];
     idxs.forEach(function (ix) {
       var f = routeFeeFor_(routes[ix], c.querySelector(".car-etcuse").value, false, c);
-      if (f == null) ok = false; else sum += f;
+      if (f == null) ok = false; else { sum += f; brk.push(routes[ix].name + " " + f.toLocaleString("ja-JP") + "円"); }
     });
     if (!ok) return;
+    hwBrkSet_(c, false, idxs.length > 1 ? brk.join("＋") : "", sum);
     if (chk && !chk.checked) { chk.checked = true; toggleOpt(chk, "blk-etc"); }
     if (sel) { sel.value = (idxs.length === 1) ? String(idxs[0]) : ""; rememberRouteName_(sel); }
     var tp = c.querySelector(".car-etctype");
@@ -2408,6 +2409,8 @@ function addCar(data) {
        これまで保存していなかったため、開き直すと必ず「ETCあり」に
        戻ってしまい、金額（通常料金で入れた額など）と食い違っていました。 */
     if (data.etcUse) div.querySelector(".car-etcuse").value = data.etcUse;
+    if (data.hwBrk) { div.dataset.hwBrk = data.hwBrk; div.dataset.hwBrkFee = data.hwBrkFee || ""; }
+    if (data.rhwBrk) { div.dataset.rhwBrk = data.rhwBrk; div.dataset.rhwBrkFee = data.rhwBrkFee || ""; }
     setIf(div, ".car-ferry", data.ferry);
     /* ★2026-10-12a　前の記録（この欄が無い）でフェリー車分が入っているものは、引かない
        　（10/11 普賢岳のように、前に手で引いて入れた金額を2回引かないため）。それ以外は既定のとおりチェックあり */
@@ -2615,19 +2618,20 @@ function renderRet_(c, fill) {
         chk.checked = true; toggleOpt(chk, "blk-etc");
         notes.push("帰りに高速を使うので「高速道路」にチェックを入れました（行きに乗らないときは、行きの高速料金は空欄のままで大丈夫です）");
       }
-      var sum = 0, miss = [], idxs = [];
+      var sum = 0, miss = [], idxs = [], rbrk = [];
       hw.forEach(function (p) {
         var ix = findRouteByIcPair_(p.a, p.b);
         var nm = icShort_(p.a) + "⇔" + icShort_(p.b);
         if (ix < 0) { miss.push(nm); return; }
         var fee = routeFeeFor_(getEtcRoutes()[ix], c.querySelector(".car-retcuse").value, true, c);
         if (fee == null) { miss.push(nm); return; }
-        idxs.push(ix); sum += fee;
+        idxs.push(ix); sum += fee; rbrk.push(getEtcRoutes()[ix].name + " " + fee.toLocaleString("ja-JP") + "円");
       });
       if (!miss.length) {
         if (idxs.length === 1) { sr.value = String(idxs[0]); rememberRouteName_(sr); }
         else { sr.value = ""; rememberRouteName_(sr); }
         fr.value = String(sum);
+        hwBrkSet_(c, true, idxs.length > 1 ? rbrk.join("＋") : "", sum);
         notes.push("帰りの高速料金に <b>" + yen(sum) + "</b> を入れました（" +
                    escapeHtml(hw.map(function (p) { return icShort_(p.a) + "⇔" + icShort_(p.b); }).join("＋")) + "）");
       } else {
@@ -4891,6 +4895,8 @@ function getFormData() {
       rferry: c.querySelector(".car-rferry").value,
       rvia: c.querySelector(".car-rvia").value,
       rlabel: c.dataset.rlabel || "",
+      hwBrk: c.dataset.hwBrk || "", hwBrkFee: c.dataset.hwBrkFee || "",
+      rhwBrk: c.dataset.rhwBrk || "", rhwBrkFee: c.dataset.rhwBrkFee || "",
       rcash: c.querySelector(".car-rcash").value,
       parkBy: c.querySelector(".car-parkby").value,
       seats: c.dataset.seats || "",
@@ -5082,6 +5088,12 @@ function hwUiSyncAll_() {
     hwUiSync1_(c, c.querySelector(".car-rroute"), c.querySelector(".car-retc"), false);
   });
 }
+/* ★2026-10-13h　区間ごとの料金の内訳を車に覚えさせる（記録にも残る）。brk が空なら消す */
+function hwBrkSet_(c, ret, brk, sum) {
+  var k = ret ? "rhwBrk" : "hwBrk";
+  if (brk) { c.dataset[k] = brk; c.dataset[k + "Fee"] = String(sum); }
+  else { delete c.dataset[k]; delete c.dataset[k + "Fee"]; }
+}
 /* ★2026-10-05d　高速料金の欄の下に「どう計算したか」を1行出す
    （只隈さん「軽自動車で休日ETCで計算とか書かないとわからない」） */
 function feeWhyText_(c, ret) {
@@ -5096,6 +5108,12 @@ function feeWhyText_(c, ret) {
   if (r && String(routeFeeFor_(r, use, ret, c)) === String(fee.value)) {
     return "料金表「" + r.name + "」・" + (HW_ON ? (isKeiCar_(c) ? "軽自動車" : "普通車") : "") + "\n" +
            feeCalcLine_(r, use, ret, c) + "\n（" + dayLine + "）";
+  }
+  /* ★2026-10-13h　立ち寄りで区間が2つ以上のときは、区間ごとの内訳を記録に残して出す。
+     　開き直すと「手入力 22660」だけになり、なぜその金額か分からなかった（只隈さん 10/13） */
+  var bk = c.dataset[ret ? "rhwBrk" : "hwBrk"], bf = c.dataset[ret ? "rhwBrkFee" : "hwBrkFee"];
+  if (bk && String(bf) === String(fee.value)) {
+    return "区間ごとの料金の合計：" + bk + "\n（" + dayLine + "）";
   }
   if (!ret && fwdSegs && fwdViaVal_() && fee.value === fee.getAttribute("data-auto")) {
     return "立ち寄りを含む区間の料金の合計（" + dayLine + "）";
