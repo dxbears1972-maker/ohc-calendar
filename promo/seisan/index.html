@@ -201,6 +201,9 @@ h1.h2{font-size:29px;color:var(--green);text-align:center;line-height:1.5}.cta h
 .ans .row2{display:flex;justify-content:space-between;gap:10px;border-top:1px solid rgba(255,255,255,.25);padding-top:8px;margin-top:8px;font-size:18px}
 .ans .row2 b{white-space:nowrap}
 .ans small{display:block;font-size:15px;opacity:.9;margin-top:8px}
+.ans .cpr{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.ans .cpr .copyb{margin-top:0}
+.ans a.copyb{display:inline-block;text-decoration:none;font-family:inherit;line-height:normal}
 .copyb{margin-top:14px;font-size:18px;padding:10px 18px;border:0;border-radius:10px;background:#fff;color:var(--green);font-weight:bold;cursor:pointer}
 /* ===== ヘッダーとメニュー（2026-09-30。決定P1・P2・P6・P7） ===== */
 html{scroll-padding-top:165px}
@@ -378,13 +381,15 @@ section:nth-of-type(even) .card{background:var(--cream)}
     var share=Math.ceil(total/payers/unit)*unit,riders=n-1,get=share*riders,rest=share*payers-total;
     var t="1人あたり "+share.toLocaleString("ja-JP")+"円（"+(out?"同乗の方 "+riders+"人で割る":n+"人で割る")+"）\n"
       +"ガソリン代 "+gas.toLocaleString("ja-JP")+"円（"+km+"km×"+rate+"円）＋高速代 "+hw.toLocaleString("ja-JP")+"円＋駐車場代 "+park.toLocaleString("ja-JP")+"円＝"+total.toLocaleString("ja-JP")+"円\n"
-      +"同乗の方 "+riders+"人から運転する方へ "+share.toLocaleString("ja-JP")+"円ずつ（合わせて "+get.toLocaleString("ja-JP")+"円）";
+      +"同乗の方 "+riders+"人から運転する方へ "+share.toLocaleString("ja-JP")+"円ずつ（合わせて "+get.toLocaleString("ja-JP")+"円）\n"
+      +"計算：無料の相乗り精算 https://dxbears1972-maker.github.io/ohc-calendar/promo/seisan/?utm_source=seisan&utm_medium=share";
     a.innerHTML='<div>1人あたり</div><div class="big">'+yen(share)+'</div>'
       +'<div class="row2"><span>ガソリン代</span><b>'+yen(gas)+'</b></div>'
       +'<div class="row2"><span>合計</span><b>'+yen(total)+'</b></div>'
       +'<div class="row2"><span>運転する方が受け取る額</span><b>'+yen(get)+'</b></div>'
       +(rest>0?'<small>切り上げの余り '+yen(rest)+' は、運転する方の分です。</small>':'')
-      +'<button type="button" class="copyb" id="cp">結果をコピー（LINEに貼れます）</button>';
+      +'<div class="cpr"><button type="button" class="copyb" id="cp">結果をコピー</button>'
+      +'<a class="copyb" href="https://line.me/R/share?text='+encodeURIComponent(t)+'">結果をLINEで送る</a></div>';
     document.getElementById("cp").onclick=function(){
       var b=this;function ok(){b.textContent="コピーしました"}
       if(navigator.clipboard){navigator.clipboard.writeText(t).then(ok,function(){})}
