@@ -608,7 +608,7 @@ loadClubCfg_();
    　画面いちばん下の表示も、新しい版が出ていないかの確認も、
    　すべてこの値を見ます。直すのはここ1か所だけで済みます。
    ================================================================== */
-var APP_VER = "2026-10-13e";
+var APP_VER = "2026-10-13f";
 
 /* ------------------------------------------------------------------
    ★新しい版が出ていないかを、開いたときに1回だけ見に行きます。
@@ -679,6 +679,18 @@ function updateYoubi() {
 }
 
 /* ---------- サーバー通信（カレンダーと同じGASを使う） ---------- */
+/* ★2026-10-13f　入口の名前が案内に無いとき、サーバーは「名駅付近」のように地名で返す。
+   　九州の方には「名駅」という駅があるように読めるので、入れた場所の名前に替える
+   　（例：名古屋駅付近）。只隈さん 10/13「立ち寄り先の名前を使う」 */
+function nearName_(d, from, to) {
+  function fix(x) {
+    if (!x || typeof x !== "object") return;
+    if (x.tollIn && /付近$/.test(x.tollIn.name || "") && from) x.tollIn.name = from + "付近";
+    if (x.tollOut && /付近$/.test(x.tollOut.name || "") && to) x.tollOut.name = to + "付近";
+  }
+  fix(d);
+  if (d.list && d.list.length) for (var i = 0; i < d.list.length; i++) fix(d.list[i]);
+}
 function apiPost(body, cb) {
   var xhr = new XMLHttpRequest();
   /* ★2026-09-07（工事B B-3）どのクラブかを、URLに付けて知らせます */
@@ -689,6 +701,7 @@ function apiPost(body, cb) {
     if (xhr.status >= 200 && xhr.status < 300) {
       var data = null;
       try { data = JSON.parse(xhr.responseText); } catch (e) {}
+      if (data && body && body.action === "getDistance") nearName_(data, body.from, body.to);
       cb(data ? null : true, data);
     } else { cb(true, null); }
   };
@@ -4970,8 +4983,8 @@ function hwRowState_(r) {
   var h = HW_TABLE[hwKeyOfName_(r.name)];
   if (!h) return "料金表";
   if (h.checked) return "料金表・確定";
-  if (h.src === "地図の距離から計算") return "概算（本物と10〜20円ほど違うことがあります。あとで確かめて直します）";
-  return "料金表・未確定（あとで確かめて確定します）";
+  if (h.src === "地図の距離から計算") return "概算（本物と違うことがあります。精算のとき、ETCの明細と比べてください）";  /* ★2026-10-13f 「あとで確かめます」はDXベアーズ側の話で、入れた方には関係ないので替えた */
+  return "料金表・未確定（精算のとき、ETCの明細と比べてください）";
 }
 function hwSumSync_(sel, fee, mode, fwd) {
   var box = sel.closest(".opt-blk, .ret-etc");
