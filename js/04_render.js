@@ -10,7 +10,8 @@ function eventsOn(key){
 function renderCalendar(){
   var y = state.year, m = state.month;
   $('ymLabel').innerHTML = y + '年' + m + '月';
-  $('listTitle').innerHTML = m + '月の予定';
+  /* ★2026-10-19a　見出し「○月の予定」は外した（月は上の帯に出ている） */
+  if ($('listTitle')) $('listTitle').innerHTML = m + '月の予定';
 
   var first = new Date(y, m - 1, 1);
   var startDow = first.getDay();

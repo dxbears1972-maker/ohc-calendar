@@ -151,10 +151,13 @@ function answer(evId, st){
   }
   if (!found) state.attendance.push({ eventId: evId, name: name, status: st, car: '' });
   render();
+  /* ★★2026-10-19a　Googleカレンダーへ入れる画面を開くかを先に決め、出欠と一緒に送る（操作ログに「📅」が付く）。
+     　使っている人がいるかを、只隈さんが操作ログで見られるように */
+  var openG = (st === 'yes' && prev !== 'yes' && lsGet(LSK.gcalPref) === 'yes');
   post({ action: 'setAttendance', eventId: evId, name: name, memberId: idOf(name),
-         status: st, by: getName() }, '回答を送りました');
+         status: st, by: getName(), gcal: openG ? 'open' : '' }, '回答を送りました');
   /* チェックが入っている人だけ、新たに「参加」にしたときGoogleカレンダー追加を開く */
-  if (st === 'yes' && prev !== 'yes' && lsGet(LSK.gcalPref) === 'yes'){
+  if (openG){
     var ev = null;
     for (var g = 0; g < state.events.length; g++){
       if (state.events[g].id === evId) ev = state.events[g];

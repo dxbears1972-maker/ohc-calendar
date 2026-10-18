@@ -30,7 +30,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="予定">
 <title>クラブ カレンダー</title>
-<link rel="stylesheet" href="css/app.css?v=2026-10-06本番b">
+<link rel="stylesheet" href="css/app.css?v=2026-10-19本番a">
 </head>
 <body>
 
@@ -260,18 +260,10 @@
       <b>空いている日を押すと、その日の予定を入れる画面が開きます。</b></p>
   </div>
 
-  <!-- Googleカレンダー連携の設定 -->
-  <div class="card" style="padding:10px 12px">
-    <label style="font-size:16px; display:flex; align-items:center; margin:0;">
-      <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
-      参加した予定をGoogleカレンダーにも追加する
-    </label>
-    <p class="note" style="margin-top:6px">チェックを入れると、「参加」を押したときにGoogleカレンダーの追加画面が開きます。外すと開きません。（この設定はこの端末に記憶されます）</p>
-  </div>
-
   <!-- 予定一覧 -->
+  <!-- ★★2026-10-19a　見出し「○月の予定」を外し、Googleカレンダーの☑を「⚙ 設定」の中へ移しました（只隈さん）。
+       　月は上の帯にいつも出ている＝同じことを二度書かない。一度決めたら変えない設定は、一覧の上に置かない。 -->
   <div class="card">
-    <h2 id="listTitle">今月の予定</h2>
     <div id="evList"></div>
   </div>
 
@@ -483,6 +475,15 @@
     <h2>設定</h2>
     <p class="note" id="cfgWho"></p>
 
+    <!-- ★★2026-10-19a　Googleカレンダー連携の☑（予定一覧の上から移しました） -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:16px; display:flex; align-items:center; margin:0;">
+        <input type="checkbox" id="gcalChk" style="width:26px; height:26px; margin-right:10px;">
+        参加した予定をGoogleカレンダーにも入れる
+      </label>
+      <p class="note" style="margin-top:6px">チェックすると、「参加」を押したときにGoogleカレンダーへ入れる画面が開きます。</p>
+    </div>
+
     <!-- 幹事が決まっていないときだけ、管理者に出す -->
     <div id="needEditor" style="display:none; background:#fff3e0; border:2px solid #e8a000;
          border-radius:10px; padding:12px; margin-bottom:14px">
@@ -602,22 +603,22 @@
   <p class="note" style="text-align:center" id="verLine"></p>
 </main>
 
-<script src="js/01_club-config.js?v=2026-10-06本番b"></script>
-<script src="js/02_kind-target.js?v=2026-10-06本番b"></script>
-<script src="js/03_core-api.js?v=2026-10-06本番b"></script>
-<script src="js/04_render.js?v=2026-10-06本番b"></script>
-<script src="js/05_attend-proxy.js?v=2026-10-06本番b"></script>
-<script src="js/06_notice-line.js?v=2026-10-06本番b"></script>
-<script src="js/07_cancel-ops.js?v=2026-10-06本番b"></script>
-<script src="js/08_event-form.js?v=2026-10-06本番b"></script>
-<script src="js/09_bulk-add.js?v=2026-10-06本番b"></script>
-<script src="js/10_export-pick.js?v=2026-10-06本番b"></script>
-<script src="js/11_code-name.js?v=2026-10-06本番b"></script>
-<script src="js/12_admin-view.js?v=2026-10-06本番b"></script>
-<script src="js/13_admin-edit.js?v=2026-10-06本番b"></script>
-<script src="js/14_install-card.js?v=2026-10-06本番b"></script>
+<script src="js/01_club-config.js?v=2026-10-19本番a"></script>
+<script src="js/02_kind-target.js?v=2026-10-19本番a"></script>
+<script src="js/03_core-api.js?v=2026-10-19本番a"></script>
+<script src="js/04_render.js?v=2026-10-19本番a"></script>
+<script src="js/05_attend-proxy.js?v=2026-10-19本番a"></script>
+<script src="js/06_notice-line.js?v=2026-10-19本番a"></script>
+<script src="js/07_cancel-ops.js?v=2026-10-19本番a"></script>
+<script src="js/08_event-form.js?v=2026-10-19本番a"></script>
+<script src="js/09_bulk-add.js?v=2026-10-19本番a"></script>
+<script src="js/10_export-pick.js?v=2026-10-19本番a"></script>
+<script src="js/11_code-name.js?v=2026-10-19本番a"></script>
+<script src="js/12_admin-view.js?v=2026-10-19本番a"></script>
+<script src="js/13_admin-edit.js?v=2026-10-19本番a"></script>
+<script src="js/14_install-card.js?v=2026-10-19本番a"></script>
 <!-- ★2026-09-28i　16 は 15 より先に読む（15 のいちばん下で init() が走り、その中の render() が 16 の関数を使うため） -->
-<script src="js/16_plan-sheet.js?v=2026-10-06本番b"></script>
-<script src="js/15_namepick-init.js?v=2026-10-06本番b"></script>
+<script src="js/16_plan-sheet.js?v=2026-10-19本番a"></script>
+<script src="js/15_namepick-init.js?v=2026-10-19本番a"></script>
 </body>
 </html>
