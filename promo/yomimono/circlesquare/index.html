@@ -324,6 +324,19 @@ section:nth-of-type(even) .card{background:var(--cream)}
 .tocta{background:var(--green);color:#fff;text-align:center;padding:34px 0 38px}
 .tocta p{font-size:21px;font-weight:700}
 .tocta .btn{margin-top:16px;font-size:21px;padding:14px 34px}
+/* ★2026-10-20 バナーの押せるボタン（指のマーク付き） */
+.mbanner::after,.cbanner::after{display:none}
+.mbanner b{white-space:normal}
+.mbanner div,.cbanner div{flex:1;min-width:0}
+.mbanner em,.cbanner em{display:inline-block;margin-top:6px;font-style:normal;font-weight:700;border-radius:999px;white-space:nowrap;padding:5px 14px;font-size:clamp(14px,3.9vw,16px)}
+.mbanner em{background:var(--orange);color:#fff}
+.cbanner em{background:#fff;color:var(--orange)}
+.mbanner em::after,.cbanner em::after{content:" ›"}
+.mbanner.big em,.cbanner.big em{display:block;text-align:center;margin:10px 0 0;font-size:clamp(17px,4.8vw,20px);padding:10px 12px}
+.mbanner.big div{padding:10px 14px 14px}
+.ic.tp{width:1.25em;height:1.25em;margin-right:.3em;vertical-align:-.28em;transform-origin:50% 90%}
+@media (prefers-reduced-motion:no-preference){.ic.tp{animation:tp 2.4s ease-in-out infinite}}
+@keyframes tp{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(3px) scale(.92)}90%{transform:translateY(0)}}
 /* ===== ヘッダーとメニューここまで ===== */
 </style>
 </head>
@@ -340,9 +353,10 @@ section:nth-of-type(even) .card{background:var(--cream)}
   </ul></nav>
 </div></header>
 <script>(function(){var bs=document.querySelectorAll(".gnav .mb");function shut(x){bs.forEach(function(b){if(b!==x){b.setAttribute("aria-expanded","false");document.getElementById(b.getAttribute("aria-controls")).classList.remove("open")}})}bs.forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();var o=b.getAttribute("aria-expanded")==="true";shut(b);b.setAttribute("aria-expanded",o?"false":"true");document.getElementById(b.getAttribute("aria-controls")).classList.toggle("open",!o)})});document.addEventListener("click",function(e){if(!e.target.closest(".gnav"))shut(null)});document.addEventListener("keydown",function(e){if(e.key==="Escape")shut(null)});})();</script>
-<div class="dbw"><a class="dbanner" href="../../mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>体験版で、出欠・車・精算をお試しください</span></div><em>体験版を開く</em></a></div>
-<div class="mbw"><a class="mbanner" href="../../manga/"><img src="../../manga/01b.jpg" width="88" height="50" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span></div></a></div>
-<div class="cbw"><a class="cbanner" href="../../ryokin/#campaign"><div><b>ご紹介キャンペーン</b><span>ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼント</span></div></a></div>
+<script>(function(){var mk=[];function lastW(e){var r=document.createRange();r.selectNodeContents(e);var rs=r.getClientRects(),L={},n=0;for(var i=0;i<rs.length;i++){var q=rs[i];if(q.width<1)continue;var k=Math.round(q.bottom);if(!L[k]){L[k]={a:q.left,b:q.right};n++}L[k].a=Math.min(L[k].a,q.left);L[k].b=Math.max(L[k].b,q.right)}if(n<2)return 1e9;var ks=Object.keys(L).map(Number).sort(function(x,y){return x-y}),z=L[ks[ks.length-1]];return z.b-z.a}function bad(e,fs){return lastW(e)<fs*3.2}function run(){mk.forEach(function(e){e.style.textWrap="";e.style.letterSpacing=""});mk=[];document.querySelectorAll("body *").forEach(function(e){var cs=getComputedStyle(e);if(cs.display==="inline"||cs.display==="none")return;var t=false;for(var n=e.firstChild;n;n=n.nextSibling){if(n.nodeType===3&&n.data.trim()){t=true;break}}if(!t)return;var fs=parseFloat(cs.fontSize);if(!bad(e,fs))return;mk.push(e);e.style.textWrap="balance";if(!bad(e,fs))return;e.style.textWrap="";var ls0=parseFloat(cs.letterSpacing)||0;for(var s=1;s<=7;s++){e.style.letterSpacing=(ls0/fs-s*0.01)+"em";if(!bad(e,fs))return}e.style.letterSpacing=""})}var tm;function go(){clearTimeout(tm);tm=setTimeout(run,60)}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();window.addEventListener("load",go);window.addEventListener("resize",go);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);})();</script>
+<div class="dbw"><a class="dbanner" href="../../mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>体験版で、出欠・車・精算をお試しください</span></div><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>体験版を開く</em></a></div>
+<div class="mbw"><a class="mbanner" href="../../manga/"><img src="../../manga/01b.jpg" width="88" height="50" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>マンガを読む</em></div></a></div>
+<div class="cbw"><a class="cbanner" href="../../ryokin/#campaign"><div><b>ご紹介キャンペーン</b><span>ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼント</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>くわしく見る</em></div></a></div>
 
 <section class="art">
   <div class="wrap">
