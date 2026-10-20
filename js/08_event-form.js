@@ -773,7 +773,9 @@ function submitAdd(){
      　★何日ぶんまとめて登録しても、LINEは**1回ぶん**です（サーバーが
      　　まとめて1通にしているため）。ここで件数を掛けてはいけません。
      ------------------------------------------------------------------ */
-  if (!tgt0 && lineCostOnce_() > 0){
+  /* ★★2026-10-19c（本番へは 2026-10-20本番a）　グループへ自動で流すのは前日の連絡だけになった（GAS の lineGroupAuto_）。
+     　前の動き（LINE_GROUP_AUTO＝全部）のクラブでだけ、この確認を出す。 */
+  if (!tgt0 && lineAuto === true && lineCostOnce_() > 0){
     var cst = lineCostOnce_();
     var q1 = '「' + title + '」を' +
              (dates.length > 1 ? dates.length + '件 ' : '') + '登録します。\n' +

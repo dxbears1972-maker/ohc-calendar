@@ -67,7 +67,62 @@ function logGuideOpen(){
    　　★iPhone では iframe の中が回らないので、iframe を中身の高さにして、外の箱を回す
    ================================================================== */
 var GUIDE = { box: null, wrap: null, frame: null, cache: {}, docs: null, stack: [],
-              cur: '', t0: 0, reach: '', busy: false };
+              cur: '', t0: 0, reach: '', busy: false, gv: {}, pre: false };
+
+/* ==================================================================
+   ★★2026-10-20a　取説の読み込みを速く（只隈さん 10/20「手順書を読むのが遅い、または読めなくてエラーになる」）
+   　・一度読んだ説明書は、この端末に控える（localStorage）。次からは押した瞬間に出し、裏で新しいかだけ確かめる
+   　　（サーバーは版の印 gv を返す。印が同じなら中身を送らない＝same:1）
+   　・逆引きを開いたら、その方が見られるほかの説明書を、裏で1つずつ取っておく
+   　・控えが読めない端末（プライベートモードなど）では、今までどおり毎回サーバーから
+   　・名乗った方の端末にだけ置く（取説をWebに置かない決まりは変えない）。断られたら控えを消す
+   ================================================================== */
+function guideLsKey_(doc){ return 'guide1:' + CLUB.id + ':' + doc; }
+function guideLsGet_(doc){
+  try {
+    var o = JSON.parse(lsGet(guideLsKey_(doc)) || 'null');
+    return (o && typeof o.html === 'string' && o.gv) ? o : null;
+  } catch(e){ return null; }
+}
+function guideLsPut_(doc, gv, html){
+  try { window.localStorage.setItem(guideLsKey_(doc), JSON.stringify({ gv: gv, html: html, docs: GUIDE.docs || null })); } catch(e){}
+}
+function guideLsDel_(doc){ try { window.localStorage.removeItem(guideLsKey_(doc)); } catch(e){} }
+
+/* サーバーへ取りに行く。cb(r, data)：r＝'new'（中身が変わった・初めて）／'same'／'error'（断られた）／'net'（届かない） */
+function guideFetch_(doc, cb){
+  var have = GUIDE.gv[doc] || '';
+  api('POST', { action: 'guide', doc: doc, have: have, deviceId: deviceId() }, function(err, data){
+    if (data && data.docs) GUIDE.docs = data.docs;
+    if (err || !data){ cb('net'); return; }
+    if (data.error){ cb('error', data); return; }
+    if (data.same && have){ cb('same'); return; }
+    if (typeof data.html !== 'string'){ cb('net'); return; }
+    var changed = (GUIDE.cache[doc] !== data.html);
+    GUIDE.cache[doc] = data.html;
+    GUIDE.gv[doc] = data.gv || '';
+    if (data.gv) guideLsPut_(doc, data.gv, data.html);
+    cb(changed ? 'new' : 'same');
+  });
+}
+
+/* 見られるほかの説明書を、裏で1つずつ取っておく（開いているあいだだけ） */
+function guidePrefetch_(){
+  if (GUIDE.pre || !GUIDE.docs) return;
+  var list = [];
+  for (var i = 0; i < GUIDE.docs.length; i++){
+    var d0 = GUIDE.docs[i];
+    if (!GUIDE.cache[d0] && !lsGet(guideLsKey_(d0))) list.push(d0);
+  }
+  if (!list.length) return;
+  GUIDE.pre = true;
+  (function next(){
+    if (!list.length || !GUIDE.box || GUIDE.box.style.display === 'none'){ GUIDE.pre = false; return; }
+    var d1 = list.shift();
+    if (GUIDE.cache[d1]){ next(); return; }
+    guideFetch_(d1, function(){ setTimeout(next, 300); });
+  })();
+}
 var GUIDE_NAMES = { faq: '困ったときは', g1: '手順書①', g2: '手順書②', g3: '手順書③',
                     g4: '手順書④', intro: '導入案内', line1: 'LINEのお知らせ①', line2: 'LINEのお知らせ②' };
 
@@ -143,25 +198,45 @@ function guideShow_(doc, key, y, noPush){
   if (GUIDE.busy) return;
   if (GUIDE.cur && !noPush) GUIDE.stack.push({ doc: GUIDE.cur, y: GUIDE.wrap.scrollTop });
   if (GUIDE.cache[doc]) { guideRender_(doc, key, y); return; }
+  /* ★★2026-10-20a　端末の控えがあれば、すぐ出して、裏で新しいかだけ確かめる */
+  var ls0 = guideLsGet_(doc);
+  if (ls0){
+    GUIDE.cache[doc] = ls0.html; GUIDE.gv[doc] = ls0.gv;
+    if (!GUIDE.docs && ls0.docs) GUIDE.docs = ls0.docs;
+    guideRender_(doc, key, y);
+    guideFetch_(doc, function(r, data){
+      if (r === 'error'){
+        guideLsDel_(doc); delete GUIDE.cache[doc]; delete GUIDE.gv[doc];
+        if (GUIDE.cur === doc){
+          GUIDE.frame.style.display = 'none';
+          guideMsg_(esc(data.error) + needNameBtn_(data), false);
+        }
+        return;
+      }
+      /* 新しくなっていて、まだ読み始めていなければ（いちばん上なら）入れ替える */
+      if (r === 'new' && GUIDE.cur === doc && !key && GUIDE.wrap.scrollTop < 40) guideRender_(doc, '', 0);
+      if (r !== 'net') guidePrefetch_();
+    });
+    return;
+  }
   GUIDE.busy = true;
   GUIDE.frame.style.display = 'none';
   $('guideTitle').innerHTML = esc(GUIDE_NAMES[doc] || '使い方');
   guideMsg_('読み込んでいます…', false);
-  api('POST', { action: 'guide', doc: doc, deviceId: deviceId() }, function(err, data){
+  guideFetch_(doc, function(r, data){
     GUIDE.busy = false;
-    if (data && data.docs) GUIDE.docs = data.docs;
     /* ★★2026-10-01c　Wi‑Fi でも出るので「電波」のせいにしない。★取説の返事でないもの（html が無い）も同じ扱い */
-    if (err || !data || (!data.error && typeof data.html !== 'string')){
+    if (r === 'net'){
       guideMsg_('返事が届きませんでした。下の「もう一度読み込む」を押してください。', { doc: doc, key: key || '' });
       return;
     }
-    if (data.error){
+    if (r === 'error'){
       guideMsg_(esc(data.error) + needNameBtn_(data), false);
       if (GUIDE.stack.length) GUIDE.stack.pop();
       return;
     }
-    GUIDE.cache[doc] = data.html;
     guideRender_(doc, key, y);
+    guidePrefetch_();
   });
 }
 
@@ -410,6 +485,7 @@ function applyData(data){
   if (data && typeof data.lineLimit !== 'undefined') lineLimit = data.lineLimit;
   if (data && typeof data.lineSize  !== 'undefined') lineSize  = data.lineSize;
   if (data && typeof data.lineDays  !== 'undefined') lineDays  = data.lineDays;
+  if (data && typeof data.lineAuto  !== 'undefined') lineAuto  = data.lineAuto;   /* ★★2026-10-19c */
   state.events = data.events || [];
   state.attendance = data.attendance || [];
   /* ★2026-09-28e（ウ）　どこから先が届いたか／古い月はどれが入っているか */

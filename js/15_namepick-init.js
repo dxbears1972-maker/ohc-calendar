@@ -17,6 +17,7 @@ var lineMode = '';           /* off / test / on（同上） */
 var lineUsed  = null;        /* 今月すでに使った通数（概算） */
 var lineLimit = null;        /* 無料枠（ふつうは200） */
 var lineSize  = null;        /* 群にいる人数＝群へ1回流すと使う通数 */
+var lineAuto  = null;        /* ★★2026-10-19c（本番へは 2026-10-20本番a）登録・日程の変更・中止もグループへ流すか（既定 false） */
 var lineDays  = null;        /* 自動の連絡が群へ流れる日（既定は [7,1]） */
 var markedSeen = {};         /* この画面で「見た」を送りずみのお知らせ */
 var editorWarned = false;  /* 連絡窓口が未設定であることを知らせたか */

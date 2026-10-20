@@ -53,9 +53,39 @@ function admSay_(msg, isErr){
 /* ★2026-09-08（工事E-1k）　書き換えの返事に、新しい中身（view）が
    　載っていればそれを使います。載っていない古いサーバーのときは、
    　これまでどおり読み直します（batを当てる前でも動きます）。 */
+/* ★★2026-10-20a　管理者の画面の会員を、よみの50音順に（出欠の欄・名前選びと同じ並び。只隈さん 10/20）。
+   　よみが空の方は、名簿の順のまま後ろへ。カタカナ・空白はひらがなにそろえて比べる */
+function admYomi_(m){
+  return String((m && m.yomi) || '').replace(/[\s　]/g, '').replace(/[ァ-ヶ]/g, function(c){
+    return String.fromCharCode(c.charCodeAt(0) - 0x60);
+  });
+}
+function admSortMembers_(d){
+  if (!d || !d.members || !d.members.length) return d;
+  var a = [];
+  for (var i = 0; i < d.members.length; i++) a.push({ m: d.members[i], y: admYomi_(d.members[i]), o: i });
+  a.sort(function(p, q){
+    if (p.y && q.y){ if (p.y < q.y) return -1; if (p.y > q.y) return 1; return p.o - q.o; }
+    if (p.y && !q.y) return -1;
+    if (!p.y && q.y) return 1;
+    return p.o - q.o;
+  });
+  for (var j = 0; j < a.length; j++) d.members[j] = a[j].m;
+  return d;
+}
+/* ★★2026-10-20a　退会になっている方を、たたんだ箱に入れる（押すと開く。中から「退会を取り消す」） */
+function admGoneBox_(gone, rowFn){
+  if (!gone.length) return '';
+  var h = '<details class="admgone" style="margin:16px 0 0;border-top:1px solid #e3e8e3">' +
+          '<summary style="padding:12px 10px;font-size:16px;color:#666;cursor:pointer">' +
+          '退会になっている方（' + gone.length + '名）　▸ 押すと開きます</summary>';
+  for (var g = 0; g < gone.length; g++) h += rowFn(gone[g]);
+  return h + '</details>';
+}
+
 function admApplyView_(data){
   if (!data || !data.view || !admViewOk_(data.view)) return false;
-  ADMIN_DATA = data.view;
+  ADMIN_DATA = admSortMembers_(data.view);
   ADMIN_STALE = false;
   return true;
 }
@@ -128,7 +158,7 @@ function adminLoad_(cb){
            　★その返事は使わず、もう一度押していただく */
         msg = '読み込みがうまくいきませんでした。少し待って、もう一度押してください。';
       } else {
-        ADMIN_DATA = data;
+        ADMIN_DATA = admSortMembers_(data);
         ADMIN_STALE = false;
       }
       var ws = ADMIN_WAIT; ADMIN_WAIT = [];
@@ -186,16 +216,25 @@ function renderAdmin_(which){
     var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
     /* ★2026-10-05b　保守業者の行（保守業者の端末でだけ見える）は、人数に入れません。
        　只隈さん「16として」 */
-    var genki = 0, rowsN = 0, maintN = 0;
+    /* ★★2026-10-20a　保守の行（DXベアーズ）は出さない。退会になっている方は、下のたたんだ箱へ（只隈さん 10/20） */
+    var genki = 0, liveM = [], goneM = [];
     for (var m0 = 0; m0 < mb.length; m0++){
-      if (mb[m0].maintRow){ maintN++; continue; }
-      rowsN++;
-      if (!mb[m0].left) genki++;
+      if (mb[m0].maintRow) continue;
+      if (mb[m0].left) goneM.push(mb[m0]); else { liveM.push(mb[m0]); genki++; }
     }
-    admMsg_().textContent = '在籍 ' + genki + '名（退会を含めて ' + rowsN + '行）です。' +
-      (maintN ? '　このほかに保守の行が ' + maintN + 'つあります（人数には入れていません・クラブの方には見えません）。' : '');
-    for (var k = 0; k < mb.length; k++){
-      var m = mb[k];
+    admMsg_().textContent = '在籍 ' + genki + '名です（50音順）。' +
+      (goneM.length ? '退会になっている方（' + goneM.length + '名）は、いちばん下にたたんであります。' : '');
+    for (var k = 0; k < liveM.length; k++) h += admMemRow_(liveM[k]);
+    h += admGoneBox_(goneM, admMemRow_);
+    if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
+  }
+  admList_().innerHTML = h + admCloseBtn_();
+}
+
+/* 会員の一覧の1行 */
+function admMemRow_(m){
+  var h = '';
+  {
       var tag = [];
       if (m.role) tag.push(m.role);
       if (m.contact) tag.push('連絡窓口');
@@ -217,10 +256,8 @@ function renderAdmin_(which){
                (m.hasTel ? '　電話あり' : '') +
              '</div>' +
            '</div>';
-    }
-    if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
   }
-  admList_().innerHTML = h + admCloseBtn_();
+  return h;
 }
 
 /* ==================================================================
@@ -234,7 +271,8 @@ var ADMIN_EDIT = null;      /* いま開いている編集の相手（名字 or 
 /* 在籍している方だけ（退会した方は出しません） */
 function adminAlive_(){
   var out = [], mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
-  for (var i = 0; i < mb.length; i++){ if (!mb[i].left) out.push(mb[i]); }
+  /* ★★2026-10-20a　保守の行（DXベアーズ）も出さない（作業の顔ぶれ・車を出せる方の一覧） */
+  for (var i = 0; i < mb.length; i++){ if (!mb[i].left && !mb[i].maintRow) out.push(mb[i]); }
   return out;
 }
 function adminFind_(name){
@@ -249,15 +287,16 @@ function adminFind_(name){
 function renderRoles_(){
   var mb = (ADMIN_DATA && ADMIN_DATA.members) || [];
   var live = [], gone = [];
-  for (var i0 = 0; i0 < mb.length; i0++){ (mb[i0].left ? gone : live).push(mb[i0]); }
-  admMsg_().textContent = '変えたい方の「変える」を押してください。';
+  /* ★★2026-10-20a　50音順・保守の行（DXベアーズ）は出さない・退会になっている方はたたむ（只隈さん 10/20） */
+  for (var i0 = 0; i0 < mb.length; i0++){
+    if (mb[i0].maintRow) continue;
+    (mb[i0].left ? gone : live).push(mb[i0]);
+  }
+  admMsg_().textContent = '変えたい方の「変える」を押してください（50音順）。' +
+    (gone.length ? '退会を取り消すときは、いちばん下の「退会になっている方」を押して開いてください。' : '');
   var h = '';
   for (var i = 0; i < live.length; i++) h += adminCard_(live[i]);
-  if (gone.length){
-    h += '<p class="note" style="margin:16px 0 0;padding:0 10px">' +
-         '退会になっている方（' + gone.length + '名）</p>';
-    for (var g = 0; g < gone.length; g++) h += adminCard_(gone[g]);
-  }
+  h += admGoneBox_(gone, adminCard_);
   if (!mb.length) h = '<p class="note">名簿が読めませんでした。</p>';
 
   /* ★★2026-09-29q　車を出せる方（マイカー提供）を選ぶ（13_admin-edit.js） */
