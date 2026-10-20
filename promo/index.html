@@ -175,29 +175,39 @@ footer a{color:#cfe3d8}
   .hero h1 .big{font-size:52px}
 }
 h1.h2{font-size:29px;color:var(--green);text-align:center;line-height:1.5}.cta h1.h2{color:#fff}h1.h2 .ic{color:#0D4C30;margin-right:.3em}.manga h1.h2 .sub{display:block;font-size:19px;color:var(--gray);font-weight:400;margin-top:4px}
-.cards.yomi .card,.cards.yomi .card div{min-width:0}
-.cards.yomi .card div{flex:1}
-.cards.yomi .card b{font-size:18px;line-height:1.5;text-wrap:pretty;word-break:normal}
-.show{padding-top:34px}
-.show .lead{text-align:center;margin:6px 0 18px}
-.showg{display:grid;gap:12px;max-width:820px;margin:0 auto}
-@media(min-width:700px){.showg{grid-template-columns:1fr 1fr}}
-.sh{display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#fff;border:3px solid var(--green2);border-radius:14px;padding:14px 16px;text-decoration:none;color:var(--ink);cursor:pointer}
-.sh>.ic,.sh summary>.ic{width:40px;height:40px;color:#0D4C30}
-.sh div{flex:1;min-width:0}
-.sh b{display:block;font-size:20px;color:var(--green);line-height:1.4}
-.sh span{display:block;font-size:16px;color:var(--gray);line-height:1.5}
-.sh::after{content:"›";font-size:32px;color:var(--green2);line-height:1}
-.sh.qr{display:block}
-.sh.qr::after{display:none}
-.sh.qr summary{display:flex;align-items:center;gap:12px;list-style:none}
-.sh.qr summary::-webkit-details-marker{display:none}
-.sh.qr summary::after{content:"›";font-size:32px;color:var(--green2);line-height:1;transition:transform .2s}
-.sh.qr[open] summary::after{transform:rotate(90deg)}
-.sh.qr img{display:block;width:min(260px,70vw);height:auto;margin:14px auto 6px;border:8px solid #fff;outline:2px solid var(--line)}
-.sh.qr p{text-align:center;font-size:16px;color:var(--gray);margin:0}
+.ylist{margin:18px 0 6px;padding-left:1.3em}
+.ylist li{margin:0 0 10px;line-height:1.6}
+.ylist a{color:var(--green);font-weight:700;text-underline-offset:3px}
+.hero .heronote{font-size:17px;margin-top:10px;opacity:.95}
+.cards .card{min-width:0}.cards .card div{min-width:0;flex:1}
+.slh{font-size:24px;color:var(--green);text-align:center;margin:26px 0 0}
+.slh .ic{margin-right:.3em}
+.slw{padding:10px 12px 4px}
+.jis .lead{font-size:15px;line-height:1.7}
+.jisg{display:grid;gap:18px;margin-top:22px}
+@media(min-width:760px){.jisg{grid-template-columns:5fr 6fr;align-items:start}}
+.jisimg{display:block;text-decoration:none;color:var(--gray);font-size:14px;text-align:center}
+.jisimg img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.jisimg span{display:block;margin-top:6px}
+.jis .fact{font-size:20px;font-weight:700;line-height:1.6;margin:0 0 14px}
+.jis .fact b{color:var(--orange);font-size:1.15em}
+.jis .qh{font-weight:700;color:var(--green);margin:0 0 6px}
+.jis ul.ok{list-style:none;margin:0 0 12px;padding:0}
+.jis ul.ok li{position:relative;padding-left:1.6em;margin:0 0 6px;line-height:1.6}
+.jis ul.ok li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
+.jis .note{font-size:15px;color:var(--gray)}
+.more{display:inline-block;margin-top:8px;font-weight:700;color:var(--green);font-size:18px;text-underline-offset:4px}
+.hajime .lead{font-size:21px;font-weight:700;color:var(--green)}
+.st3{list-style:none;counter-reset:st;display:grid;gap:12px;margin:20px 0 0;padding:0}
+@media(min-width:760px){.st3{grid-template-columns:repeat(3,1fr)}}
+.st3 li{counter-increment:st;background:#fff;border:3px solid var(--green2);border-radius:14px;padding:14px 16px}
+.st3 li::before{content:counter(st);display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;margin-right:8px}
+.st3 b{font-size:20px;color:var(--green)}
+.st3 span{display:block;margin-top:6px;font-size:16px;line-height:1.6;color:var(--ink)}
+.hnote{margin-top:16px;text-align:center}
+.hbtn{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;margin-top:14px}
 /* ===== ヘッダーとメニュー（2026-09-30。決定P1・P2・P6・P7） ===== */
-html{scroll-padding-top:165px}
+html{scroll-padding-top:190px}
 /* 1字だけ次の行へ落ちるのを防ぐ（2026-09-30 只隈さん「る　だけが改行されるような場所が多い」）
    見出しは balance＋auto-phrase（文節で折り、行の長さをそろえる）。本文は pretty だけ（最後の行を1字にしない。文節で折ると右が大きく空くので本文には使わない） */
 h1,h2,h3,summary,.prob b,.step b,.feat h3,.card b,.mbanner span,.lead,.faqh,.tocta p,.cta p,.koma figcaption,
@@ -217,12 +227,12 @@ p,li,.a,.card span,.stepnote,.nar,.say,td{text-wrap:pretty}
 .site .brand .tag small span{display:inline-block}
 /* ===== メニュー5つ＋押すと開くサブメニュー（2026-10-20 只隈さん決定・★HPをわかりやすくする_見立てと未決_20261020.md） ===== */
 .gnav{position:relative}
-.gnav>ul{list-style:none;display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin:0;padding:0}
-.gnav .mb{width:100%;display:flex;flex-direction:column;align-items:center;gap:1px;cursor:pointer;font:inherit;
-  background:#0D4C30;color:#fff;border:0;border-radius:8px;border-bottom:5px solid #0D4C30;
-  padding:6px 0 3px;font-weight:700;font-size:clamp(14px,4.2vw,18px);line-height:1.25;white-space:nowrap}
-.gnav .mb .ic{width:28px;height:28px}
-.gnav .mb .v{font-size:11px;line-height:1;opacity:.85}
+.gnav>ul{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:0;padding:0}
+.gnav .mb{width:100%;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:4px;cursor:pointer;font:inherit;
+  background:#0D4C30;color:#fff;border:0;border-radius:8px;border-bottom:4px solid #0D4C30;
+  padding:7px 2px 5px;font-weight:700;font-size:clamp(14px,4.1vw,17px);line-height:1.25;white-space:nowrap}
+.gnav .mb .ic{width:22px;height:22px}
+.gnav .mb .v{font-size:10px;line-height:1;opacity:.85}
 .gnav .mb.cur{background:var(--orange);border-bottom-color:#6b3207}
 .gnav .mb[aria-expanded="true"]{background:#fff;color:#0D4C30;border:2px solid #0D4C30;border-bottom-width:5px}
 .gnav .mb[aria-expanded="true"] .v{transform:rotate(180deg)}
@@ -241,14 +251,16 @@ p,li,.a,.card span,.stepnote,.nar,.say,td{text-wrap:pretty}
   .site-in{max-width:1240px;display:flex;align-items:center;gap:16px;padding:8px 20px}
   .site .brand{padding:0;flex:none}.site .brand img{height:58px}
   .site .brand .tag{display:none}
-  .gnav{flex:1}.gnav>ul{grid-template-columns:repeat(5,auto);justify-content:end;gap:6px}
+  .gnav{flex:1}.gnav>ul{grid-template-columns:repeat(6,auto);justify-content:end;gap:5px}
   .gnav>ul>li{position:relative}
-  .gnav .mb{flex-direction:row;gap:6px;padding:8px 12px 5px;font-size:18px}
+  .gnav .mb{gap:5px;padding:8px 9px 5px;font-size:17px}
   .gnav .mb .ic{width:24px;height:24px}
   .gnav .l{display:inline}.gnav .s{display:none}
   .gnav .sub.open{left:auto;right:0;width:360px}
 }
 @media(min-width:1360px){.site .brand .tag{display:flex}}
+@media(max-width:359px){.gnav .mb .ic{display:none}.gnav .mb{font-size:14px}}
+@media(min-width:1080px) and (max-width:1279px){.gnav .mb{font-size:15px;padding:7px 6px 4px;gap:3px}.gnav .mb .ic{width:19px;height:19px}.gnav>ul{gap:4px}.site-in{gap:10px}.site .brand img{height:50px}}
 
 .totop{position:fixed;right:12px;bottom:14px;z-index:40;display:flex;flex-direction:column;align-items:center;
   width:64px;height:64px;justify-content:center;border-radius:50%;background:#0D4C30;color:#fff;
@@ -364,24 +376,20 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <header class="site"><div class="site-in">
   <a class="brand" href=""><img src="dxbears-logo.svg" width="184" height="52" alt="DXベアーズ"><span class="tag"><b>よりあい帳</b><small><span>幹事さんの、</span><span>いちばんの味方。</span></small></span></a>
   <nav class="gnav" aria-label="ページの案内"><ul>
-    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm0"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/></svg><span class="l">はじめての方</span><span class="s">はじめて</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm0"><li class="sh">はじめての方</li><li><a href="" aria-current="page"><span>トップページ</span></a></li><li><a href="manga/"><span>マンガ・1分で読めます<small>ある幹事さんのお話</small></span></a></li><li><a href="douga/"><span>30秒の動画<small>会員さん編・幹事さん編</small></span></a></li><li><a href="mihon/"><span>体験版を触ってみる<small>登録なし。押してもどこにも届きません</small></span></a></li><li><a href="https://dxbears1972-maker.github.io/#rousan"><span>労山の報告書（事例13）<small>全国の成功事例に載りました</small></span></a></li></ul></li>
-    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><path d="m8.5 15.5 2.5 2.5 4.5-5"/></svg><span class="l">できること</span><span class="s">できる</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm1"><li class="sh">できること</li><li><a href="dekiru/"><span>できること<small>精算・会の運営・予定と出欠</small></span></a></li><li><a href="dekiru/#line"><span>LINEとの違い<small>LINEで足りるのでは？</small></span></a></li><li><a href="norikae/"><span>ほかのやり方からの乗り換え</span></a></li></ul></li>
-    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg><span class="l">料金</span><span class="s">料金</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm2"><li class="sh">料金</li><li><a href="ryokin/"><span>料金<small>おひとり年500円</small></span></a></li><li><a href="ryokin/#steps"><span>導入の3ステップ<small>まずは3ヶ月、無料でお試し</small></span></a></li><li><a href="ryokin/#campaign"><span>ご紹介キャンペーン</span></a></li></ul></li>
-    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm3"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><span class="l">読みもの</span><span class="s">読みもの</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm3"><li class="sh">読みもの・無料の道具</li><li><a href="seisan/"><span>マイカー相乗りの精算（無料）<small>ガソリン代・高速代の割り勘。登録不要</small></span></a></li><li><a href="yomimono/"><span>読みもの一覧<small>幹事さん向けの読みもの</small></span></a></li></ul></li>
-    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm4"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg><span class="l">質問・問合せ</span><span class="s">問合せ</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm4"><li class="sh">質問・お問い合わせ</li><li><a href="faq/"><span>よくあるご質問<small>21のご質問にお答えします</small></span></a></li><li><a href="toiawase/"><span>お問い合わせ<small>フォームまたはメールで</small></span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm0"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="6"/><path d="m8.5 13.8-1.6 7.7 5.1-3 5.1 3-1.6-7.7"/></svg><span class="l">実績</span><span class="s">実績</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm0"><li class="sh">実績</li><li><a href="jisseki/"><span>労山の成功事例（事例13）<small>平均71歳・16名全員がスマホで</small></span></a></li><li><a href="jirei13.pdf"><span>報告書を読む（4ページ・PDF）</span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M10 8.5v7l6-3.5z"/></svg><span class="l">見てみる</span><span class="s">見てみる</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm1"><li class="sh">見てみる</li><li><a href="douga/"><span>30秒の動画<small>会員さん編・幹事さん編</small></span></a></li><li><a href="manga/"><span>マンガ・1分で読めます<small>ある幹事さんのお話</small></span></a></li><li><a href="mihon/"><span>体験版を触ってみる<small>登録なし。押してもどこにも届きません</small></span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><path d="m8.5 15.5 2.5 2.5 4.5-5"/></svg><span class="l">できること・料金</span><span class="s">できる・料金</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm2"><li class="sh">できること・料金</li><li><a href="dekiru/"><span>できること<small>精算・会の運営・予定と出欠</small></span></a></li><li><a href="dekiru/#line"><span>LINEとの違い<small>LINEで足りるのでは？</small></span></a></li><li><a href="norikae/"><span>ほかのやり方からの乗り換え</span></a></li><li><a href="ryokin/"><span>料金と導入の流れ<small>まずは3ヶ月、無料でお試し</small></span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm3"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M21.5 20a6.5 6.5 0 0 0-3.8-5.9"/></svg><span class="l">ご紹介</span><span class="s">ご紹介</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm3"><li class="sh">ご紹介</li><li><a href="shoukai/"><span>ほかの会に見せる・送る<small>QRコード・LINE・動画</small></span></a></li><li><a href="shoukai/#campaign"><span>ご紹介キャンペーン<small>お二人に5,000円のオプションを1つずつ</small></span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm4"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><span class="l">読みもの</span><span class="s">読みもの</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm4"><li class="sh">読みもの・無料の道具</li><li><a href="yomimono/"><span>読みもの一覧<small>幹事さん向けの読みもの</small></span></a></li><li><a href="seisan/"><span>マイカー相乗りの精算（無料）<small>ガソリン代・高速代の割り勘。登録不要</small></span></a></li></ul></li>
+    <li><button type="button" class="mb" aria-expanded="false" aria-controls="sm5"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg><span class="l">お問い合わせ</span><span class="s">問い合わせ</span><span class="v" aria-hidden="true">▼</span></button><ul class="sub" id="sm5"><li class="sh">お問い合わせ</li><li><a href="toiawase/"><span>お問い合わせ<small>フォームまたはメールで</small></span></a></li><li><a href="faq/"><span>よくあるご質問<small>21のご質問にお答えします</small></span></a></li></ul></li>
   </ul></nav>
 </div></header>
 <script>(function(){var bs=document.querySelectorAll(".gnav .mb");function shut(x){bs.forEach(function(b){if(b!==x){b.setAttribute("aria-expanded","false");document.getElementById(b.getAttribute("aria-controls")).classList.remove("open")}})}bs.forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();var o=b.getAttribute("aria-expanded")==="true";shut(b);b.setAttribute("aria-expanded",o?"false":"true");document.getElementById(b.getAttribute("aria-controls")).classList.toggle("open",!o)})});document.addEventListener("click",function(e){if(!e.target.closest(".gnav"))shut(null)});document.addEventListener("keydown",function(e){if(e.key==="Escape")shut(null)});})();</script>
 <script>(function(){var mk=[];function lastW(e){var r=document.createRange();r.selectNodeContents(e);var rs=r.getClientRects(),L={},n=0;for(var i=0;i<rs.length;i++){var q=rs[i];if(q.width<1)continue;var k=Math.round(q.bottom);if(!L[k]){L[k]={a:q.left,b:q.right};n++}L[k].a=Math.min(L[k].a,q.left);L[k].b=Math.max(L[k].b,q.right)}if(n<2)return 1e9;var ks=Object.keys(L).map(Number).sort(function(x,y){return x-y}),z=L[ks[ks.length-1]];return z.b-z.a}function bad(e,fs){return lastW(e)<fs*3.2}function run(){mk.forEach(function(e){e.style.textWrap="";e.style.letterSpacing=""});mk=[];document.querySelectorAll("body *").forEach(function(e){var cs=getComputedStyle(e);if(cs.display==="inline"||cs.display==="none")return;var t=false;for(var n=e.firstChild;n;n=n.nextSibling){if(n.nodeType===3&&n.data.trim()){t=true;break}}if(!t)return;var fs=parseFloat(cs.fontSize);if(!bad(e,fs))return;mk.push(e);e.style.textWrap="balance";if(!bad(e,fs))return;e.style.textWrap="";var ls0=parseFloat(cs.letterSpacing)||0;for(var s=1;s<=7;s++){e.style.letterSpacing=(ls0/fs-s*0.01)+"em";if(!bad(e,fs))return}e.style.letterSpacing=""})}var tm;function go(){clearTimeout(tm);tm=setTimeout(run,60)}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",go);else go();window.addEventListener("load",go);window.addEventListener("resize",go);if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);})();</script>
-<div class="slw"><div class="slider" aria-roledescription="カルーセル" aria-label="ご案内">
-  <div class="track" tabindex="-1"><div class="slide" role="group" aria-roledescription="スライド" aria-label="1枚目（全4枚）"><a class="dbanner big" href="mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>体験版で、出欠・車・精算をお試しください。作りものの会なので、押してもどこにも届きません</span></div><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>体験版を開く</em></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="2枚目（全4枚）"><a class="mbanner big" href="manga/"><img src="manga/01b.jpg" width="1100" height="614" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>マンガを読む</em></div></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="3枚目（全4枚）"><a class="mbanner big" href="douga/"><img src="video/kaiin.jpg" width="960" height="540" alt=""><div><b>30秒の動画で見る</b><span>会員さん編・幹事さん編。字幕つきです</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>動画を見る</em></div></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="4枚目（全4枚）"><a class="cbanner big" href="ryokin/#campaign"><div><b>ご紹介キャンペーン</b><span>ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼント</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>くわしく見る</em></div></a></div></div>
-  <div class="slctl"><button type="button" class="arr prev" aria-label="前へ">‹</button><span class="dots"><button type="button" class="dot" aria-label="1枚目を見る"></button><button type="button" class="dot" aria-label="2枚目を見る"></button><button type="button" class="dot" aria-label="3枚目を見る"></button><button type="button" class="dot" aria-label="4枚目を見る"></button></span><button type="button" class="arr next" aria-label="次へ">›</button><button type="button" class="stop" aria-pressed="false">■ 止める</button></div>
-</div></div>
-<script>(function(){var w=document.querySelector(".slider");if(!w)return;var t=w.querySelector(".track"),s=t.children,d=w.querySelectorAll(".dot"),st=w.querySelector(".stop"),i=0,tm=null,rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;function mark(){d.forEach(function(x,k){x.setAttribute("aria-current",k===i?"true":"false")})}function go(n,sm){i=(n+s.length)%s.length;t.scrollTo({left:i*t.clientWidth,behavior:(rm||!sm)?"auto":"smooth"});mark()}function play(){stopT();tm=setInterval(function(){go(i+1,true)},8000);st.textContent="■ 止める";st.setAttribute("aria-pressed","false")}function stopT(){if(tm){clearInterval(tm);tm=null}}function halt(){stopT();st.textContent="▶ 動かす";st.setAttribute("aria-pressed","true")}var sc;t.addEventListener("scroll",function(){clearTimeout(sc);sc=setTimeout(function(){var n=Math.round(t.scrollLeft/t.clientWidth);if(n!==i){i=n;mark()}},80)},{passive:true});["pointerdown","touchstart","mouseenter","focusin","wheel"].forEach(function(ev){t.addEventListener(ev,halt,{passive:true})});w.querySelector(".prev").addEventListener("click",function(){halt();go(i-1,true)});w.querySelector(".next").addEventListener("click",function(){halt();go(i+1,true)});d.forEach(function(x,k){x.addEventListener("click",function(){halt();go(k,true)})});st.addEventListener("click",function(){if(tm)halt();else{play()}});window.addEventListener("resize",function(){go(i,false)});mark();if(rm)halt();else play();})();</script>
 
 <div class="hero">
   <div class="wrap">
-    <div class="club">山の会・ハイキングクラブ向け</div>
+    <div class="club">山の会・ハイキングクラブの運営アプリ「よりあい帳」</div>
     <h1>山の会の運営が、
       <span class="big">これひとつで回り出す。</span>
     </h1>
@@ -389,36 +397,29 @@ section:nth-of-type(even) .card{background:var(--cream)}
        マイカー代の精算、計画書の置き場所。<br>
        山の会の運営そのものを、ひとつにまとめる道具です。<br>
        会員の皆さまは、見て押すだけです。</p>
-    <div class="badges">
-      <span class="badge">アプリストア不要</span>
-      <span class="badge">会員はパスワードなし</span>
-      <span class="badge">まずは3ヶ月無料</span>
-      <span class="badge">リーズナブルな価格設定</span>
-    </div>
-    <div class="herofact">
-      <span class="lbl">全国連盟の報告書に、成功事例として載りました</span>
-      <span class="src">日本勤労者山岳連盟（労山）組織部<br>「会員拡大・定着に関するアンケート調査報告書 2026」<br>事例13　大牟田ハイキングクラブ（福岡県）</span>
-      <span class="fact">会員<b>16名</b>・平均年齢<b>71歳</b>。全員がご自分の端末で登録を済ませ、途中で断念された方は<b>ゼロ</b>でした。報告書には、システムの開発・運用支援として DXベアーズの名前も載っています。</span>
-      <a href="https://dxbears1972-maker.github.io/ohc-calendar/promo/jirei13.pdf" target="_blank" rel="noopener">事例13を見る（報告書の4ページ・PDF）</a>
-    </div>
-    <div class="trydemo">
-      <a class="btn" href="mihon/">体験版を触ってみる</a>
-      <span class="note">お申し込みもお問い合わせも要りません。作りものの会なので、押してもどこにも届きません。</span>
-    </div>
+    <p class="heronote">アプリを入れる必要も、パスワードもありません。</p>
   </div>
 </div>
+<h2 class="slh"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M10 8.5v7l6-3.5z"/></svg>見てみる</h2>
+<div class="slw"><div class="slider" aria-roledescription="カルーセル" aria-label="ご案内">
+  <div class="track" tabindex="-1"><div class="slide" role="group" aria-roledescription="スライド" aria-label="1枚目（全3枚）"><a class="mbanner big" href="douga/"><img src="video/kaiin.jpg" width="960" height="540" alt=""><div><b>30秒の動画で見る</b><span>会員さん編・幹事さん編。字幕つきです</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>動画を見る</em></div></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="2枚目（全3枚）"><a class="dbanner big" href="mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>体験版で、出欠・車・精算をお試しください。作りものの会なので、押してもどこにも届きません</span></div><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>体験版を開く</em></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="3枚目（全3枚）"><a class="mbanner big" href="manga/"><img src="manga/01b.jpg" width="1100" height="614" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>マンガを読む</em></div></a></div></div>
+  <div class="slctl"><button type="button" class="arr prev" aria-label="前へ">‹</button><span class="dots"><button type="button" class="dot" aria-label="1枚目を見る"></button><button type="button" class="dot" aria-label="2枚目を見る"></button><button type="button" class="dot" aria-label="3枚目を見る"></button></span><button type="button" class="arr next" aria-label="次へ">›</button><button type="button" class="stop" aria-pressed="false">■ 止める</button></div>
+</div></div>
+<script>(function(){var w=document.querySelector(".slider");if(!w)return;var t=w.querySelector(".track"),s=t.children,d=w.querySelectorAll(".dot"),st=w.querySelector(".stop"),i=0,tm=null,rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;function mark(){d.forEach(function(x,k){x.setAttribute("aria-current",k===i?"true":"false")})}function go(n,sm){i=(n+s.length)%s.length;t.scrollTo({left:i*t.clientWidth,behavior:(rm||!sm)?"auto":"smooth"});mark()}function play(){stopT();tm=setInterval(function(){go(i+1,true)},8000);st.textContent="■ 止める";st.setAttribute("aria-pressed","false")}function stopT(){if(tm){clearInterval(tm);tm=null}}function halt(){stopT();st.textContent="▶ 動かす";st.setAttribute("aria-pressed","true")}var sc;t.addEventListener("scroll",function(){clearTimeout(sc);sc=setTimeout(function(){var n=Math.round(t.scrollLeft/t.clientWidth);if(n!==i){i=n;mark()}},80)},{passive:true});["pointerdown","touchstart","mouseenter","focusin","wheel"].forEach(function(ev){t.addEventListener(ev,halt,{passive:true})});w.querySelector(".prev").addEventListener("click",function(){halt();go(i-1,true)});w.querySelector(".next").addEventListener("click",function(){halt();go(i+1,true)});d.forEach(function(x,k){x.addEventListener("click",function(){halt();go(k,true)})});st.addEventListener("click",function(){if(tm)halt();else{play()}});window.addEventListener("resize",function(){go(i,false)});mark();if(rm)halt();else play();})();</script>
 
-<section class="show">
+<section class="jis">
   <div class="wrap">
-    <h2>ほかの会の幹事さんに、見せる・送る</h2>
-    <p class="lead">このページをスマホで開いたまま、お相手にお見せください。</p>
-    <div class="showg">
-      <a class="sh" href="douga/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M10 8.5v7l6-3.5z"/></svg><div><b>動画を見せる</b><span>30秒。字幕つきです</span></div></a>
-      <a class="sh" href="manga/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>マンガを見せる</b><span>1分で読めます</span></div></a>
-      <a class="sh" href="mihon/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>体験版を触ってもらう</b><span>登録なし。押してもどこにも届きません</span></div></a>
-      <a class="sh" href="https://line.me/R/share?text=%E5%B1%B1%E3%81%AE%E4%BC%9A%E3%83%BB%E3%83%8F%E3%82%A4%E3%82%AD%E3%83%B3%E3%82%B0%E3%82%AF%E3%83%A9%E3%83%96%E3%81%AE%E5%87%BA%E6%AC%A0%E3%81%AE%E3%81%A8%E3%82%8A%E3%81%BE%E3%81%A8%E3%82%81%E3%81%A8%E3%83%9E%E3%82%A4%E3%82%AB%E3%83%BC%E4%BB%A3%E3%81%AE%E7%B2%BE%E7%AE%97%E3%82%92%E3%80%81%E3%81%B2%E3%81%A8%E3%81%A4%E3%81%AB%E3%81%A7%E3%81%8D%E3%82%8B%E3%82%A2%E3%83%97%E3%83%AA%E3%81%A7%E3%81%99%E3%80%82%E5%B9%B3%E5%9D%8771%E6%AD%B3%E3%81%AE%E4%BC%9A%E3%81%A7%E3%80%81%E5%85%A8%E5%93%A1%E3%81%8C%E3%81%94%E8%87%AA%E5%88%86%E3%81%AE%E3%82%B9%E3%83%9E%E3%83%9B%E3%81%A7%E4%BD%BF%E3%81%A3%E3%81%A6%E3%81%84%E3%81%BE%E3%81%99%EF%BC%88DX%E3%83%99%E3%82%A2%E3%83%BC%E3%82%BA%EF%BC%89%E3%80%82%0Ahttps%3A%2F%2Fdxbears1972-maker.github.io%2Fohc-calendar%2Fpromo%2F%3Futm_source%3Dline%26utm_medium%3Dshare"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H10l-5 4v-4H4A1.5 1.5 0 0 1 2.5 16V6A1.5 1.5 0 0 1 4 4.5z"/><path d="M7.5 9.5h9M7.5 13h6"/></svg><div><b>LINEで送る</b><span>紹介の文と、このページのアドレスが送れます</span></div></a>
-      <details class="sh qr"><summary><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4z"/></svg><div><b>QRコードを出す</b><span>お相手のスマホのカメラで読み取ってもらえます</span></div></summary>
-        <img src="qr.svg" width="260" height="260" alt="このページのQRコード"><p>お相手のスマホのカメラを、この四角に向けてください。</p></details>
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="6"/><path d="m8.5 13.8-1.6 7.7 5.1-3 5.1 3-1.6-7.7"/></svg>実績　全国の成功事例に載りました</h2>
+    <p class="lead">日本勤労者山岳連盟（労山）組織部「会員拡大・定着に関するアンケート調査報告書 2026」<br>事例13　大牟田ハイキングクラブ（福岡県）</p>
+    <div class="jisg">
+      <a class="jisimg" href="jisseki/"><img src="jisseki/p33top.jpg" width="1000" height="575" alt="報告書の33ページ（実物）"><span>報告書の33ページ（実物）</span></a>
+      <div class="jist">
+        <p class="fact">会員<b>16名</b>・平均年齢<b>71歳</b>。全員がご自分の端末で登録し、断念された方は<b>ゼロ</b>。</p>
+        <p class="qh">報告書に書かれた「導入によって確認された成果」</p>
+        <ul class="ok"><li>予定が見やすくなった</li><li>LINE通知で参加率が向上した</li><li>リーダー・幹事・司会の負担が軽減された</li><li>出欠未回答者が一目で分かり、声かけ漏れが解消</li><li>幹事が電話や口頭で受け付けた出欠を代わりに入力できるようになった</li></ul>
+        <p class="note">報告書の35ページに「システムの開発・運用支援：DXベアーズ」と載っています。</p>
+        <a class="more" href="jisseki/">実績をくわしく見る ›</a>
+      </div>
     </div>
   </div>
 </section>
@@ -446,30 +447,38 @@ section:nth-of-type(even) .card{background:var(--cream)}
   </div>
 </section>
 
+<section class="hajime">
+  <div class="wrap">
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg>はじめ方</h2>
+    <p class="lead">まずは3ヶ月、無料でお試しください</p>
+    <ol class="st3">
+      <li><b>お問い合わせ</b><span>クラブ名と、だいたいの会員数をお知らせください。</span></li>
+      <li><b>こちらで設定</b><span>名簿と年間予定の取り込み、手順書一式まで、こちらでご用意します。</span></li>
+      <li><b>3ヶ月お試し</b><span>LINEでリンクを1回送るか、例会でQRコードをお配りいただければ、会員はその場から使えます。</span></li>
+    </ol>
+    <p class="hnote">料金は、リーズナブルな価格設定です。お試しだけで終わりにされた場合、費用はかかりません。</p>
+    <div class="hbtn"><a class="btn" href="toiawase/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg> お問い合わせ</a><a class="more" href="ryokin/">料金と導入の流れを見る ›</a></div>
+  </div>
+</section>
+
 <section>
   <div class="wrap">
-    <h2>くわしくは、こちらから</h2>
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M21.5 20a6.5 6.5 0 0 0-3.8-5.9"/></svg>ご紹介くださる方へ</h2>
     <div class="cards">
-      <a class="card" href="dekiru/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><path d="m8.5 15.5 2.5 2.5 4.5-5"/></svg><div><b>できること</b><span>マイカー代の精算・会の運営・予定の共有と出欠。LINEとの違いも</span></div></a>
-      <a class="card" href="ryokin/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg><div><b>料金</b><span>おひとり年500円。導入は3ステップ</span></div></a>
-      <a class="card" href="faq/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><path d="M12 17.3h.01"/></svg><div><b>よくあるご質問</b><span>費用とお支払い・スマホとLINEと使い方・導入とサポート</span></div></a>
-      <a class="card" href="toiawase/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg><div><b>お問い合わせ</b><span>まずは3ヶ月、無料でお試しください</span></div></a>
+      <a class="card" href="shoukai/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M21.5 20a6.5 6.5 0 0 0-3.8-5.9"/></svg><div><b>ほかの会の幹事さんに、見せる・送る</b><span>QRコード・LINEで送る・動画と体験版。ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼントします。</span></div></a>
     </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>幹事さん向けの読みもの・無料の道具</h2>
-    <div class="cards yomi">
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg>幹事さん向けの読みもの・無料の道具</h2>
+    <p class="lead">売り込みではなく、実際の運用から分かったことと、どなたでも使える道具です</p>
+    <div class="cards">
       <a class="card" href="seisan/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 16.5v-4l2.2-5.5h12.6l2.2 5.5v4z"/><path d="M3.5 12.5h17"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/></svg><div><b>マイカー相乗りの精算（無料）</b><span>ガソリン代・高速代・駐車場代の割り勘。登録不要</span></div></a>
-      <a class="card" href="yomimono/koureisha/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>70代中心の山の会が、全員スマホで出欠できるようになるまで</b></div></a>
-      <a class="card" href="yomimono/shukketsu/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>山の会の出欠の取りまとめ ― 電話・LINE・メールで集める手間を減らすには</b></div></a>
-      <a class="card" href="yomimono/ainori/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>マイカー相乗りの費用、どう分ける？ ガソリン代・高速代・駐車場代の割り勘</b></div></a>
-      <a class="card" href="yomimono/erabikata/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>ハイキングクラブ・山岳会の運営アプリの選び方 ― 出欠管理はLINE・表計算・専用アプリのどれで？</b></div></a>
-      <a class="card" href="yomimono/unei/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>山の会・山岳会の運営 ― 幹事さんの仕事を、担当が替わっても続く形にするには</b></div></a>
-      <a class="card" href="yomimono/circlesquare/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg><div><b>サークルスクエアの広告と11月の改定 ― 山の会・ハイキングクラブが乗り換えを考えるとき</b></div></a>
     </div>
+    <ul class="ylist"><li><a href="yomimono/koureisha/">70代中心の山の会が、全員スマホで出欠できるようになるまで</a></li><li><a href="yomimono/shukketsu/">山の会の出欠の取りまとめ ― 電話・LINE・メールで集める手間を減らすには</a></li><li><a href="yomimono/ainori/">マイカー相乗りの費用、どう分ける？ ガソリン代・高速代・駐車場代の割り勘</a></li><li><a href="yomimono/erabikata/">ハイキングクラブ・山岳会の運営アプリの選び方 ― 出欠管理はLINE・表計算・専用アプリのどれで？</a></li><li><a href="yomimono/unei/">山の会・山岳会の運営 ― 幹事さんの仕事を、担当が替わっても続く形にするには</a></li><li><a href="yomimono/circlesquare/">サークルスクエアの広告と11月の改定 ― 山の会・ハイキングクラブが乗り換えを考えるとき</a></li><li><a href="norikae/">サークルスクエアからお越しの方へ</a></li></ul>
+    <a class="more" href="yomimono/">読みもの一覧へ ›</a>
   </div>
 </section>
 
