@@ -651,3 +651,6 @@ body.guideopen { overflow: hidden; }
 .guidemsg { display: none; max-width: 640px; margin: 24px auto; padding: 16px; font-size: 17px; line-height: 1.7;
   background: #fff; border-radius: 10px; }
 .guideframe { display: block; width: 100%; border: 0; }
+
+/* ★2026-10-22a 改行させない入れ物（04_render.js の WRAP_ が名前・題の言葉・最後の行に使う） */
+kp-nw { white-space: nowrap; }

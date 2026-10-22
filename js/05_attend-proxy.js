@@ -309,11 +309,11 @@ function renderList(){
     var locked = !!ev.locked && ev.locked !== '0' && ev.locked !== 'false';
     var parts = [];
     if (ev.time)  parts.push('🕒 ' + esc(ev.time));
-    if (ev.place) parts.push('📍 ' + esc(ev.place));
-    if (ev.staff) parts.push('👤 ' + esc(sortStaffStr(ev.staff)));
-    if (ev.owner) parts.push('<span class="evowner">（' + esc(ev.owner) + '）</span>');
+    if (ev.place) parts.push('📍 ' + WRAP_.html(ev.place));   /* ★2026-10-22a 名前・言葉を割らない（04 の WRAP_） */
+    if (ev.staff) parts.push('👤 ' + WRAP_.html(sortStaffStr(ev.staff)));
+    if (ev.owner) parts.push('<span class="evowner">（' + WRAP_.html(ev.owner) + '）</span>');
     var info = parts.join('　');
-    if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + esc(ev.memo);
+    if (ev.memo) info += (info ? '<br>' : '') + '📝 ' + WRAP_.html(ev.memo);
     var files = '';
     if (ev.plan)   files += '<a class="filebtn" href="' + esc(previewLink(ev.plan)) + '" target="_blank">📄 計画表</a>';
     if (ev.report) files += '<a class="filebtn" href="' + esc(previewLink(ev.report)) + '" target="_blank">📝 報告書</a>';
@@ -352,7 +352,7 @@ function renderList(){
     html += '<div class="ev' + (isCancel ? ' cancelled' : '') + '" id="ev-' + ev.id + '">' +
       '<table class="evhead"><tr>' +
         '<td>' + (isCancel ? '<span class="cancelbadge">中止</span>' : '') +
-          '<span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + esc(ev.title) + '</span></td>' +
+          '<span class="evdate">' + fmtDate(ev.date) + '</span><span class="evtitle">' + WRAP_.html(ev.title, true) + '</span></td>' +
         '<td class="evicons">' + icons + '</td>' +
       '</tr></table>' +
       (info ? '<div class="evinfo">' + info + '</div>' : '') +
