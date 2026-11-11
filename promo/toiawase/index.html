@@ -335,16 +335,20 @@ section:nth-of-type(even) .card{background:var(--cream)}
     <form class="qform" id="qform" novalidate>
       <label>クラブ名<input name="club" maxlength="60" autocomplete="organization"></label>
       <label>お名前<em>必須</em><input name="name" maxlength="40" required autocomplete="name"></label>
-      <label>メールアドレス<em>必須</em><input name="email" type="email" maxlength="120" required autocomplete="email" inputmode="email"></label>
+      <label>メールアドレス<em>必須</em><input name="email" type="email" maxlength="120" required autocomplete="email" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="例：yamada@docomo.ne.jp"></label>
+      <p class="qhint">＠から後ろは、下のボタンを押すと入ります。</p>
+      <div class="qdom"><button type="button" data-d="docomo.ne.jp">@docomo.ne.jp</button><button type="button" data-d="ezweb.ne.jp">@ezweb.ne.jp</button><button type="button" data-d="au.com">@au.com</button><button type="button" data-d="softbank.ne.jp">@softbank.ne.jp</button><button type="button" data-d="i.softbank.jp">@i.softbank.jp</button><button type="button" data-d="gmail.com">@gmail.com</button><button type="button" data-d="yahoo.co.jp">@yahoo.co.jp</button><button type="button" data-d="icloud.com">@icloud.com</button></div>
+      <p class="qhint">ご家族や会の方のアドレスでもかまいません。お返事は dxbears.office@gmail.com から届きます。</p>
       <label>会員数（だいたいで結構です）<input name="members" maxlength="20" inputmode="numeric" placeholder="例：20名"></label>
       <label>ご質問・ご要望<em>必須</em><textarea name="message" rows="6" maxlength="3000" required placeholder="「画面だけ見てみたい」だけでもかまいません"></textarea></label>
       <div class="qhp" aria-hidden="true"><label>この欄は空のままにしてください<input name="hp" tabindex="-1" autocomplete="off"></label></div>
       <input type="hidden" name="t"><input type="hidden" name="page">
       <p class="qmsg" role="status" aria-live="polite"></p>
-      <button class="btn" type="submit">送信する</button>
+      <button class="btn qsub" type="submit">送信する</button>
+      <div class="qconf" hidden><p>このアドレスにお返事します。<br>まちがいがないか、ご確認ください。</p><b class="qaddr"></b><button class="btn qgo" type="button">これで送る</button><button class="qfix" type="button">アドレスを直す</button></div>
       <p class="qpriv">いただいたお名前・メールアドレスは、お返事のためだけに使い、第三者には渡しません。</p>
     </form>
-    <div class="qdone" id="qdone" hidden><b>送信しました。ありがとうございます。</b><span>おおむね3〜5日以内に、メールでお返事いたします。<br>数日たっても届かないときは、迷惑メールのフォルダもご覧ください。</span></div>
+    <div class="qdone" id="qdone" hidden><b>送信しました。ありがとうございます。</b><span>おおむね3〜5日以内に、メールでお返事いたします。<br>数日たっても届かないときは、迷惑メールのフォルダもご覧ください。<br>携帯会社のメールでは、Gmail からのメールが届かない設定になっていることがあります。届かないときは、ご家族など別のアドレスで、もう一度お送りください。</span></div>
     <p class="note">フォームが使えないときは、メールでも受け付けています：<a href="mailto:dxbears.office@gmail.com?subject=%E3%82%AF%E3%83%A9%E3%83%96%E9%81%8B%E5%96%B6%E3%82%A2%E3%83%97%E3%83%AA%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6&amp;body=%0A%E3%82%AF%E3%83%A9%E3%83%96%E5%90%8D%EF%BC%9A%0A%E3%81%8A%E5%90%8D%E5%89%8D%EF%BC%9A%0A%E4%BC%9A%E5%93%A1%E6%95%B0%EF%BC%9A%E7%B4%84%E3%80%80%E3%80%80%E5%90%8D%0A%E3%81%94%E8%B3%AA%E5%95%8F%E3%83%BB%E3%81%94%E8%A6%81%E6%9C%9B%EF%BC%9A%0A">dxbears.office@gmail.com</a></p>
 <style>
 .qform{background:#fff;color:var(--ink);border-radius:14px;padding:20px 18px;margin:24px auto 0;max-width:560px;text-align:left}
@@ -362,22 +366,41 @@ section:nth-of-type(even) .card{background:var(--cream)}
 .qdone b{display:block;font-size:21px;color:var(--green)}
 .qdone span{display:block;margin-top:8px;font-size:17px}
 .cta .note a{color:#fff}
+.qform [hidden]{display:none!important}
+.cta .qform .qhint{font-size:15px;color:var(--gray);margin:-6px 0 8px;line-height:1.6}
+.cta .qform .qpriv{color:var(--gray)}
+.qdom{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.qdom button{font:inherit;font-size:15px;padding:8px 10px;border:2px solid #b9c7bf;border-radius:8px;background:#f4f7f5;color:var(--green);font-weight:700;cursor:pointer}
+.qconf{border:3px solid var(--orange);border-radius:12px;padding:16px 14px;margin-top:6px;text-align:center}
+.cta .qconf p{font-size:17px;margin:0 0 8px;color:var(--ink)}
+.qconf b.qaddr{display:block;font-size:22px;color:var(--green);word-break:break-all;margin-bottom:6px}
+.qconf .qfix{display:block;width:100%;margin-top:10px;font:inherit;font-size:17px;padding:10px;border:2px solid #b9c7bf;border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
 </style>
 <script>
 (function(){
   var f=document.getElementById("qform");if(!f)return;var E=f.elements;
   E["t"].value=Date.now();E["page"].value=location.pathname+location.search;
-  var m=f.querySelector(".qmsg"),b=f.querySelector("button");
+  var m=f.querySelector(".qmsg"),b=f.querySelector(".qgo"),sb=f.querySelector(".qsub"),cf=f.querySelector(".qconf"),em=E["email"],st=0;
+  function ga(n){try{gtag("event",n,{form_id:"qform"})}catch(x){}}
+  f.addEventListener("focusin",function(){if(!st){st=1;ga("form_start")}});
+  function nz(v){return v.replace(/[！-～]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/[ 　]/g,"")}
+  function back(){cf.hidden=true;sb.hidden=false}
+  var ds=f.querySelectorAll(".qdom button");
+  for(var i=0;i<ds.length;i++)ds[i].addEventListener("click",function(){var v=nz(em.value),k=v.indexOf("@");em.value=(k<0?v:v.slice(0,k))+"@"+this.getAttribute("data-d");back();em.focus()});
+  em.addEventListener("input",back);
+  f.querySelector(".qfix").addEventListener("click",function(){back();em.focus()});
   f.addEventListener("submit",function(e){
-    e.preventDefault();m.textContent="";
+    e.preventDefault();m.textContent="";em.value=nz(em.value);
     if(!E["name"].value.trim()){m.textContent="お名前をお書きください。";E["name"].focus();return}
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(E["email"].value.trim())){m.textContent="メールアドレスをご確認ください。";E["email"].focus();return}
+    if(!/^[^@ ]+@[^@ ]+[.][^@ ]+$/.test(em.value)){m.textContent="メールアドレスをご確認ください。＠の前と後ろが入っているか、お確かめください。";em.focus();return}
     if(!E["message"].value.trim()){m.textContent="ご質問・ご要望をお書きください。";E["message"].focus();return}
+    f.querySelector(".qaddr").textContent=em.value;sb.hidden=true;cf.hidden=false;cf.scrollIntoView({block:"center"});ga("form_confirm");
+  });
+  b.addEventListener("click",function(){
     b.disabled=true;b.textContent="送信しています…";
     fetch("https://script.google.com/macros/s/AKfycbyiPA5kbzYU4pkXGJx7vvpAq03aZG_2ybC64L1a0WAgMwRgN-t766p1q5u-gn3gQH6vRQ/exec",{method:"POST",mode:"no-cors",body:new URLSearchParams(new FormData(f))})
-      .then(function(){f.hidden=true;var d=document.getElementById("qdone");d.hidden=false;d.scrollIntoView({block:"center"});
-        try{gtag("event","form_submit",{form_id:"qform"})}catch(x){}})
-      .catch(function(){b.disabled=false;b.textContent="送信する";m.textContent="送れませんでした。通信のよい所でもう一度押すか、下のアドレスへメールでお送りください。"});
+      .then(function(){f.hidden=true;var d=document.getElementById("qdone");d.hidden=false;d.scrollIntoView({block:"center"});ga("form_submit")})
+      .catch(function(){b.disabled=false;b.textContent="これで送る";m.textContent="送れませんでした。通信のよい所でもう一度押すか、下のアドレスへメールでお送りください。"});
   });
 })();
 </script>
