@@ -206,6 +206,37 @@ h1.h2{font-size:29px;color:var(--green);text-align:center;line-height:1.5}.cta h
 .st3 span{display:block;margin-top:6px;font-size:16px;line-height:1.6;color:var(--ink)}
 .hnote{margin-top:16px;text-align:center}
 .hbtn{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:center;margin-top:14px}
+@media(max-width:520px){.hero h1 .big{font-size:36px}}
+.door2{display:grid;gap:12px;max-width:640px;margin:22px auto 0}
+@media(min-width:640px){.door2{grid-template-columns:1fr 1fr}}
+.door2 a{display:block;background:#fff;color:var(--ink);text-decoration:none;border-radius:14px;padding:14px 16px;border:3px solid var(--orange);text-align:left;position:relative;padding-right:40px}
+.door2 a::after{content:"›";position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:32px;color:var(--orange);line-height:1}
+.door2 b{display:block;font-size:20px;color:var(--green);line-height:1.45}
+.door2 span{display:block;font-size:16px;color:var(--gray);margin-top:2px;line-height:1.5}
+.nen4{list-style:none;display:grid;gap:14px;margin:26px 0 0;padding:0}
+@media(min-width:760px){.nen4{grid-template-columns:1fr 1fr}}
+.nen4 li{background:#fff;border:3px solid var(--green2);border-radius:14px;padding:16px 18px}
+.nen4 em{display:inline-block;font-style:normal;font-size:15px;font-weight:700;color:#fff;background:var(--green);border-radius:999px;padding:2px 14px}
+.nen4 b{display:block;font-size:21px;color:var(--green);margin-top:8px;line-height:1.5}
+.nen4 span{display:block;font-size:17px;line-height:1.7;margin-top:4px}
+.tj{margin-top:26px;display:grid;gap:12px}
+.tjh{display:none}
+.tjr{background:#fff;border:2px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:6px}
+.tjr b{font-size:19px;color:var(--ink);line-height:1.5}
+.tjr span{display:block;font-size:17px;line-height:1.6}
+.tjr i{display:block;font-style:normal;font-size:14px;font-weight:700}
+.tjr .o{color:var(--gray)}
+.tjr .o i{color:var(--gray)}
+.tjr .n{background:#eef6f1;border-left:6px solid var(--green);border-radius:6px;padding:6px 10px;color:var(--ink);font-weight:700}
+.tjr .n i{color:var(--green)}
+@media(min-width:760px){.tjh{display:grid;grid-template-columns:1.1fr 1.3fr 1.6fr;gap:14px;padding:0 16px;font-size:15px;font-weight:700;color:var(--green)}
+.tjr{grid-template-columns:1.1fr 1.3fr 1.6fr;gap:14px;align-items:center}
+.tjr i{display:none}}
+.tejun .hnote .more{margin-left:.6em}
+.ok3{list-style:none;max-width:640px;margin:20px auto 0;padding:0}
+.ok3 li{position:relative;padding-left:1.7em;margin:0 0 8px;font-size:19px;line-height:1.6}
+.ok3 li::before{content:"✓";position:absolute;left:0;color:var(--green);font-weight:700}
+.tachi .tp{max-width:680px;margin:16px auto 0;line-height:1.8}
 /* ===== ヘッダーとメニュー（2026-09-30。決定P1・P2・P6・P7） ===== */
 html{scroll-padding-top:190px}
 /* 折り返し（2026-10-22 只隈さん「文の途中で早く改行されすぎる」「幹事さ／んの のように切れて読みにくい」）
@@ -391,22 +422,42 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <div class="hero">
   <div class="wrap">
     <div class="club">山の会・ハイキングクラブの運営アプリ「よりあい帳」</div>
-    <h1>山の会の運営が、
-      <span class="big">これひとつで回り出す。</span>
+    <h1>山の会の幹事の1年を、
+      <span class="big">まるごと軽くします</span>
     </h1>
-    <p>出欠のとりまとめ、会員名簿、山行ごとの係の割当、<br>
-       マイカー代の精算、計画書の置き場所。<br>
-       山の会の運営そのものを、ひとつにまとめる道具です。<br>
+    <p>年度はじめの年間予定から、毎回の出欠・係・車・精算、
+       1年分の記録、次の幹事さんへの引き継ぎまで。<br>
+       ひとつの道具にまとめます。<br>
        会員の皆さまは、見て押すだけです。</p>
     <p class="heronote">アプリを入れる必要も、パスワードもありません。</p>
+    <div class="door2">
+      <a href="#kanji"><b>いまの会の幹事さんへ</b><span>幹事の1年が、どう軽くなるか</span></a>
+      <a href="#tachiage"><b>これから会を立ち上げる方へ</b><span>少人数のうちに、形を作っておく</span></a>
+    </div>
   </div>
 </div>
+<section class="nen" id="kanji">
+  <div class="wrap">
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>幹事の1年が、こう変わります</h2>
+    <p class="lead">山行1回の便利さではなく、1年を通した幹事さんの重さを軽くする道具です</p>
+    <ol class="nen4">
+      <li><em>年度はじめ</em><b>年間予定を、まとめて入れる</b><span>お手持ちのExcelを貼り付けるだけで、数十件の予定をまとめて登録できます。係・担当の列もそのまま読み取ります。</span></li>
+      <li><em>毎回の山行</em><b>出欠・係・車・精算が、ひと続き</b><span>会員は「参加」「不参加」を押すだけ。電話で聞いた出欠は、幹事さんが代わりに入れられます。返事のない方が一目で分かり、車の台数と席の数もその場で出ます。帰りの車代も、そのまま精算できます。</span></li>
+      <li><em>年度の終わり</em><b>1年分の記録が、残っている</b><span>予定、出欠、山行ごとの係。1年分が山行ごとに残っています。計画書や報告書のリンクも、その山行に置いておけます。</span></li>
+      <li><em>幹事の交代</em><b>そのまま、次の方へ</b><span>名簿も、予定も、記録も、アプリの中にあります。幹事さんが替わっても、紙の束やLINEの履歴を引き継ぐ必要がありません。</span></li>
+    </ol>
+    <div class="hbtn"><a class="more" href="dekiru/">できることを、くわしく見る ›</a></div>
+  </div>
+</section>
+
 <h2 class="slh"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M10 8.5v7l6-3.5z"/></svg>見てみる</h2>
 <div class="slw"><div class="slider" aria-roledescription="カルーセル" aria-label="ご案内">
   <div class="track" tabindex="-1"><div class="slide" role="group" aria-roledescription="スライド" aria-label="1枚目（全3枚）"><a class="mbanner big" href="douga/"><img src="video/kaiin.jpg" width="960" height="540" alt=""><div><b>30秒の動画で見る</b><span>会員さん編・幹事さん編・精算編。字幕つきです</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>動画を見る</em></div></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="2枚目（全3枚）"><a class="dbanner big" href="mihon/"><svg class="ic dic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>登録なしで、いますぐ触れます</b><span>体験版で、出欠・車・精算をお試しください。作りものの会なので、押してもどこにも届きません</span></div><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>体験版を開く</em></a></div><div class="slide" role="group" aria-roledescription="スライド" aria-label="3枚目（全3枚）"><a class="mbanner big" href="manga/"><img src="manga/01b.jpg" width="1100" height="614" alt=""><div><b>マンガ・1分で読めます</b><span>まずは、ある幹事さんのお話から</span><em><svg class="ic tp" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M22 14a8 8 0 0 1-8 8"/><path d="M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1"/><path d="M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10"/><path d="M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>マンガを読む</em></div></a></div></div>
   <div class="slctl"><button type="button" class="arr prev" aria-label="前へ">‹</button><span class="dots"><button type="button" class="dot" aria-label="1枚目を見る"></button><button type="button" class="dot" aria-label="2枚目を見る"></button><button type="button" class="dot" aria-label="3枚目を見る"></button></span><button type="button" class="arr next" aria-label="次へ">›</button><button type="button" class="stop" aria-pressed="false">■ 止める</button></div>
 </div></div>
 <script>(function(){var w=document.querySelector(".slider");if(!w)return;var t=w.querySelector(".track"),s=t.children,d=w.querySelectorAll(".dot"),st=w.querySelector(".stop"),i=0,tm=null,rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;function mark(){d.forEach(function(x,k){x.setAttribute("aria-current",k===i?"true":"false")})}function go(n,sm){i=(n+s.length)%s.length;t.scrollTo({left:i*t.clientWidth,behavior:(rm||!sm)?"auto":"smooth"});mark()}function play(){stopT();tm=setInterval(function(){go(i+1,true)},8000);st.textContent="■ 止める";st.setAttribute("aria-pressed","false")}function stopT(){if(tm){clearInterval(tm);tm=null}}function halt(){stopT();st.textContent="▶ 動かす";st.setAttribute("aria-pressed","true")}var sc;t.addEventListener("scroll",function(){clearTimeout(sc);sc=setTimeout(function(){var n=Math.round(t.scrollLeft/t.clientWidth);if(n!==i){i=n;mark()}},80)},{passive:true});["pointerdown","touchstart","mouseenter","focusin","wheel"].forEach(function(ev){t.addEventListener(ev,halt,{passive:true})});w.querySelector(".prev").addEventListener("click",function(){halt();go(i-1,true)});w.querySelector(".next").addEventListener("click",function(){halt();go(i+1,true)});d.forEach(function(x,k){x.addEventListener("click",function(){halt();go(k,true)})});st.addEventListener("click",function(){if(tm)halt();else{play()}});window.addEventListener("resize",function(){go(i,false)});mark();if(rm)halt();else play();})();</script>
+
+
 
 <section class="jis">
   <div class="wrap">
@@ -425,25 +476,51 @@ section:nth-of-type(even) .card{background:var(--cream)}
   </div>
 </section>
 
-<section>
+<section class="tejun">
   <div class="wrap">
-    <h2>クラブ運営の、この手間をなくします</h2>
-    <p class="lead">幹事をされている方なら、心当たりがあると思います</p>
-    <div class="problems">
-      <div class="prob top"><b>何人来るのか、車は何台要るのか、なかなか決まらない</b>
-        <span>出欠がそろわないと、車の台数も、誰が車を出すかも決められない。係も計画書も、その後ろで止まる。</span></div>
-      <div class="prob"><b>マイカー代を電卓で計算</b>
-        <span>距離×単価÷人数、高速代は別、途中乗車の人は減額。毎回この計算。</span></div>
-      <div class="prob"><b>「うちの車は持ち出しが多い」</b>
-        <span>一律いくらの精算だと、遠征のときに運転者の負担が大きくなる。</span></div>
-      <div class="prob"><b>電話でしか出欠を答えない方がいる</b>
-        <span>聞いたことを手元に書き留めて、あとで名簿と突き合わせる。忘れると漏れる。</span></div>
-      <div class="prob"><b>係を誰に頼んだか、当日に確認し直す</b>
-        <span>リーダー、会計、記録。決めたはずのことを、朝の集合場所でもう一度確認する。</span></div>
-      <div class="prob"><b>年間予定を数十件、1件ずつ入力する</b>
-        <span>年度初めに、定例集会も山行も役員会も。手元のExcelがあるのに入れ直す。</span></div>
-      <div class="prob"><b>計画書が、あとの会話に押し流される</b>
-        <span>送ったはずの地図や計画書が、どこにあるか分からなくなる。また送り直す。</span></div>
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M8 2.5v4M16 2.5v4M3 10h18"/><path d="m8.5 15.5 2.5 2.5 4.5-5"/></svg>幹事さんの仕事を、並べてみました</h2>
+    <p class="lead">LINE・電話・紙でのやり方と、よりあい帳でのやり方</p>
+    <div class="tj">
+      <div class="tjh" aria-hidden="true"><span>幹事さんの仕事</span><span>LINE・電話・紙</span><span>よりあい帳</span></div>
+      <div class="tjr"><b>年間の予定を入れる</b><span class="o"><i>LINE・電話・紙</i>1件ずつ入力し直す</span><span class="n"><i>よりあい帳</i>Excelを貼り付けて、まとめて登録</span></div>
+      <div class="tjr"><b>予定を知らせる</b><span class="o"><i>LINE・電話・紙</i>LINEやメールに、毎回書いて送る</span><span class="n"><i>よりあい帳</i>予定を入れると、会員全員の画面に出る</span></div>
+      <div class="tjr"><b>出欠を集める</b><span class="o"><i>LINE・電話・紙</i>LINE・電話の返事を、紙や表に写す</span><span class="n"><i>よりあい帳</i>会員が押す。電話の分は幹事さんが代わりに入力</span></div>
+      <div class="tjr"><b>返事のない方に声をかける</b><span class="o"><i>LINE・電話・紙</i>名簿と見比べて探す</span><span class="n"><i>よりあい帳</i>返事のない方が、一目で分かる</span></div>
+      <div class="tjr"><b>係を決めて伝える</b><span class="o"><i>LINE・電話・紙</i>誰に頼んだかを覚えておく。当日に確認し直す</span><span class="n"><i>よりあい帳</i>割り当てた係が、会員全員の画面に出る</span></div>
+      <div class="tjr"><b>車の台数を決める</b><span class="o"><i>LINE・電話・紙</i>人数がそろうまで決まらない</span><span class="n"><i>よりあい帳</i>車の台数・席・参加の人数が並んで出る。足りなければ赤で知らせる</span></div>
+      <div class="tjr"><b>車代を精算する</b><span class="o"><i>LINE・電話・紙</i>距離と高速代を調べて、電卓で計算</span><span class="n"><i>よりあい帳</i>距離・高速代・人数を入れると、1人あたりがその場で出る</span></div>
+      <div class="tjr"><b>計画書を渡す</b><span class="o"><i>LINE・電話・紙</i>あとの会話に流れて、送り直す</span><span class="n"><i>よりあい帳</i>その山行に紐づけて置ける</span></div>
+      <div class="tjr"><b>幹事を交代する</b><span class="o"><i>LINE・電話・紙</i>紙とLINEの履歴を引き継ぐ</span><span class="n"><i>よりあい帳</i>名簿も予定も記録も、そのまま続く</span></div>
+    </div>
+    <p class="hnote">LINEでのご連絡は、これまでどおり続けていただけます。<a class="more" href="dekiru/#line">LINEとの違いを見る ›</a></p>
+  </div>
+</section>
+
+<section class="ainori">
+  <div class="wrap">
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 16.5v-4l2.2-5.5h12.6l2.2 5.5v4z"/><path d="M3.5 12.5h17"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/></svg>マイカー相乗りの精算まで、ひと続きです</h2>
+    <p class="lead">出欠で「車を出す」と答えた方の車が、そのまま精算に並びます</p>
+    <ul class="ok3">
+      <li>距離は地図から、高速代は料金表から入ります</li>
+      <li>車が2台以上でも、行きと帰りで運転を替わっても、まとめて計算できます</li>
+      <li>画面を見せながら精算できるので、説明が要りません</li>
+    </ul>
+    <div class="cards">
+      <a class="card" href="seisan/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 16.5v-4l2.2-5.5h12.6l2.2 5.5v4z"/><path d="M3.5 12.5h17"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/></svg><div><b>まずは、無料の精算を使ってみる</b><span>ガソリン代・高速代・駐車場代の割り勘。登録不要。どなたでもお使いいただけます</span></div></a>
+    </div>
+  </div>
+</section>
+
+<section class="tachi" id="tachiage">
+  <div class="wrap">
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4.5h11l-2 4 2 4H5"/></svg>これから会を立ち上げる方へ</h2>
+    <p class="lead">できたばかりの会・少人数のサークルでも、お使いいただけます</p>
+    <p class="tp">人数が増えてくると、出欠のとりまとめ、車の割り振り、お金のやりとりが、主宰される方おひとりに集まってきます。少人数のうちに形を作っておけば、会が大きくなっても、やり方を変えずに続けられます。</p>
+    <p class="tp">名簿と予定は、ご自分で入れていただけます。少人数の会が始めやすい料金にしています。</p>
+    <div class="cards">
+      <a class="card" href="mihon/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></svg><div><b>体験版を触ってみる</b><span>登録なし。作りものの会なので、押してもどこにも届きません</span></div></a>
+      <a class="card" href="seisan/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 16.5v-4l2.2-5.5h12.6l2.2 5.5v4z"/><path d="M3.5 12.5h17"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/></svg><div><b>相乗りの精算だけ、先に使う（無料）</b><span>次の山行の帰りに、そのまま使えます</span></div></a>
+      <a class="card" href="ryokin/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg><div><b>少人数の会の料金を見る</b><span>まずは3ヶ月、無料でお試しいただけます</span></div></a>
     </div>
   </div>
 </section>
@@ -459,15 +536,6 @@ section:nth-of-type(even) .card{background:var(--cream)}
     </ol>
     <p class="hnote">料金は、リーズナブルな価格設定です。お試しだけで終わりにされた場合、費用はかかりません。</p>
     <div class="hbtn"><a class="btn" href="toiawase/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 6.5 9 7 9-7"/></svg> お問い合わせ</a><a class="more" href="ryokin/">料金と導入の流れを見る ›</a></div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M21.5 20a6.5 6.5 0 0 0-3.8-5.9"/></svg>ご紹介くださる方へ</h2>
-    <div class="cards">
-      <a class="card" href="shoukai/"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M21.5 20a6.5 6.5 0 0 0-3.8-5.9"/></svg><div><b>ほかの会の幹事さんに、見せる・送る</b><span>QRコード・LINEで送る・動画と体験版。ご紹介でご契約されると、お二人に5,000円のオプションを1つずつプレゼントします。</span></div></a>
-    </div>
   </div>
 </section>
 
