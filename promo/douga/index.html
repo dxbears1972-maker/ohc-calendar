@@ -340,6 +340,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 @media (prefers-reduced-motion:no-preference){.ic.tp{animation:tp 2.4s ease-in-out infinite}}
 @keyframes tp{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(3px) scale(.92)}90%{transform:translateY(0)}}
 /* ===== ヘッダーとメニューここまで ===== */
+.crumb{font-size:16px;color:var(--gray);margin:0 0 12px;text-align:left}.art .crumb a,.crumb a{color:var(--green);font-weight:700;text-decoration:underline}.ftop{display:inline-block;margin:0 0 10px;font-weight:700;font-size:17px}
 </style>
 </head>
 <body>
@@ -361,7 +362,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <style>.vbox{margin:26px 0 34px}.vbox h2{margin-top:0}.vbox video{display:block;width:100%;height:auto;border-radius:12px;background:#000}.vbox .lineb{display:inline-flex;align-items:center;gap:10px;margin-top:12px;background:var(--green);color:#fff!important;font-size:18px;font-weight:700;text-decoration:none!important;border-radius:12px;padding:10px 18px}.vbox .lineb .ic{width:24px;height:24px}</style>
 <section class="art">
   <div class="wrap">
-    <h1>30秒の動画で見る、よりあい帳</h1>
+    <p class="crumb"><a href="../">トップ</a> ＞ 30秒の動画で見る、よりあい帳</p>
+<h1>30秒の動画で見る、よりあい帳</h1>
     <p>山の会の運営アプリ「よりあい帳」を、30秒ずつの動画でご紹介します。押すと音が出ます。字幕が付いているので、音を出せない所でもご覧いただけます。</p>
     <div class="vbox" id="kaiin">
       <h2>会員さん編　会の予定は、スマホで見るだけ</h2>
@@ -391,6 +393,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 
 <footer>
   <div class="wrap">
+    <a class="ftop" href="../">トップページへ戻る</a><br>
     Dxベアーズ　ハイキングクラブ運営アプリ<br>
     <a href="../mihon/">体験版</a>　<a href="../yomimono/">読みもの</a>　<a href="../seisan/">相乗りの精算（無料）</a><br>
     <a href="mailto:dxbears.office@gmail.com">dxbears.office@gmail.com</a><br>

@@ -305,6 +305,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 @media (prefers-reduced-motion:no-preference){.ic.tp{animation:tp 2.4s ease-in-out infinite}}
 @keyframes tp{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(3px) scale(.92)}90%{transform:translateY(0)}}
 /* ===== ヘッダーとメニューここまで ===== */
+.crumb{font-size:16px;color:var(--gray);margin:0 0 12px;text-align:left}.art .crumb a,.crumb a{color:var(--green);font-weight:700;text-decoration:underline}.ftop{display:inline-block;margin:0 0 10px;font-weight:700;font-size:17px}
 </style>
 </head>
 <body>
@@ -328,7 +329,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
 
 <section>
   <div class="wrap">
-    <h1 class="h2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><path d="M12 17.3h.01"/></svg>よくあるご質問</h1>
+    <p class="crumb"><a href="../">トップ</a> ＞ よくある質問</p>
+<h1 class="h2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.9 2.6c-.8.4-1.2 1-1.2 1.8v.6"/><path d="M12 17.3h.01"/></svg>よくあるご質問</h1>
     <nav class="faqnav"><a href="#hiyou">費用とお支払い</a><a href="#sumaho">スマホとLINEと使い方</a><a href="#support">導入とサポート</a></nav>
     <h3 class="faqh" id="hiyou"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg>費用とお支払い</h3>
     <div class="faq">
@@ -443,6 +445,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 
 <footer>
   <div class="wrap">
+    <a class="ftop" href="../">トップページへ戻る</a><br>
     Dxベアーズ　ハイキングクラブ運営アプリ<br>
     <a href="../mihon/">体験版</a>　<a href="../yomimono/">読みもの</a>　<a href="../seisan/">相乗りの精算（無料）</a><br>
     <a href="mailto:dxbears.office@gmail.com">dxbears.office@gmail.com</a><br>

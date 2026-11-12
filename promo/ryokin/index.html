@@ -305,6 +305,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 @media (prefers-reduced-motion:no-preference){.ic.tp{animation:tp 2.4s ease-in-out infinite}}
 @keyframes tp{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(3px) scale(.92)}90%{transform:translateY(0)}}
 /* ===== ヘッダーとメニューここまで ===== */
+.crumb{font-size:16px;color:var(--gray);margin:0 0 12px;text-align:left}.art .crumb a,.crumb a{color:var(--green);font-weight:700;text-decoration:underline}.ftop{display:inline-block;margin:0 0 10px;font-weight:700;font-size:17px}
 </style>
 </head>
 <body>
@@ -327,7 +328,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
 
 <section>
   <div class="wrap">
-    <h1 class="h2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg>料金</h1>
+    <p class="crumb"><a href="../">トップ</a> ＞ 料金</p>
+<h1 class="h2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3l6 8 6-8"/><path d="M12 11v10M7 13.5h10M7 17.5h10"/></svg>料金</h1>
     <p class="lead">おひとり年600円（月50円にあたります）。お支払いは年1回です</p>
 
     <div class="pricebox">
@@ -335,9 +337,10 @@ section:nth-of-type(even) .card{background:var(--cream)}
       <div class="amount">
         <span class="unit">おひとり </span><span class="yen">600</span><span class="unit">円 / 年（税込）</span>
       </div>
-      <div class="per"><b>20名様までは、年10,000円が上限です。</b>17名から20名様の会は、年10,000円です</div>
-      <table class="ptab"><caption>会の人数と年額（税込）</caption><tr><th>6名</th><td>3,600円</td></tr><tr><th>10名</th><td>6,000円</td></tr><tr><th>16名</th><td>9,600円</td></tr><tr><th>17名から20名</th><td>10,000円</td></tr></table>
-<style>.ptab{margin:14px auto 0;border-collapse:collapse;font-size:18px}.ptab caption{font-size:15px;color:var(--gray);margin-bottom:4px}.ptab th,.ptab td{border:1px solid var(--line);padding:6px 16px;text-align:right;background:#fff}.ptab th{font-weight:400;text-align:left}.setupfee.sm{margin-top:14px;border-color:var(--orange)}</style>
+      <div class="per"><b>20名様までは、年10,000円が上限です。</b></div>
+      <table class="ptab"><caption>会の人数ごとの料金（税込）</caption><tr><th>会の人数</th><th>初年度</th><th>2年目から<br>（毎年）</th></tr><tr><th>6名</th><td>3,600円<sup>※</sup></td><td>3,600円</td></tr><tr><th>10名</th><td>6,000円<sup>※</sup></td><td>6,000円</td></tr><tr><th>12名</th><td>30,000円</td><td>7,200円</td></tr><tr><th>16名</th><td>30,000円</td><td>9,600円</td></tr><tr><th>17名から20名</th><td>30,000円</td><td>10,000円</td></tr><tr><th>30名</th><td>30,000円</td><td>15,000円</td></tr></table>
+      <p class="pnote">※10名様までの会は、導入初期設定費をいただきません（2027年3月末までのお申し込み。名簿と予定はご自分で入れていただきます）。<br>11名様からの初年度は、導入初期設定費 30,000円です（初年度1年分の年額を含みます）。<br>21名様からは、20名を超えた1名につき年500円を足します。</p>
+<style>.ptab{margin:16px auto 0;border-collapse:collapse;font-size:17px;width:100%;max-width:520px}.ptab caption{font-size:17px;font-weight:700;color:var(--green);margin-bottom:6px}.ptab th,.ptab td{border:1px solid var(--line);padding:8px 10px;text-align:right;background:#fff;color:#222}.ptab th{font-weight:400;text-align:left}.ptab tr:first-child th{background:var(--green);color:#fff;text-align:center;font-size:15px;line-height:1.4}.ptab sup{font-size:12px}.pnote{font-size:15px;color:var(--gray);text-align:left;max-width:520px;margin:8px auto 0;line-height:1.7}.setupfee.sm{margin-top:14px;border-color:var(--orange)}</style>
       <div class="setupfee">
         <b>導入初期設定費 30,000円</b><span class="once">（税込・最初の一度だけ。初年度1年分の年額を含みます）</span>
         <span class="d">クラブ様がすぐお使いになれる状態に、こちらで<b>ととのえる費用</b>です。
@@ -352,11 +355,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
         <span class="d">年額（おひとり年600円）は、初年度からいただきます。あとで人数が増えても、初期設定費をさかのぼっていただくことはありません</span>
       </div>
       <ul class="pricelist">
-        <li><b>21名以上</b>のクラブは、超えた人数1名につき年500円を加算します<br>
-            （例：30名のクラブ → 10,000円＋5,000円＝<b>15,000円</b>）</li>
-        <li>初期設定費は<b>最初の一度だけ</b>です。2年目以降は年額だけになります<br>
-            （20名様のクラブ → 初年度 30,000円、<b>2年目以降は 10,000円</b>）<br>
-            （12名様のクラブ → 初年度 30,000円、<b>2年目以降は 7,200円</b>）</li>
+        <li>初期設定費は<b>最初の一度だけ</b>です。2年目以降は年額だけになります</li>
         <li><b>お試しだけで終わりにされた場合、費用は一切かかりません。</b>初期設定費も
             いただきません。ご連絡も不要です</li>
         <li>お試し期間が自動で有料に切り替わることはありません。<br>
@@ -430,6 +429,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 
 <footer>
   <div class="wrap">
+    <a class="ftop" href="../">トップページへ戻る</a><br>
     Dxベアーズ　ハイキングクラブ運営アプリ<br>
     <a href="../mihon/">体験版</a>　<a href="../yomimono/">読みもの</a>　<a href="../seisan/">相乗りの精算（無料）</a><br>
     <a href="mailto:dxbears.office@gmail.com">dxbears.office@gmail.com</a><br>
