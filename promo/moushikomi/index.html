@@ -328,7 +328,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 <div class="cta" id="contact">
   <div class="wrap">
     <p class="crumb"><a href="../">トップ</a> ＞ お申込み</p>
-<h1 class="h2">お申込み（3ヶ月 無料でお試し）</h1>
+<h1 class="h2" id="ah1">お申込み（3ヶ月 無料でお試し）</h1>
     <div id="aform">
     <p>下の4つを入れて送ると、確かめのメールが届きます。<br>
        メールの中のリンクを押すと、その場で会のカレンダーができあがります。<br>
@@ -350,7 +350,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
       <p class="qpriv">いただいたお名前・メールアドレスは、会のカレンダーとご連絡のためだけに使い、第三者には渡しません。</p>
     </form>
     </div>
-    <div class="qdone" id="qsent" hidden><b>確かめのメールを送りました。</b><span>メールの中のリンクを押すと、会のカレンダーができあがります（72時間以内にお願いします）。<br>数分たっても届かないときは、迷惑メールのフォルダもご覧ください。<br>携帯会社のメールでは、Gmail からのメールを受け取る設定が要ることがあります。</span></div>
+    <div class="qdone" id="qsent" hidden><b>確かめのメールを送りました。</b><span>メールの中のリンクを押すと、会のカレンダーができあがります（72時間以内にお願いします）。<br>数分たっても届かないときは、迷惑メールのフォルダもご覧ください。<br>携帯会社のメールでは、Gmail からのメールを受け取る設定が要ることがあります。</span><a class="btn qopen" href="../">トップページへ戻る</a></div>
     <div class="qdone" id="qmake" hidden><b class="qmk">会のカレンダーを作っています…</b><span class="qms">そのままお待ちください（30秒ほどかかることがあります）。</span><a class="btn qopen" hidden>アプリを開く</a></div>
     <p class="note">お問い合わせはメールで：dxbears.office@gmail.com</p>
   </div>
@@ -394,7 +394,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
   function ga(n){try{gtag("event",n,{form_id:"apply"})}catch(x){}}
   var q=new URLSearchParams(location.search),k=q.get("k"),t=q.get("t");
   if(k&&t){
-    document.getElementById("aform").hidden=true;
+    document.getElementById("aform").hidden=true;document.getElementById("ah1").textContent="会のカレンダーを作ります";
     var d=document.getElementById("qmake"),mk=d.querySelector(".qmk"),ms=d.querySelector(".qms"),op=d.querySelector(".qopen");d.hidden=false;
     post({action:"applyConfirm",k:k,t:t}).then(function(r){
       if(r&&r.ok){mk.textContent="会のカレンダーができあがりました。";ms.textContent="同じ内容をメールでもお送りしました。下のボタンで開き、お名前「"+(r.name||"")+"」を押してください。";op.href=r.url;op.hidden=false;if(!r.again)ga("apply_made")}
@@ -424,7 +424,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
     b.disabled=true;b.textContent="送信しています…";
     post({action:"apply",club:E["club"].value,name:E["name"].value,mail:em.value,size:nz(E["size"].value),ref:E["ref"].value,agree:E["agree"].checked?"1":"",hp:E["hp"].value,t0:t0})
       .then(function(r){
-        if(r&&r.ok){document.getElementById("aform").hidden=true;var d=document.getElementById("qsent");d.hidden=false;d.scrollIntoView({block:"center"});ga("form_submit")}
+        if(r&&r.ok){document.getElementById("aform").hidden=true;document.getElementById("ah1").textContent="確かめのメールを送りました";var d=document.getElementById("qsent");d.hidden=false;window.scrollTo(0,0);ga("form_submit")}
         else{b.disabled=false;b.textContent="これで送る";back();m.textContent=(r&&r.error)||"送れませんでした。もう一度お試しください。"}
       })
       .catch(function(){b.disabled=false;b.textContent="これで送る";m.textContent="送れませんでした。通信のよい所でもう一度押すか、dxbears.office@gmail.com へメールでお送りください。"});
