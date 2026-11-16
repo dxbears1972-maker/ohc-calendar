@@ -369,6 +369,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
 .qhp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .qmsg{color:#b3261e;font-weight:700;font-size:16px;margin:0}
 .qmsg:empty{display:none}
+.cta .qform .qmsg{color:#b3261e}
 .qpriv{font-size:14px;color:var(--gray);margin-top:12px;line-height:1.7}
 .qdone{background:#fff;color:var(--ink);border-radius:14px;padding:22px 18px;margin:24px auto 0;max-width:560px}
 .qdone b{display:block;font-size:21px;color:var(--green)}
@@ -388,9 +389,9 @@ section:nth-of-type(even) .card{background:var(--cream)}
 </style>
 <script>
 (function(){
-  /* ★段6 で新クラブ用GASのURLに替える（いまは開発版GAS） */
+  /* ★段6 で新クラブ用GASのURLに替える（いまは開発版GAS）。★?club=ohc は「どのクラブの用事か」の札（中身の club＝会の名前を、クラブIDと読ませないため） */
   var API="https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
-  function post(o){return fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)}).then(function(r){return r.json()})}
+  function post(o){return fetch(API+"?club=ohc",{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)}).then(function(r){return r.json()})}
   function ga(n){try{gtag("event",n,{form_id:"apply"})}catch(x){}}
   var q=new URLSearchParams(location.search),k=q.get("k"),t=q.get("t");
   if(k&&t){
