@@ -389,8 +389,8 @@ section:nth-of-type(even) .card{background:var(--cream)}
 </style>
 <script>
 (function(){
-  /* ★段6 で新クラブ用GASのURLに替える（いまは開発版GAS）。★?club=ohc は「どのクラブの用事か」の札（中身の club＝会の名前を、クラブIDと読ませないため） */
-  var API="https://script.google.com/macros/s/AKfycbz6Tc9Tbfq5Eagp3MG0hYR8aA2AqQu8CkNR_g0950Qm_is2q6x5HZlLxWoVSsaQ6oeF/exec";
+  /* ★2026-11-17 段6：送り先は全クラブの本番GAS（新クラブ用）。★?club=ohc は「どのクラブの用事か」の札（中身の club＝会の名前を、クラブIDと読ませないため。OHC のシートには何も書かない） */
+  var API="https://script.google.com/macros/s/AKfycbwVyvBrEE03VMpc03P5fOlrcwkqlYW_pKqBcPF7l6wjy55s3790AIyLzQCKjcCsI1Y/exec";
   function post(o){return fetch(API+"?club=ohc",{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(o)}).then(function(r){return r.json()})}
   function ga(n){try{gtag("event",n,{form_id:"apply"})}catch(x){}}
   var q=new URLSearchParams(location.search),k=q.get("k"),t=q.get("t");
