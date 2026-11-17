@@ -10,7 +10,7 @@
    　・js と css は名前に ?v=版 が付いている＝版ごとに別物なので、保存した分をそのまま使ってよい。
    　・最新のページを取れたら、そのページが使っていない古い版の js・css を消す。
    　・サーバー（script.google.com）への通信には手を出さない。
-   　・このファイルの置き場の下でも、dev/ と promo/ は手を出さない（開発版は dev/sw.js が受け持つ）。
+   　・このファイルの置き場の下でも、dev/ と promo/ と warikan/ は手を出さない（開発版は dev/sw.js が受け持つ・わりかんドライブは保存しない）。
    ================================================================== */
 var SCOPE_PATH = new URL(self.registration.scope).pathname;   /* 例 /ohc-calendar/ */
 /* ★入れ物は同じ github.io の中で共有される（本番・新クラブ用・開発版）＝置き場ごとに名前を分ける */
@@ -22,7 +22,7 @@ function mine_(url) {
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.indexOf(SCOPE_PATH) !== 0) return false;
   var rest = url.pathname.substring(SCOPE_PATH.length);
-  if (/^(dev|promo)\//.test(rest)) return false;
+  if (/^(dev|promo|warikan)\//.test(rest)) return false;   /* ★2026-11-17 わりかんドライブは別のページ（カレンダーとして保存すると、圏外でカレンダーの代わりに出てしまう） */
   return true;
 }
 
