@@ -399,6 +399,7 @@ section:nth-of-type(even) .card{background:var(--cream)}
     var d=document.getElementById("qmake"),mk=d.querySelector(".qmk"),ms=d.querySelector(".qms"),op=d.querySelector(".qopen");d.hidden=false;
     post({action:"applyConfirm",k:k,t:t}).then(function(r){
       if(r&&r.ok){mk.textContent="会のカレンダーができあがりました。";ms.textContent="同じ内容をメールでもお送りしました。下のボタンで開き、お名前「"+(r.name||"")+"」を押してください。";op.href=r.url;op.hidden=false;if(!r.again)ga("apply_made")}
+      else if(r&&r.hold){mk.textContent="お申込みを受け付けました";ms.textContent=r.error;ga("apply_hold")}
       else{d.classList.add("ng");mk.textContent="できませんでした";ms.textContent=(r&&r.error)||"もう一度、メールのリンクを押してください。";if(r&&r.expired){document.getElementById("aform").hidden=false}}
     }).catch(function(){d.classList.add("ng");mk.textContent="つながりませんでした";ms.textContent="通信のよい所で、もう一度メールのリンクを押してください。"});
     return;
